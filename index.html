@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070f">
+<title>Matatu Rush</title>
+<link rel="icon" type="image/png" sizes="16x16" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAASElEQVR42mNgZ+cnCTFQpOH/EQasCLsGEREZoNy06//REFAQKEUNDSQ7CVkDw4kKIBoBGiDBihVRLx6eGdlgGg8UpF7iIwYBAPUEwl9hp9mNAAAAAElFTkSuQmCC">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game" role="img" aria-label="Matatu Rush game view: a matatu driving up a four lane Nairobi road at night"></canvas>
+
+<div id="hud" hidden>
+  <div class="hud-top">
+    <div class="hud-score">
+      <span class="lbl">FARE</span>
+      <span id="score" class="val">KSh 0</span>
+      <span id="best" class="sub">BEST KSh 0</span>
+    </div>
+    <div class="hud-mid">
+      <span id="zone" class="zone">TOM MBOYA ST</span>
+      <span id="speed" class="sub">0 km/h</span>
+    </div>
+    <div class="hud-right">
+      <div id="hearts" role="img" aria-label="Health 3 of 3"></div>
+      <div class="hud-btns">
+        <button id="btnPause" class="ic" type="button" aria-label="Pause">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
+        </button>
+        <button id="btnMuteHud" class="ic mute" type="button" aria-label="Mute sound" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke-width="2" stroke-linecap="round"/><path class="cross" d="M16 9l6 6M22 9l-6 6" fill="none" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="combo" class="combo" hidden>
+    <span id="comboX" class="cx">x2</span>
+    <span class="cl">COMBO</span>
+    <span class="bar"><i id="comboBar"></i></span>
+  </div>
+  <div id="demoTag" class="demo" hidden>DEMO: autopilot is driving. Press Esc for the menu.</div>
+</div>
+
+<div id="controls" hidden>
+  <button id="btnLeft" class="pad" type="button" aria-label="Move one lane left">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l-9 8 9 8z"/></svg><kbd>A</kbd>
+  </button>
+  <button id="btnHorn" class="horn" type="button" aria-label="Horn nitro">
+    <i id="hornFill"></i>
+    <span id="hornLbl" class="hl">HORN</span>
+    <kbd>SPACE</kbd>
+  </button>
+  <button id="btnRight" class="pad" type="button" aria-label="Move one lane right">
+    <kbd>D</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4l9 8-9 8z"/></svg>
+  </button>
+</div>
+
+<section id="title" class="screen" aria-labelledby="logo">
+  <div class="panel">
+    <h1 id="logo" class="logo"><span class="l1">MATATU</span><span class="l2">RUSH</span></h1>
+    <p class="tag">Nairobi after dark. Beba passengers, dodge the chaos, hoot for nitro.</p>
+    <ul class="legend">
+      <li class="good"><canvas data-icon="stage" width="56" height="56" aria-hidden="true"></canvas><div><b>Stage</b><span>Drive through to collect fare. Chain pickups for a combo.</span></div></li>
+      <li class="good"><canvas data-icon="horn" width="56" height="56" aria-hidden="true"></canvas><div><b>Horn nitro</b><span>Fares fill the meter. Hoot to smash through anything.</span></div></li>
+      <li><canvas data-icon="boda" width="56" height="56" aria-hidden="true"></canvas><div><b>Boda boda</b><span>Dodge. A blinking indicator means it is about to swerve.</span></div></li>
+      <li><canvas data-icon="pothole" width="56" height="56" aria-hidden="true"></canvas><div><b>Pothole</b><span>Dodge. Each hit costs a heart.</span></div></li>
+      <li><canvas data-icon="askari" width="56" height="56" aria-hidden="true"></canvas><div><b>Kanjo checkpoint</b><span>Blocks two lanes. A heart and a KSh 100 fine.</span></div></li>
+    </ul>
+    <div class="keys" aria-label="Controls">
+      <p><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> switch lane</p>
+      <p><kbd>Space</kbd> horn nitro</p>
+      <p><kbd>P</kbd> pause <kbd>M</kbd> mute</p>
+      <p class="touch">Touch: tap the left or right side of the road, or use the on-screen buttons.</p>
+    </div>
+    <div class="actions">
+      <button id="btnStart" class="cta" type="button">TWENDE! <small>Start</small></button>
+      <button id="btnDemo" class="ghost" type="button">Watch demo</button>
+      <button id="btnMute" class="ghost" type="button" aria-pressed="false">Sound: On</button>
+    </div>
+    <p id="titleBest" class="bestline">Best fare: KSh 0</p>
+  </div>
+</section>
+
+<section id="pause" class="screen" hidden aria-labelledby="pauseH">
+  <div class="panel small">
+    <h2 id="pauseH" class="h2">PAUSED</h2>
+    <p class="tag">Pumzika kidogo. The road will wait.</p>
+    <div class="actions">
+      <button id="btnResume" class="cta" type="button">ENDELEA <small>Resume</small></button>
+      <button id="btnMutePause" class="ghost" type="button" aria-pressed="false">Sound: On</button>
+      <button id="btnQuit" class="ghost" type="button">Quit to menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="over" class="screen" hidden aria-labelledby="overH">
+  <div class="panel small">
+    <h2 id="overH" class="h2 over">MWISHO WA SAFARI</h2>
+    <p class="tag" id="overTag">Game over. The matatu needs a fundi.</p>
+    <p id="newBest" class="newbest" hidden>REKODI MPYA! New best fare</p>
+    <dl class="stats">
+      <div class="big"><dt>Fare</dt><dd id="oScore">KSh 0</dd></div>
+      <div><dt>Best</dt><dd id="oBest">KSh 0</dd></div>
+      <div><dt>Distance</dt><dd id="oDist">0 km</dd></div>
+      <div><dt>Passengers</dt><dd id="oPax">0</dd></div>
+      <div><dt>Best combo</dt><dd id="oCombo">x0</dd></div>
+    </dl>
+    <div class="actions">
+      <button id="btnAgain" class="cta" type="button">TWENDE TENA <small>Play again</small></button>
+      <button id="btnMenu" class="ghost" type="button">Menu</button>
+    </div>
+  </div>
+</section>
+
+<div id="live" class="sr" aria-live="polite"></div>
+<noscript><p style="color:#fff;padding:24px;font-family:sans-serif">Matatu Rush needs JavaScript. Enable it and reload this page.</p></noscript>
+
+<script src="js/core.js"></script>
+<script src="js/game.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
