@@ -1,0 +1,1053 @@
+{
+  "generated": "2026-11-10T04:36:11.271Z",
+  "browser": "system Google Chrome",
+  "url": "file:///workspace/fable-game/index.html",
+  "passed": 138,
+  "failed": 0,
+  "total": 138,
+  "notes": {
+    "run": {
+      "simSeconds": 26.54,
+      "dist": 168.43,
+      "score": 3228,
+      "pickups": 14,
+      "bestCombo": 9,
+      "hits": {
+        "pothole": 0,
+        "boda": 0,
+        "askari": 0
+      },
+      "nearMiss": 0,
+      "smashed": 1,
+      "speedStart": 5.5,
+      "speedEnd": 6.51,
+      "keyboardInputs": 24,
+      "dodged": 17
+    },
+    "popupsKeyboardRun": {
+      "frames": 421,
+      "maxFloats": 5,
+      "comboAndFareFrames": 252,
+      "hornReadyWithPickupFrames": 33,
+      "slotCopy": {
+        "HORN CHARGING": 44,
+        "HORN READY!": 44
+      }
+    },
+    "audioRun": {
+      "state": "running",
+      "statesSeen": [
+        "running"
+      ],
+      "musicOn": true,
+      "sequencerSteps": 186,
+      "peakRms": 0.4103,
+      "sfxFired": {
+        "start": 1,
+        "lane": 22,
+        "pickup": 14,
+        "horn": 1,
+        "hornShort": 1,
+        "smash": 1,
+        "ready": 1,
+        "zone": 1
+      }
+    },
+    "collisions": {
+      "runs": [
+        {
+          "run": 1,
+          "score": 295,
+          "simSeconds": 16.64,
+          "hits": {
+            "pothole": 1,
+            "boda": 1,
+            "askari": 1
+          },
+          "mode": "gameover"
+        },
+        {
+          "run": 2,
+          "score": 304,
+          "simSeconds": 9.74,
+          "hits": {
+            "pothole": 3,
+            "boda": 0,
+            "askari": 0
+          },
+          "mode": "gameover"
+        }
+      ],
+      "hits": [
+        {
+          "kind": "pothole",
+          "px": 0.08,
+          "entX": 0,
+          "d": 0.89,
+          "health": 2,
+          "fine": 0
+        },
+        {
+          "kind": "boda",
+          "px": 1.67,
+          "entX": 1.76,
+          "d": 1.12,
+          "health": 1,
+          "fine": 0
+        },
+        {
+          "kind": "askari",
+          "px": 1,
+          "entX": 0.5,
+          "d": 0.79,
+          "health": 0,
+          "fine": 100
+        },
+        {
+          "kind": "pothole",
+          "px": 0.08,
+          "entX": 0,
+          "d": 0.89,
+          "health": 2,
+          "fine": 0
+        },
+        {
+          "kind": "pothole",
+          "px": 3,
+          "entX": 3,
+          "d": 0.92,
+          "health": 1,
+          "fine": 0
+        },
+        {
+          "kind": "pothole",
+          "px": 1.5,
+          "entX": 1,
+          "d": 0.88,
+          "health": 0,
+          "fine": 0
+        }
+      ]
+    },
+    "phone": {
+      "simSeconds": 13.16,
+      "pickups": 5,
+      "touchInputs": 13,
+      "hits": {
+        "pothole": 1,
+        "boda": 0,
+        "askari": 0
+      }
+    },
+    "nearMissRepair": {
+      "near": {
+        "i": 8,
+        "tick": 565,
+        "t": 4.708,
+        "type": "nearMiss",
+        "kind": "pothole",
+        "id": 3,
+        "lane": 1,
+        "playerLane": 2
+      },
+      "nearHit": false,
+      "repair": {
+        "i": 15,
+        "tick": 1169,
+        "t": 9.742,
+        "type": "repair",
+        "lane": 0,
+        "health": 3
+      },
+      "before": {
+        "health": 2,
+        "score": 229,
+        "px": 0
+      },
+      "after": {
+        "health": 3,
+        "score": 254,
+        "repairs": 1
+      },
+      "bannerBad": 0,
+      "bannerSeen": 69,
+      "runs": 1,
+      "hits": 1,
+      "nearScore": {
+        "before": 75,
+        "after": 100,
+        "stat": 1
+      }
+    },
+    "demo": {
+      "events": 41,
+      "pickups": 13,
+      "hits": 0
+    },
+    "demoAudio": {
+      "seed": 7,
+      "simSeconds": 21.21,
+      "pickups": 10,
+      "hornReadyEvents": 1,
+      "audioState": "running",
+      "statesSeen": [
+        "running"
+      ],
+      "sequencerSteps": 143,
+      "peakRms": 0.426,
+      "sfxFired": {
+        "start": 1,
+        "lane": 17,
+        "pickup": 10,
+        "horn": 1,
+        "ready": 1
+      },
+      "popups": {
+        "frames": 320,
+        "maxFloats": 4,
+        "comboAndFareFrames": 205,
+        "hornReadyWithPickupFrames": 29,
+        "slotFrames": 42,
+        "slotCopy": {
+          "HORN READY!": 42
+        }
+      }
+    },
+    "videoAudio": {
+      "note": "WebAudio destination recorded with MediaRecorder (opus, 322 KB), offset 1.10 s",
+      "meanDb": -11.8,
+      "maxDb": 0
+    },
+    "video": "out/gameplay-demo.mp4 (645 frames, 21.9 s, 9484 KB, with audio)"
+  },
+  "results": [
+    {
+      "group": "title",
+      "name": "opens from file:// with title screen",
+      "ok": true,
+      "detail": "{\"mode\":\"title\"}"
+    },
+    {
+      "group": "title",
+      "name": "no AudioContext exists before any gesture",
+      "ok": true,
+      "detail": "{\"created\":false,\"state\":\"none\",\"muted\":false,\"musicOn\":false,\"level\":0,\"bpm\":104,\"steps\":0,\"fired\":{}}"
+    },
+    {
+      "group": "title",
+      "name": "controls are explained on the title",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "title",
+      "name": "mute control present on title",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "a11y",
+      "name": "every button has an accessible name",
+      "ok": true,
+      "detail": "15 buttons"
+    },
+    {
+      "group": "a11y",
+      "name": "start button has focus, live region exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "static",
+      "name": "fonts: four @font-face rules, each a relative url to a bundled .ttf that exists, OFL texts present, no Impact left",
+      "ok": true,
+      "detail": "{\"fontUrls\":[\"BarlowCondensed-BlackItalic.ttf\",\"Rajdhani-Medium.ttf\",\"Rajdhani-SemiBold.ttf\",\"Rajdhani-Bold.ttf\"],\"impact\":[]}"
+    },
+    {
+      "group": "static",
+      "name": "no font size below 14 px anywhere in css/style.css",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "group": "static",
+      "name": "no em or en dashes anywhere in shipped source (covers all on-screen text)",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "group": "static",
+      "name": "no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed)",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "group": "static",
+      "name": "inline data: favicon is declared, so http serving never requests /favicon.ico",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "keyboard",
+      "name": "Enter starts the run",
+      "ok": true,
+      "detail": "{\"seed\":11}"
+    },
+    {
+      "group": "audio",
+      "name": "AudioContext created and running after the start gesture",
+      "ok": true,
+      "detail": "{\"created\":true,\"state\":\"running\",\"muted\":false,\"musicOn\":true,\"level\":0,\"bpm\":104,\"steps\":0,\"fired\":{\"start\":1}}"
+    },
+    {
+      "group": "keyboard",
+      "name": "Arrow keys and A/D move exactly one lane, clamped at both kerbs",
+      "ok": true,
+      "detail": "ArrowRight:2 ArrowRight:3 ArrowRight:3 ArrowLeft:2 a:1 a:0 a:0 d:1"
+    },
+    {
+      "group": "keyboard",
+      "name": "lane events come from the keyboard source",
+      "ok": true,
+      "detail": "{\"lane\":6,\"bump\":2,\"inputs\":{\"keyboard\":8,\"touch\":0,\"mouse\":0,\"autopilot\":0}}"
+    },
+    {
+      "group": "keyboard",
+      "name": "matatu settles in the centre of the chosen lane",
+      "ok": true,
+      "detail": "{\"lane\":1,\"x\":1,\"invuln\":0}"
+    },
+    {
+      "group": "audio",
+      "name": "synth music actually reaches the output (analyser RMS > 0)",
+      "ok": true,
+      "detail": "{\"peakRms\":0.3794}"
+    },
+    {
+      "group": "audio",
+      "name": "M mutes: output RMS drops to silence and the choice is stored",
+      "ok": true,
+      "detail": "{\"rms\":0,\"stored\":\"1\"}"
+    },
+    {
+      "group": "audio",
+      "name": "HUD mute button reflects state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "audio",
+      "name": "mute button unmutes: sound returns",
+      "ok": true,
+      "detail": "{\"rms\":0.3986}"
+    },
+    {
+      "group": "pause",
+      "name": "P pauses: simulation tick frozen, pause screen shown",
+      "ok": true,
+      "detail": "{\"tick\":611}"
+    },
+    {
+      "group": "pause",
+      "name": "P resumes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "run",
+      "name": "survived an automated 20 to 30 s input run with real keys",
+      "ok": true,
+      "detail": "{\"simSeconds\":26.54,\"mode\":\"running\",\"health\":3}"
+    },
+    {
+      "group": "run",
+      "name": "all steering came from keyboard events, none from autopilot",
+      "ok": true,
+      "detail": "{\"keyboard\":24,\"touch\":0,\"mouse\":0,\"autopilot\":0}"
+    },
+    {
+      "group": "pickup",
+      "name": "real passenger pickups happened (>= 3)",
+      "ok": true,
+      "detail": "{\"pickups\":14,\"passengers\":47}"
+    },
+    {
+      "group": "pickup",
+      "name": "every pickup had the matatu physically inside the stage bay",
+      "ok": true,
+      "detail": "{\"worstLateral\":0.6000000000000001,\"worstAhead\":1.25,\"limits\":\"lateral < 0.62, ahead < 1.25 (values rounded to 0.01)\"}"
+    },
+    {
+      "group": "combo",
+      "name": "combo chain built and fares scale with it (fare = 50 x combo, x2 in nitro)",
+      "ok": true,
+      "detail": "{\"bestCombo\":9,\"fares\":[50,100,150,200,250,100,100,150]}"
+    },
+    {
+      "group": "run",
+      "name": "score equals the sum of logged events (distance + fares + bonuses - fines)",
+      "ok": true,
+      "detail": "{\"score\":3228,\"fromEvents\":3228}"
+    },
+    {
+      "group": "progress",
+      "name": "speed escalates during the run",
+      "ok": true,
+      "detail": "{\"start\":5.5,\"end\":6.51}"
+    },
+    {
+      "group": "obstacles",
+      "name": "pothole, boda boda and askari checkpoint all appeared on the road",
+      "ok": true,
+      "detail": "[\"stage\",\"pothole\",\"boda\",\"askari\"]"
+    },
+    {
+      "group": "fairness",
+      "name": "obstacles passed in other lanes did no damage",
+      "ok": true,
+      "detail": "{\"dodged\":17,\"hits\":0,\"health\":3}"
+    },
+    {
+      "group": "horn",
+      "name": "Space fires horn nitro from the keyboard when the meter is full",
+      "ok": true,
+      "detail": "{\"i\":16,\"tick\":1441,\"t\":12.008,\"type\":\"horn\",\"source\":\"keyboard\",\"scattered\":1,\"lane\":0}"
+    },
+    {
+      "group": "horn",
+      "name": "nitro drains the meter and boosts speed (> 1.4x base)",
+      "ok": true,
+      "detail": "{\"peakSpeedRatio\":1.65}"
+    },
+    {
+      "group": "horn",
+      "name": "pressing horn again with an empty meter does not re-trigger nitro",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "shots",
+      "name": "gameplay, pickup/combo and nitro screenshots captured",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "popup",
+      "name": "keyboard run: no two live floating popups (or the horn slot) ever overlap; combo and fare seen together",
+      "ok": true,
+      "detail": "{\"frames\":421,\"comboAndFare\":252,\"maxFloats\":5,\"overlaps\":[]}"
+    },
+    {
+      "group": "popup",
+      "name": "keyboard run: horn status only ever appears in its gutter slot (off the road, clear of the matatu), never in the float stack",
+      "ok": true,
+      "detail": "{\"slotFrames\":88,\"copy\":{\"HORN CHARGING\":44,\"HORN READY!\":44},\"bad\":[]}"
+    },
+    {
+      "group": "audio",
+      "name": "during the run the context stays running, music is sequencing and the output is audible",
+      "ok": true,
+      "detail": "{\"state\":\"running\",\"steps\":186,\"peakRms\":0.4103}"
+    },
+    {
+      "group": "audio",
+      "name": "sound effects were triggered by real game events: one pickup sfx per pickup, horn, lane and start",
+      "ok": true,
+      "detail": "{\"start\":1,\"lane\":22,\"pickup\":14,\"horn\":1,\"hornShort\":1,\"smash\":1,\"ready\":1,\"zone\":1}"
+    },
+    {
+      "group": "collision",
+      "name": "drove into a pothole, a boda boda and an askari checkpoint with real keys",
+      "ok": true,
+      "detail": "[\"pothole\",\"boda\",\"askari\"]"
+    },
+    {
+      "group": "collision",
+      "name": "each hit costs exactly one heart",
+      "ok": true,
+      "detail": "{\"hits\":6}"
+    },
+    {
+      "group": "fairness",
+      "name": "every hit had real hitbox overlap (lateral and longitudinal)",
+      "ok": true,
+      "detail": "{\"checked\":6}"
+    },
+    {
+      "group": "fairness",
+      "name": "post-hit grace: no two hits within 1.5 s",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "collision",
+      "name": "askari checkpoint also charges a fine (max KSh 100)",
+      "ok": true,
+      "detail": "[100]"
+    },
+    {
+      "group": "gameover",
+      "name": "health reaching zero ends the run and shows the game over screen with the right numbers",
+      "ok": true,
+      "detail": "[{\"run\":1,\"score\":295,\"simSeconds\":16.64,\"hits\":{\"pothole\":1,\"boda\":1,\"askari\":1},\"mode\":\"gameover\"},{\"run\":2,\"score\":304,\"simSeconds\":9.74,\"hits\":{\"pothole\":3,\"boda\":0,\"askari\":0},\"mode\":\"gameover\"}]"
+    },
+    {
+      "group": "text",
+      "name": "game over screen: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":21,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "restart",
+      "name": "Enter and R restart a clean run (3 hearts, zero score, same fixed seed)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "persist",
+      "name": "best score is the max across runs, flagged as new best only when beaten, written to localStorage",
+      "ok": true,
+      "detail": "{\"best\":304}"
+    },
+    {
+      "group": "persist",
+      "name": "best score survives a page reload and shows on the title",
+      "ok": true,
+      "detail": "Best fare: KSh 304"
+    },
+    {
+      "group": "storage",
+      "name": "corrupt stored best is ignored safely",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "phone",
+      "name": "title fits the phone: start button on screen, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startVisible\":true,\"panelBottom\":657,\"vh\":844,\"sw\":390,\"vw\":390}"
+    },
+    {
+      "group": "touch",
+      "name": "tapping TWENDE starts the run and unlocks audio",
+      "ok": true,
+      "detail": "{\"created\":true,\"state\":\"running\",\"muted\":false,\"musicOn\":true,\"level\":0.0198,\"bpm\":104,\"steps\":1,\"fired\":{\"start\":1}}"
+    },
+    {
+      "group": "touch",
+      "name": "on-screen buttons and tapping the road sides change lanes",
+      "ok": true,
+      "detail": "2,1,0,1"
+    },
+    {
+      "group": "touch",
+      "name": "those lane changes are logged with source touch",
+      "ok": true,
+      "detail": "{\"keyboard\":0,\"touch\":4,\"mouse\":0,\"autopilot\":0}"
+    },
+    {
+      "group": "phone",
+      "name": "touch targets are on screen and at least 44 px",
+      "ok": true,
+      "detail": "{\"left\":{\"w\":79,\"h\":73,\"in\":true},\"horn\":{\"w\":181,\"h\":76,\"in\":true},\"right\":{\"w\":83,\"h\":76,\"in\":true},\"pause\":{\"w\":44,\"h\":44,\"in\":true}}"
+    },
+    {
+      "group": "phone",
+      "name": "HUD is on screen and legible (score font >= 24 px, no overflow)",
+      "ok": true,
+      "detail": "{\"scoreFont\":26,\"score\":{\"w\":53,\"h\":27,\"in\":true},\"zone\":{\"w\":95,\"h\":23,\"in\":true}}"
+    },
+    {
+      "group": "phone",
+      "name": "matatu is drawn above the control bar",
+      "ok": true,
+      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":80,\"w\":160,\"h\":17},\"shake\":0,\"particles\":36,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":141.1,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
+    },
+    {
+      "group": "touch",
+      "name": "tapping HORN fires nitro (source touch)",
+      "ok": true,
+      "detail": "{\"i\":15,\"tick\":747,\"t\":6.225,\"type\":\"horn\",\"source\":\"touch\",\"scattered\":1,\"lane\":2}"
+    },
+    {
+      "group": "touch",
+      "name": "touch-only play collects fares",
+      "ok": true,
+      "detail": "{\"pickups\":5,\"inputs\":{\"keyboard\":0,\"touch\":13,\"mouse\":0,\"autopilot\":0},\"viaTouchRun\":5}"
+    },
+    {
+      "group": "touch",
+      "name": "pause and resume buttons work by touch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "phone",
+      "name": "rotating to landscape re-lays out without errors",
+      "ok": true,
+      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":49,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":378.9,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
+    },
+    {
+      "group": "small",
+      "name": "320x568 title: Start fully on screen with no scrolling, at least 44 px tall, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startTop\":215,\"startBottom\":271,\"vh\":568}"
+    },
+    {
+      "group": "small",
+      "name": "320x568 title: Watch demo and Sound buttons are also on screen without scrolling",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "small",
+      "name": "320x568 play: a tap on the un-scrolled Start begins the run, controls on screen and at least 44 px",
+      "ok": true,
+      "detail": "{\"zone\":\"hud\"}"
+    },
+    {
+      "group": "banner",
+      "name": "320x568 banner (hud) stays out of the road ahead: no overlap with the road below the HUD strip",
+      "ok": true,
+      "detail": "{\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":91,\"y\":79,\"w\":138,\"h\":15},\"roadX\":76,\"hudBottom\":79,\"unit\":42.11}"
+    },
+    {
+      "group": "small",
+      "name": "360x640 title: Start fully on screen with no scrolling, at least 44 px tall, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startTop\":256,\"startBottom\":312,\"vh\":640}"
+    },
+    {
+      "group": "small",
+      "name": "360x640 title: Watch demo and Sound buttons are also on screen without scrolling",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "small",
+      "name": "844x390 title: Start fully on screen with no scrolling, at least 44 px tall, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startTop\":174,\"startBottom\":230,\"vh\":390}"
+    },
+    {
+      "group": "small",
+      "name": "844x390 title: Watch demo and Sound buttons are also on screen without scrolling",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "small",
+      "name": "844x390 play: a tap on the un-scrolled Start begins the run, controls on screen and at least 44 px",
+      "ok": true,
+      "detail": "{\"zone\":\"gutter\"}"
+    },
+    {
+      "group": "banner",
+      "name": "844x390 banner (gutter) stays out of the road ahead: no overlap with the road below the HUD strip",
+      "ok": true,
+      "detail": "{\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"gutter\",\"x\":122,\"y\":151,\"w\":75,\"h\":42},\"roadX\":331,\"hudBottom\":98,\"unit\":45.35}"
+    },
+    {
+      "group": "small",
+      "name": "390x844 title: Start fully on screen with no scrolling, at least 44 px tall, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startTop\":513,\"startBottom\":573,\"vh\":844}"
+    },
+    {
+      "group": "small",
+      "name": "1280x720 title: Start fully on screen with no scrolling, at least 44 px tall, no sideways scroll",
+      "ok": true,
+      "detail": "{\"startTop\":512,\"startBottom\":572,\"vh\":720}"
+    },
+    {
+      "group": "layout",
+      "name": "320x568 title: how-to-play icon row and every button fully on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":12,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "320x568 title: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":19,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "320x568 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "320x568 How to play sheet: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":32,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "320x568 play: closing the sheet returned to the title and Start began the run",
+      "ok": true,
+      "detail": "{\"time\":6.01}"
+    },
+    {
+      "group": "layout",
+      "name": "320x568 play: pause and mute buttons do not cover the right lane (or any tarmac) and stay on screen at 44 px",
+      "ok": true,
+      "detail": "{\"pauseX\":266,\"muteX\":266,\"roadRight\":244.2,\"rightLane\":202.1}"
+    },
+    {
+      "group": "layout",
+      "name": "320x568 play: a shop strip is visible on both sides of the road in portrait (at least half a lane and 20 px each side)",
+      "ok": true,
+      "detail": "{\"shopStrip\":29.5,\"unit\":42.11,\"roadX\":76,\"roadW\":168,\"w\":320}"
+    },
+    {
+      "group": "text",
+      "name": "320x568 play: every visible HUD and control text is at least 14 px (combo chip included)",
+      "ok": true,
+      "detail": "{\"hud\":{\"nodes\":7,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+    },
+    {
+      "group": "popup",
+      "name": "320x568 play: no two live floating popups overlap and all stay within the road width",
+      "ok": true,
+      "detail": "{\"frames\":81,\"maxFloats\":4,\"overlaps\":[]}"
+    },
+    {
+      "group": "text",
+      "name": "320x568 pause: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":13,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "844x390 title: how-to-play icon row and every button fully on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":12,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "844x390 title: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":19,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "844x390 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "844x390 How to play sheet: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":32,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "844x390 play: closing the sheet returned to the title and Start began the run",
+      "ok": true,
+      "detail": "{\"time\":6.01}"
+    },
+    {
+      "group": "layout",
+      "name": "844x390 play: pause and mute buttons do not cover the right lane (or any tarmac) and stay on screen at 44 px",
+      "ok": true,
+      "detail": "{\"pauseX\":734,\"muteX\":786,\"roadRight\":512.7,\"rightLane\":467.3}"
+    },
+    {
+      "group": "layout",
+      "name": "844x390 play: a shop strip is visible on both sides of the road",
+      "ok": true,
+      "detail": "{\"shopStrip\":281.4,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"w\":844}"
+    },
+    {
+      "group": "text",
+      "name": "844x390 play: every visible HUD and control text is at least 14 px (combo chip included)",
+      "ok": true,
+      "detail": "{\"hud\":{\"nodes\":8,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+    },
+    {
+      "group": "popup",
+      "name": "844x390 play: no two live floating popups overlap and all stay within the road width",
+      "ok": true,
+      "detail": "{\"frames\":77,\"maxFloats\":4,\"overlaps\":[]}"
+    },
+    {
+      "group": "text",
+      "name": "844x390 pause: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":14,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "390x844 title: how-to-play icon row and every button fully on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":12,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "390x844 title: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":20,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "390x844 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "390x844 How to play sheet: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":33,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "390x844 play: closing the sheet returned to the title and Start began the run",
+      "ok": true,
+      "detail": "{\"time\":6.03}"
+    },
+    {
+      "group": "layout",
+      "name": "390x844 play: pause and mute buttons do not cover the right lane (or any tarmac) and stay on screen at 44 px",
+      "ok": true,
+      "detail": "{\"pauseX\":336,\"muteX\":336,\"roadRight\":297.70000000000005,\"rightLane\":246.3}"
+    },
+    {
+      "group": "layout",
+      "name": "390x844 play: a shop strip is visible on both sides of the road in portrait (at least half a lane and 20 px each side)",
+      "ok": true,
+      "detail": "{\"shopStrip\":35.9,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"w\":390}"
+    },
+    {
+      "group": "text",
+      "name": "390x844 play: every visible HUD and control text is at least 14 px (combo chip included)",
+      "ok": true,
+      "detail": "{\"hud\":{\"nodes\":7,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+    },
+    {
+      "group": "popup",
+      "name": "390x844 play: no two live floating popups overlap and all stay within the road width",
+      "ok": true,
+      "detail": "{\"frames\":60,\"maxFloats\":4,\"overlaps\":[]}"
+    },
+    {
+      "group": "text",
+      "name": "390x844 pause: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":13,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "fonts",
+      "name": "bundled faces are loaded and in use: Barlow Condensed for display, Rajdhani for body",
+      "ok": true,
+      "detail": "[\"Barlow Condensed 900\",\"Rajdhani 600\",\"Rajdhani 700 900\"]"
+    },
+    {
+      "group": "layout",
+      "name": "1280x720 title: how-to-play icon row and every button fully on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":12,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "1280x720 title: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":32,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "1280x720 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
+      "ok": true,
+      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+    },
+    {
+      "group": "text",
+      "name": "1280x720 How to play sheet: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":57,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "layout",
+      "name": "1280x720 play: closing the sheet returned to the title and Start began the run",
+      "ok": true,
+      "detail": "{\"time\":6.01}"
+    },
+    {
+      "group": "layout",
+      "name": "1280x720 play: pause and mute buttons do not cover the right lane (or any tarmac) and stay on screen at 44 px",
+      "ok": true,
+      "detail": "{\"pauseX\":1170,\"muteX\":1222,\"roadRight\":807.5,\"rightLane\":723.7}"
+    },
+    {
+      "group": "layout",
+      "name": "1280x720 play: a shop strip is visible on both sides of the road",
+      "ok": true,
+      "detail": "{\"shopStrip\":380.5,\"unit\":83.72,\"roadX\":473,\"roadW\":335,\"w\":1280}"
+    },
+    {
+      "group": "text",
+      "name": "1280x720 play: every visible HUD and control text is at least 14 px (combo chip included)",
+      "ok": true,
+      "detail": "{\"hud\":{\"nodes\":11,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+    },
+    {
+      "group": "popup",
+      "name": "1280x720 play: no two live floating popups overlap and all stay within the road width",
+      "ok": true,
+      "detail": "{\"frames\":85,\"maxFloats\":4,\"overlaps\":[]}"
+    },
+    {
+      "group": "text",
+      "name": "1280x720 pause: every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":17,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "nearmiss",
+      "name": "a last moment swerve past a hazard emits nearMiss, with no hit on that hazard",
+      "ok": true,
+      "detail": "{\"i\":8,\"tick\":565,\"t\":4.708,\"type\":\"nearMiss\",\"kind\":\"pothole\",\"id\":3,\"lane\":1,\"playerLane\":2}"
+    },
+    {
+      "group": "nearmiss",
+      "name": "near-miss pays its bonus (score rose by at least 25 across the event)",
+      "ok": true,
+      "detail": "{\"before\":75,\"after\":100,\"stat\":1}"
+    },
+    {
+      "group": "repair",
+      "name": "driving into the fundi spanner emits repair and restores exactly one heart (max 3)",
+      "ok": true,
+      "detail": "{\"before\":{\"health\":2,\"score\":229,\"px\":0},\"after\":{\"health\":3,\"score\":254,\"repairs\":1}}"
+    },
+    {
+      "group": "repair",
+      "name": "repair needed the matatu in that lane and pays KSh 25",
+      "ok": true,
+      "detail": "{\"i\":15,\"tick\":1169,\"t\":9.742,\"type\":\"repair\",\"lane\":0,\"health\":3}"
+    },
+    {
+      "group": "banner",
+      "name": "every banner seen during that 1280x720 play sat in the kerb gutter, never over the road",
+      "ok": true,
+      "detail": "{\"samples\":69,\"overlapping\":0}"
+    },
+    {
+      "group": "storage",
+      "name": "game boots with localStorage throwing",
+      "ok": true,
+      "detail": "{\"storageOk\":false}"
+    },
+    {
+      "group": "storage",
+      "name": "full run to game over works, best kept in memory",
+      "ok": true,
+      "detail": "{\"best\":304}"
+    },
+    {
+      "group": "storage",
+      "name": "restart works without storage",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "demo",
+      "name": "autopilot plays through the same input path (source autopilot) and scores",
+      "ok": true,
+      "detail": "{\"keyboard\":0,\"touch\":0,\"mouse\":0,\"autopilot\":25}"
+    },
+    {
+      "group": "audio",
+      "name": "autostarted demo with no gesture never creates an AudioContext",
+      "ok": true,
+      "detail": "{\"created\":false,\"state\":\"none\",\"muted\":false,\"musicOn\":false,\"level\":0,\"bpm\":104,\"steps\":0,\"fired\":{}}"
+    },
+    {
+      "group": "determinism",
+      "name": "same seed gives an identical event log in two browser runs",
+      "ok": true,
+      "detail": "{\"events\":41}"
+    },
+    {
+      "group": "determinism",
+      "name": "browser event log equals a pure Node replay of js/game.js (events are real simulation output)",
+      "ok": true,
+      "detail": "{\"browser\":41,\"node\":41}"
+    },
+    {
+      "group": "audio",
+      "name": "recording page: no AudioContext and no recorder before the click; the click on Watch demo starts audio (running, music on)",
+      "ok": true,
+      "detail": "{\"before\":\"none\",\"after\":\"running\"}"
+    },
+    {
+      "group": "audio",
+      "name": "demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)",
+      "ok": true,
+      "detail": "{\"peakRms\":0.426,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"ready\":1},\"pickups\":10}"
+    },
+    {
+      "group": "popup",
+      "name": "seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame",
+      "ok": true,
+      "detail": "{\"frames\":320,\"maxFloats\":4,\"overlaps\":[]}"
+    },
+    {
+      "group": "popup",
+      "name": "seed 7 demo: combo (BEBA) and fare popups were visible in the same frame",
+      "ok": true,
+      "detail": "{\"frames\":205}"
+    },
+    {
+      "group": "popup",
+      "name": "seed 7 demo: HORN READY was visible at the same time as pickup text",
+      "ok": true,
+      "detail": "{\"frames\":29}"
+    },
+    {
+      "group": "popup",
+      "name": "seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack",
+      "ok": true,
+      "detail": "{\"slotFrames\":42,\"copy\":{\"HORN READY!\":42},\"bad\":[]}"
+    },
+    {
+      "group": "text",
+      "name": "demo HUD (short demo tag included): every visible text is at least 14 px",
+      "ok": true,
+      "detail": "{\"nodes\":10,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "audio",
+      "name": "out/gameplay-demo.mp4 has a muxed audio stream that is not silent (ffmpeg volumedetect)",
+      "ok": true,
+      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 322 KB), offset 1.10 s\",\"meanDb\":-11.8,\"maxDb\":0}"
+    },
+    {
+      "group": "demo",
+      "name": "gameplay recording saved",
+      "ok": true,
+      "detail": "out/gameplay-demo.mp4 (645 frames, 21.9 s, 9484 KB, with audio)"
+    },
+    {
+      "group": "shots",
+      "name": "required screenshots and contact sheet exist",
+      "ok": true,
+      "detail": "[\"01-title-desktop.png\",\"02-gameplay-desktop.png\",\"03-pickup-combo-desktop.png\",\"04-horn-nitro-desktop.png\",\"05-gameover-desktop.png\",\"06-title-phone.png\",\"07-gameplay-phone.png\",\"08-title-320x568.png\",\"09-title-844x390.png\",\"10-play-320x568.png\",\"11-play-844x390.png\",\"12-popups-fare-combo-hornready-desktop.png\",\"20-320x568-howto.png\",\"20-320x568-pause.png\",\"20-320x568-play.png\",\"20-320x568-title.png\",\"30-844x390-howto.png\",\"30-844x390-pause.png\",\"30-844x390-play.png\",\"30-844x390-title.png\",\"40-390x844-howto.png\",\"40-390x844-pause.png\",\"40-390x844-play.png\",\"40-390x844-title.png\",\"50-1280x720-howto.png\",\"50-1280x720-pause.png\",\"50-1280x720-play.png\",\"50-1280x720-title.png\"]"
+    },
+    {
+      "group": "console",
+      "name": "no console errors, uncaught exceptions or failed requests in any page",
+      "ok": true,
+      "detail": "{\"consoleErrors\":0,\"pageErrors\":0,\"failedRequests\":0,\"warnings\":0}"
+    },
+    {
+      "group": "offline",
+      "name": "every request made by every page was file:// (no network)",
+      "ok": true,
+      "detail": "{\"requests\":231,\"nonFile\":0}"
+    }
+  ]
+}

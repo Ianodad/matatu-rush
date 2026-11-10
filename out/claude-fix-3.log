@@ -1,0 +1,42 @@
+Matatu Rush, fix round 3 (2026-11-10). Builder: Claude Fable 5.2. Codex not run. No commits, no deploy, no paid tools.
+
+RESULT
+node tests/run-tests.cjs: 138/138 checks passed (was 82/82). Console: 0 errors, 0 warnings, 0 page errors, 0 failed requests, 231 requests, all file://.
+Full console output: out/claude-fix-3-run.log. Reports: out/test-report.json, out/console-errors.json.
+The suite was run twice. Run 1 crashed in section 7 (seed 42 autostart demo did not reach tick 2340 within 40 s) and showed 8 false failures from my own over-strict clip detector. I could not reproduce the stall standalone; I added Chrome anti-throttling flags and bringToFront, fixed the detector, and run 2 passed. Root cause of the stall is not proven.
+
+A. Popup overlap: DONE
+ - js/render.js drawTexts: per-frame layout. Newest label sits at its natural spot, each older label that would touch one already placed is lifted clear above it; the lift only grows. Labels are clamped inside the road width, so they also cannot reach the gutter banner or the horn slot. Minimum size 14 px.
+ - Fare and combo stay two labels (combo 0.6 lanes above fare).
+ - HORN READY! / HORN CHARGING: removed from the float path. New R.status slot: a tag in the RIGHT road-side gutter at 42 percent of screen height, two lines when the gutter is narrow. Never on the tarmac, never near the matatu.
+ - snapshot().view now exposes floats[] (text, x, y, w, h as drawn), slot, road, rightLane, player, shops, shopStrip.
+ - Evidence: seed 7 demo, 329 sampled frames with popups, 0 overlaps, combo+fare together in 208, HORN READY with pickup text in 32. Keyboard run: 413 frames, 0 overlaps. Shot: out/screenshots/12-popups-fare-combo-hornready-desktop.png.
+
+B1 Rooftops: DONE. roofBlock / waterTank / acUnit in js/render.js. Cast shadows by height tier, split plots with different depths, parapet ledges or corrugated mabati roofs with a ridge, stair bulkheads, tanks on stands with ribs, lid, highlight and feed pipe, AC units with spinning fans. Far roofs get the same kit plus a penthouse tier. Canvas only.
+B2 Headlight: DONE. js/art.js: two overlapping radial-gradient lobes (focus on each lamp), fading to zero at about 3.05 lanes. No trapezoid. It is now fairly faint.
+B3 Popup outline: DONE. Outline width 26 percent of size (min 4 px), near-black, plus the layout in A.
+B4 Text and phone layout: DONE.
+ - All CSS font sizes are 14 px or more (static check) and every visible text node measures 14 px or more on title, sheet, HUD, combo chip, demo tag, pause and game over at four viewports. Banner sub line and popups have a 14 px floor.
+ - Demo line is now "DEMO. Esc for menu".
+ - Portrait: lane unit min(W/7.6, H/8.6). At 390x844 the road is 205 px of 390 and each shop strip is 36 px; at 320x568 29 px.
+ - Pause and mute: stacked in the right gutter on narrow screens. Asserted against view.rightLane and view.road at all four sizes.
+B5 How to play: DONE. Title has a five-tile icon row; full cards and controls are in a "How to play" sheet. Nothing clipped and no scrolling at 320x568, 360x640 (Start row check), 844x390, 390x844, 1280x720. Existing Start assertions pass.
+B6 Kanjo icon: DONE. New Art.drawAskariIcon: lifted backdrop, fat red and white boom, glowing red and blue beacons, lime vest, white cap. In-world checkpoint: whiter boom with outline, brighter idle beacons, hi-vis vest. Hitboxes unchanged.
+B7 Fonts: DONE. @font-face in css/style.css, relative urls, Barlow Condensed Black Italic for display and Art.FONT, Rajdhani for body. Impact removed. Static scan allows only url("../fonts/<name>.ttf") in the CSS. Tests wait for document.fonts.ready before title shots. README documents the OFL fonts.
+
+C. Audio: DONE
+ - No AudioContext before a gesture: title, seed 42 autostart demo, and the recording page before the click all report created=false.
+ - After Enter: state running, music on, peak RMS 0.43. Mute: silent. Unmute: audible again.
+ - Keyboard run: context stayed running, 186 sequencer steps, sfx fired {start 1, lane 22, pickup 14, horn 1, hornShort 1, smash 1, ready 1, zone 1}; pickup count equals pickup events.
+ - Audio-on capture: feasible, done. out/gameplay-demo.mp4 (21.9 s, h264 + aac) is the seed 7 demo started by a real click on Watch demo. Audio is the game's WebAudio destination recorded with MediaRecorder from a test-side init script, muxed with system ffmpeg. volumedetect: mean -11.8 dB, max 0.0 dB.
+ - out/gameplay.mp4: first 20 s, audio kept (h264 20.0 s, aac 19.0 s; the sound starts about 1 s in, when the demo is clicked).
+
+FILES CHANGED
+css/style.css, index.html, js/art.js, js/audio.js, js/main.js, js/render.js, tests/run-tests.cjs, README.md, NOTES.md, SELF-EVAL.md. js/game.js untouched.
+
+CAVEATS
+ - A git commit "c500630 WIP round 3: Claude edits" (author Fundi) appeared mid-session. This session made no commits.
+ - Visual items judged by the builder from screenshots only. Audio not heard by a person.
+ - Popup sampling is every 20 to 25 ms, not every frame.
+ - On 320 px wide screens the combo chip covers most of the left shop strip while a combo is live.
+ - Not done by instruction: zip rebuild, out/CODEX-*.md, out/HANDOFF.md.
