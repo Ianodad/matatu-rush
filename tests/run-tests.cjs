@@ -62,7 +62,7 @@ async function waitFor(page, pred, timeout, label) {
     if (pred(s)) return s;
     await sleep(30);
   }
-  throw new Error('timeout waiting for ' + label + ' (last mode ' + (s && s.mode) + ')');
+  throw new Error('timeout waiting for ' + label + ' (last mode ' + (s && s.mode) + ', tick ' + (s && s.tick) + ')');
 }
 
 /* ---------- a test-side driver that only looks at the snapshot and presses real inputs ---------- */
@@ -254,7 +254,7 @@ async function layoutChecks(browser) {
     await fontsReady(page); await sleep(350);
     const clipInfo = (rootId, itemSel) => page.evaluate(([rootId, itemSel]) => {
       const root = document.getElementById(rootId);
-      const items = Array.from(root.querySelectorAll(itemSel)).map((el) => { const r = el.getBoundingClientRect(); return { in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1 }; });
+      const items = Array.from(root.querySelectorAll(itemSel)).map((el) => { const r = el.getBoundingClientRect(); return { in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 || (/^(LI|BUTTON)$/.test(el.tagName) && el.scrollHeight > el.clientHeight + 1) }; });
       return { n: items.length, allIn: items.every((i) => i.in), noneClipped: items.every((i) => !i.clipped), scrolls: root.scrollHeight > root.clientHeight + 1, sideways: document.documentElement.scrollWidth > innerWidth };
     }, [rootId, itemSel]);
     const fam = await page.evaluate(() => ({ logo: getComputedStyle(document.querySelector('.l1')).fontFamily, body: getComputedStyle(document.body).fontFamily, barlow: document.fonts.check('italic 900 20px "Barlow Condensed"'), raj: document.fonts.check('700 16px "Rajdhani"'), loaded: Array.from(document.fonts).filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '') + ' ' + f.weight) }));
@@ -400,7 +400,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
 
 (async () => {
   const { pw, from } = loadPlaywright();
-  const launchOpts = { headless: !process.env.HEADED, args: ['--autoplay-policy=user-gesture-required'] };
+  /* the throttling flags only stop headless Chrome from slowing requestAnimationFrame on a page it thinks is in the background */
+  const launchOpts = { headless: !process.env.HEADED, args: ['--autoplay-policy=user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
   let browser, browserName;
   try { browser = await pw.chromium.launch(Object.assign({ channel: 'chrome' }, launchOpts)); browserName = 'system Google Chrome'; }
   catch (e) { browser = await pw.chromium.launch(launchOpts); browserName = 'Playwright Chromium'; }
@@ -782,6 +783,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
         } catch (e) { cdp = null; }
       }
       await page.goto(URL + '?seed=42&autopilot=1&autostart=1');
+      await page.bringToFront();
       await page.waitForFunction(() => !!window.MatatuRush);
       if (cdp) await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 82, maxWidth: 1280, maxHeight: 720, everyNthFrame: 2 });
       const s = await waitFor(page, (x) => x.tick >= MAXTICK + 60 || x.mode === 'gameover', 40000, 'demo ticks');

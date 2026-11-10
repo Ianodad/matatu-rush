@@ -30,3 +30,18 @@
 - SELF-EVAL: unchanged at 36/40, all Must-Pass pass, Ship yes as a prototype. Rounds: 1 build, 2 of 2 fix rounds used.
 - Codex: not run by the builder, as instructed; `out/codex-final*` untouched. Round 2 change is unreviewed.
 - `out/matatu-rush.zip` rebuilt (same 9 files); `out/gameplay.mp4` re-cut from the re-recorded demo.
+
+## Fix round 3 (2026-11-10)
+- Scope: popup overlap bug, Buni visual QC items 1 to 7, audio-on proof. One combined round. `js/game.js` untouched (determinism check against the Node replay still passes). No new gameplay.
+- Popups: `R.text` labels are laid out every frame, newest at its natural spot, older ones lifted clear (lift only grows). Labels are clamped to the road width. Fare and combo are still two labels, 0.6 lanes apart. Heavier dark outline on all of them.
+- HORN READY! and HORN CHARGING no longer use the float path. `R.status` draws a tag in the right road-side gutter at 42 percent of screen height (two lines when the gutter is narrow).
+- Portrait: lane unit is now min(W / 7.6, H / 8.6), so the road is about 53 percent of the width and shops show on both sides. On tall screens the matatu is capped at 12.7 lanes from the top so nothing spawns inside the view (spawn distance is 14).
+- Pause and mute stack vertically when the right gutter is under 118 px. The combo chip moves into the left gutter. Banner on narrow screens is one line, no wider than the road.
+- Title: five-tile icon row plus a How to play sheet (button, Esc or "Got it" closes). The long key list only shows on tall screens; the sheet always has it.
+- Fonts: Barlow Condensed Black Italic (display, canvas) and Rajdhani (body) through @font-face with relative urls. Sprites and icons that bake text are rebuilt once fonts are ready.
+- Audio: `A.steps` and `A.fired` counters (read-only via snapshot) show the sequencer and sfx really scheduled. Recording now carries the game's own audio.
+- `node tests/run-tests.cjs`: 138/138, console report clean (0 errors, 0 warnings, 231 requests, all file://). Suite was run twice: the first run crashed in section 7 (seed 42 autostart demo did not reach 2340 ticks in 40 s) and had 8 false failures from an over-strict clip detector in the new layout checks. I could not reproduce the demo stall in isolation (three standalone runs were real time). I added Chrome anti-throttling launch flags and `bringToFront`; the second run passed. Root cause not proven.
+- Codex: not run, as instructed. This round is unreviewed.
+- Git: I made no commits. A commit `c500630 WIP round 3: Claude edits` by author "Fundi" appeared in the repo mid-session; it was not made by this session.
+- Not done, by instruction: zip rebuild, `out/CODEX-*.md`, `out/HANDOFF.md`. The root `matatu-rush.zip` is stale.
+- SELF-EVAL: Must-Pass all pass, score left at 36/40. See the round 3 note there.

@@ -78,3 +78,13 @@ node tests/sim-balance.cjs
 - **Verified:** `node out/executor-qa/server-smoke.cjs` exit 0, 25.4 s, 52 inputs, 2 restarts, 0 console errors, 8 requests, none for `favicon.ico`. `node tests/run-tests.cjs` 82/82, console report clean, 0 non-file requests.
 - **Score and Must-Pass:** unchanged (36/40 self-score, all Must-Pass pass, Ship yes as a prototype). Rounds: 1 build, 2 of 2 fix rounds used.
 - **Not done:** Codex was not run by me this round, as instructed, so this change is unreviewed. The HTTP check covers headless Chrome only.
+
+## Fix round 3 note (2026-11-10)
+
+This is a third fix round, one more than the two that EVAL.md allows; it was requested by the coordinator. Score left at 36/40: the changes answer review findings and I have not had them independently reviewed.
+
+- `node tests/run-tests.cjs`: 138/138 on headless Chrome, 0 console errors, 0 warnings, 0 failed requests, all 231 requests `file://`. It took two runs; the first crashed in the seed 42 demo wait and I did not find the root cause (details in NOTES.md).
+- Popups: in 329 sampled frames of the seed 7 demo and 413 of the keyboard run, no two popup rectangles overlapped. Combo and fare were seen together, and HORN READY! was seen together with pickup text, always in the gutter slot. Sampling is every 20 to 25 ms, not every rendered frame.
+- Must-Pass 6 ("procedural art and synthesized WebAudio only"): art and sound still are. The project now ships four OFL font files in `fonts/`, added on instruction. Earlier evidence text saying no font files exist is out of date.
+- Must-Pass 4, audio: context `running` after the gesture, output RMS about 0.4, silent when muted, back when unmuted, sfx counters equal to event counts. `out/gameplay.mp4` now has an AAC track (mean -11.8 dB) recorded from the game's WebAudio output. Nobody has listened to it.
+- Limits: rooftops, headlight, Kanjo icon and typography were judged by me from screenshots, not by Buni. The headlight is now quite faint. On 320 px wide screens the combo chip covers most of the left shop strip while a combo is live. Reduced-motion paths are still untested. Firefox and Safari were not run (font loading from `file://` was only checked in Chrome).
