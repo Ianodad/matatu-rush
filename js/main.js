@@ -27,6 +27,7 @@
     el.title.hidden = name !== 'title';
     el.pause.hidden = name !== 'pause';
     el.over.hidden = name !== 'over';
+    if (name !== 'title') $('howto').hidden = true;
     el.hud.hidden = name === 'title';
     el.controls.hidden = !(name === 'game' || name === 'pause');
     measureHud();
@@ -38,9 +39,14 @@
   /* tells the renderer where the HUD ends so canvas announcements can sit just under it */
   function measureHud() {
     if (el.hud.hidden) return;
-    var top = el.hud.querySelector('.hud-top');
-    var pad = parseFloat(getComputedStyle(top).paddingBottom) || 0;
-    R.setHudBottom(top.getBoundingClientRect().bottom - pad + 10);
+    /* narrow road-side gutter: stack pause and mute so they stay off the right lane */
+    var v = R.layout();
+    el.hud.classList.toggle('narrow', v.w - (v.roadX + v.roadW) < 118);
+    var b = Math.max(el.hud.querySelector('.hud-score').getBoundingClientRect().bottom, el.hud.querySelector('.hud-mid').getBoundingClientRect().bottom);
+    el.hud.style.setProperty('--hud-b', Math.round(b) + 'px');
+    var hb = b + 10;
+    if (!el.demoTag.hidden) hb = Math.max(hb, el.demoTag.getBoundingClientRect().bottom + 8);
+    R.setHudBottom(hb);
   }
 
   function refreshMuteUi() {
@@ -56,6 +62,9 @@
     if (!A.muted) A.sfx.click();
     announce(A.muted ? 'Sound off' : 'Sound on');
   }
+
+  function openHow() { $('howto').hidden = false; try { $('btnHowClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+  function closeHow() { $('howto').hidden = true; try { $('btnHow').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
 
   function newSeed() {
     if (fixedSeed !== null) return fixedSeed;
@@ -133,7 +142,7 @@
         if (ev.combo === 3 || ev.combo === 5 || ev.combo === 8 || (ev.combo > 8 && ev.combo % 4 === 0)) {
           R.banner(ev.combo >= 8 ? 'NOMA SANA!' : (ev.combo >= 5 ? 'IMEWEZA!' : 'BEBA BEBA!'), Art.PAL.lime, 'x' + ev.mult + ' COMBO');
         } else {
-          R.text(ev.combo > 1 ? 'BEBA! x' + ev.mult : 'BEBA!', ev.lane, 1.75, Art.PAL.lime, 0.32);
+          R.text(ev.combo > 1 ? 'BEBA! x' + ev.mult : 'BEBA!', ev.lane, 1.6, Art.PAL.lime, 0.32);
         }
         el.combo.classList.remove('pulse'); void el.combo.offsetWidth; el.combo.classList.add('pulse');
         break;
@@ -165,12 +174,12 @@
         break;
       case 'hornEmpty':
         A.sfx.hornShort();
-        R.text('HORN CHARGING', g.px, 1.3, '#aab4e0', 0.24);
+        R.status('HORN CHARGING', '#aab4e0');
         break;
       case 'nitroEnd': A.nitro = false; break;
       case 'hornReady':
         A.sfx.ready();
-        R.text('HORN READY', g.px, 1.3, Art.PAL.yellow, 0.3);
+        R.status('HORN READY!', Art.PAL.yellow);
         break;
       case 'zone':
         A.intensity = ev.level;
@@ -247,6 +256,7 @@
     var k = e.key, onBtn = e.target && e.target.tagName === 'BUTTON';
     var isGo = (k === 'Enter' || k === ' ' || e.code === 'Space');
     if (k === 'm' || k === 'M') { if (!e.repeat) toggleMute(); return; }
+    if (!$('howto').hidden) { if (k === 'Escape') { closeHow(); e.preventDefault(); } return; }
     if (g.mode === 'running') {
       lateAudio();
       if (k === 'ArrowLeft' || k === 'a' || k === 'A') { if (!e.repeat) g.input('left', 'keyboard'); e.preventDefault(); return; }
@@ -355,9 +365,19 @@
     bindClick('btnMute', toggleMute);
     bindClick('btnMutePause', toggleMute);
     bindClick('btnMuteHud', toggleMute);
+    bindClick('btnHow', openHow);
+    bindClick('btnHowClose', closeHow);
 
     var icons = document.querySelectorAll('canvas[data-icon]');
-    for (var i = 0; i < icons.length; i++) Art.icon(icons[i], icons[i].getAttribute('data-icon'));
+    function drawIcons() { for (var i = 0; i < icons.length; i++) Art.icon(icons[i], icons[i].getAttribute('data-icon')); }
+    drawIcons();
+    /* bundled fonts: once they are in, rebuild the sprites and icons that bake text and re-measure the HUD */
+    try {
+      if (document.fonts && document.fonts.load) {
+        document.fonts.load('italic 900 20px "Barlow Condensed"').then(function () { return document.fonts.ready; })
+          .then(function () { resize(); drawIcons(); }, function () { /* fallback fonts are fine */ });
+      }
+    } catch (e) { /* ignore */ }
 
     refreshMuteUi();
     $('titleBest').textContent = 'Best fare: ' + MR.formatKsh(g.best);
@@ -376,7 +396,8 @@
       s.fixedSeed = fixedSeed !== null;
       s.audio = {
         created: A.created, state: A.state(), muted: A.muted, musicOn: A.musicOn,
-        level: Math.round(A.level() * 10000) / 10000, bpm: A.bpm()
+        level: Math.round(A.level() * 10000) / 10000, bpm: A.bpm(),
+        steps: A.steps, fired: JSON.parse(JSON.stringify(A.fired))
       };
       s.storageOk = MR.store.isOk();
       s.view = R.layout();

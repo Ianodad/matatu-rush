@@ -8,7 +8,7 @@
   var cv, ctx, W = 0, H = 0, dpr = 1, u = 80, roadX = 0, roadW = 0, py = 0;
   var sprites = null, vignette = null, asphalt = null, asphaltPat = null;
   var t = 0, idle = 0;
-  var parts = [], texts = [], rain = [], banner = null;
+  var parts = [], texts = [], rain = [], banner = null, slot = null, lastPx = 1.5;
   var trauma = 0, flashHit = 0, flashPick = 0, punch = null, hudBottom = 96;
   var motion = MR.reducedMotion ? 0.2 : 1;
 
@@ -27,9 +27,12 @@
     W = Math.max(200, window.innerWidth); H = Math.max(200, window.innerHeight);
     dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    u = Math.min(W / 4.7, H / 8.6);
+    /* W / 7.6 keeps a strip of shops on both sides of the road in portrait (the road never eats
+       the whole width); H / 8.6 is the limit on wide screens. */
+    u = Math.min(W / 7.6, H / 8.6);
     roadW = 4 * u; roadX = (W - roadW) / 2;
-    py = H - (bottomInset || 0) - u * 1.0;
+    /* on tall screens the matatu rides a little higher, so nothing spawns inside the view */
+    py = Math.min(H - (bottomInset || 0) - u * 1.0, 12.7 * u);
     sprites = Art.buildSprites(u * dpr);
 
     vignette = Art.mk(Math.ceil(W / 4), Math.ceil(H / 4));
@@ -67,19 +70,35 @@
     var gutter = roadX >= 3 * u;
     if (gutter) {
       var gs = MR.clamp(0.5 * u, 18, 40);
-      return { zone: 'gutter', cx: (roadX - 0.25 * u) / 2, cy: H * 0.42, size: gs, maxW: roadX - 0.25 * u - 24 };
+      return { zone: 'gutter', cx: (roadX - 0.25 * u) / 2, cy: H * 0.42, size: gs, sub: Math.max(14, gs * 0.56), maxW: roadX - 0.25 * u - 24 };
     }
+    /* narrow: one compact line, no wider than the road, so it clears the combo chip and buttons */
     var s = MR.clamp(0.34 * u, 15, 26);
-    return { zone: 'hud', cx: W / 2, cy: hudBottom - 8 + (demo ? 20 : 0) + s / 2, size: s, maxW: W * 0.62 };
+    return { zone: 'hud', cx: W / 2, cy: hudBottom + s / 2, size: s, sub: 14, maxW: roadW - 8 };
   }
 
   R.layout = function () {
     var b = null;
     if (banner && banner.box) b = { text: banner.s, zone: banner.box.zone, x: Math.round(banner.box.x), y: Math.round(banner.box.y), w: Math.round(banner.box.w), h: Math.round(banner.box.h) };
+    var fl = [], i, q;
+    for (i = 0; i < texts.length; i++) { q = texts[i]; if (q.box) fl.push({ text: q.s, x: r1(q.box.x), y: r1(q.box.y), w: r1(q.box.w), h: r1(q.box.h) }); }
+    var sl = (slot && slot.box) ? { text: slot.s, x: r1(slot.box.x), y: r1(slot.box.y), w: r1(slot.box.w), h: r1(slot.box.h) } : null;
+    var strip = Math.max(0, roadX - 1.1 * u);
     return { w: W, h: H, unit: Math.round(u * 100) / 100, roadX: Math.round(roadX), roadW: Math.round(roadW), playerY: Math.round(py), dpr: dpr,
-      hudBottom: Math.round(hudBottom), banner: b, shake: Math.round(trauma * 1000) / 1000, particles: parts.length };
+      hudBottom: Math.round(hudBottom), banner: b, shake: Math.round(trauma * 1000) / 1000, particles: parts.length,
+      /* live floating popups (drawn rect: float offset, pop scale, outline and stagger included) */
+      floats: fl,
+      /* dedicated horn status slot in the right road-side gutter, never on the road */
+      slot: sl,
+      road: { x: r1(roadX), y: 0, w: r1(roadW), h: H },
+      rightLane: { x: r1(roadX + 3 * u), y: 0, w: r1(u), h: H },
+      player: { x: r1(laneX(lastPx) - 0.45 * u), y: r1(py - 0.875 * u), w: r1(0.9 * u), h: r1(1.75 * u) },
+      /* visible shop strips beyond the pavement, left and right */
+      shopStrip: r1(strip), shopsDrawn: roadX / u > 0.8,
+      shops: [{ x: 0, y: 0, w: r1(strip), h: H }, { x: r1(W - strip), y: 0, w: r1(strip), h: H }] };
   };
 
+  function r1(v) { return Math.round(v * 10) / 10; }
   function laneX(lx) { return roadX + (lx + 0.5) * u; }
   function sy(d) { return py - d * u; }
   R.laneX = laneX; R.sy = sy;
@@ -110,11 +129,15 @@
     parts.push({ x: laneX(lx), y: sy(d), vx: 0, vy: 0, life: 0, max: 0.45, size: u * 0.3, color: color, type: 'ring', grav: 0 });
   };
   R.text = function (str, lx, d, color, sizeU) {
-    texts.push({ s: str, x: laneX(lx), y: sy(d), color: color || '#fff', size: (sizeU || 0.34) * u, life: 0, max: 1.1 });
+    /* never below 14 px, whatever the lane unit */
+    texts.push({ s: str, x: laneX(lx), y: sy(d), color: color || '#fff', size: Math.max(14, (sizeU || 0.34) * u), life: 0, max: 1.1, lift: 0, box: null });
     if (texts.length > 14) texts.shift();
   };
   R.banner = function (str, color, sub) { banner = { s: str, sub: sub || '', color: color || '#ffe14a', life: 0, max: 1.25, box: null }; };
-  R.clearFx = function () { parts.length = 0; texts.length = 0; banner = null; trauma = 0; flashHit = 0; flashPick = 0; punch = null; };
+  /* Horn status ("HORN READY!", "HORN CHARGING") has its own slot in the right gutter, away from
+     the matatu and out of the floating pickup stack. */
+  R.status = function (str, color) { slot = { s: str, color: color || '#ffe14a', life: 0, max: 1.5, box: null }; };
+  R.clearFx = function () { parts.length = 0; texts.length = 0; banner = null; slot = null; trauma = 0; flashHit = 0; flashPick = 0; punch = null; };
 
   /* ---------- scenery ---------- */
   function sideX(side, o) { return side < 0 ? roadX - o * u : roadX + roadW + o * u; }
@@ -124,30 +147,101 @@
   }
   function mod2(j) { return ((j % 2) + 2) % 2; }
 
+  /* ---- rooftops: tiers with cast shadows, parapet ledges or mabati sheets, tanks, AC units ---- */
+  var TANKS = [
+    { body: '#0d0f18', top: '#181b2a', lid: '#2a2f48', rim: '#5a6392' },   /* black plastic */
+    { body: '#12382a', top: '#195040', lid: '#27705a', rim: '#3fae8c' },   /* green plastic */
+    { body: '#39415f', top: '#4a5478', lid: '#6a769f', rim: '#aab4e0' }    /* galvanised steel */
+  ];
+  function roofBlock(xa, xb, y, h, col, tier, style) {
+    var x = Math.min(xa, xb), w = Math.abs(xb - xa), sh = (0.04 + 0.055 * tier) * u, lw = Math.max(1, 0.05 * u);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x + sh, y + sh, w, h);
+    ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
+    if (tier > 1) { ctx.fillStyle = 'rgba(140,160,255,' + (0.045 * (tier - 1)) + ')'; ctx.fillRect(x, y, w, h); }
+    if (style === 1) {
+      /* mabati: corrugated iron sheets falling away from a ridge, far slope in shade */
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (var c = x + 0.1 * u; c < x + w - 1; c += 0.11 * u) { ctx.moveTo(Math.round(c) + 0.5, y + 1); ctx.lineTo(Math.round(c) + 0.5, y + h - 1); }
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.26)'; ctx.fillRect(x, y + h / 2, w, h / 2);
+      ctx.fillStyle = 'rgba(205,218,255,0.2)'; ctx.fillRect(x, y + h / 2 - lw * 0.5, w, lw);
+      ctx.fillStyle = 'rgba(205,218,255,0.1)'; ctx.fillRect(x, y, w, lw * 0.5);
+    } else {
+      /* flat concrete roof: raised parapet ledge around a sunken deck */
+      ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fillRect(x + lw * 1.7, y + lw * 1.7, w - lw * 3.4, h - lw * 3.4);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(x + lw * 2.5, y + lw * 2.5, w - lw * 4.2, h - lw * 4.2);
+      ctx.fillStyle = 'rgba(200,214,255,0.24)'; ctx.fillRect(x, y, w, lw * 0.6); ctx.fillRect(x, y, lw * 0.6, h);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, y + h - lw * 0.6, w, lw * 0.6); ctx.fillRect(x + w - lw * 0.6, y, lw * 0.6, h);
+    }
+  }
+  function waterTank(x, y, r, k) {
+    var c = TANKS[Math.abs(Math.floor(k)) % TANKS.length];
+    /* tall object: long soft shadow, then the steel stand, the ribbed body and a domed lid */
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(x + r * 0.6, y + r * 0.6, r * 1.25, r * 0.95, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a4266'; ctx.fillRect(x - r * 1.05, y - r * 1.05, r * 2.1, r * 2.1);
+    ctx.fillStyle = '#0a0b14'; ctx.fillRect(x - r * 0.88, y - r * 0.88, r * 1.76, r * 1.76);
+    ctx.fillStyle = c.body; Art.circ(ctx, x, y, r); ctx.fill();
+    ctx.strokeStyle = c.rim; ctx.lineWidth = Math.max(1, 0.03 * u); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)'; ctx.lineWidth = Math.max(1, 0.02 * u); Art.circ(ctx, x, y, r * 0.76); ctx.stroke();
+    ctx.fillStyle = c.top; Art.circ(ctx, x, y, r * 0.54); ctx.fill();
+    ctx.fillStyle = c.lid; Art.circ(ctx, x - r * 0.05, y - r * 0.05, r * 0.24); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = Math.max(1, 0.03 * u); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x, y, r * 0.86, Math.PI * 1.08, Math.PI * 1.45); ctx.stroke();
+  }
+  function acUnit(x, y, w, h, ph) {
+    var o = 0.05 * u;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x - w / 2 + o, y - h / 2 + o, w, h);
+    ctx.fillStyle = '#414a6e'; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = 'rgba(210,222,255,0.3)'; ctx.fillRect(x - w / 2, y - h / 2, w, Math.max(1, h * 0.12));
+    var fx = x - w * 0.18, fr = h * 0.36;
+    ctx.fillStyle = '#090a12'; Art.circ(ctx, fx, y, fr); ctx.fill();
+    ctx.strokeStyle = '#96a1d2'; ctx.lineWidth = 1; ctx.stroke();
+    var a = t * 9 + ph;
+    ctx.beginPath(); ctx.moveTo(fx - Math.cos(a) * fr, y - Math.sin(a) * fr); ctx.lineTo(fx + Math.cos(a) * fr, y + Math.sin(a) * fr);
+    ctx.moveTo(fx + Math.sin(a) * fr, y - Math.cos(a) * fr); ctx.lineTo(fx - Math.sin(a) * fr, y + Math.cos(a) * fr); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    for (var i = 0; i < 3; i++) ctx.fillRect(x + w * 0.2, y - h * 0.28 + i * h * 0.22, w * 0.22, Math.max(1, h * 0.09));
+    ctx.fillStyle = '#b6ff3c'; ctx.fillRect(x + w * 0.36, y + h * 0.26, Math.max(1.5, w * 0.07), Math.max(1.5, w * 0.07));
+  }
+
   function drawShop(side, si, b, dist, accent, BL) {
-    var h1 = hash(b * 7 + si * 131 + 11), h2 = hash(b * 31 + si * 57 + 23), h3 = hash(b * 53 + si * 17 + 5);
-    var depth = 1.35 + h1 * 0.45;
+    var h1 = hash(b * 7 + si * 131 + 11), h2 = hash(b * 31 + si * 57 + 23), h3 = hash(b * 53 + si * 17 + 5), h4 = hash(b * 89 + si * 29 + 41);
+    var depth = 1.2 + h1 * 0.7;
     var wp1 = b * BL + 0.08, wp2 = (b + 1) * BL - 0.08;
     var y = sy(wp2 - dist), h = (wp2 - wp1) * u;
-    ctx.fillStyle = ROOFS[Math.floor(h2 * ROOFS.length)];
-    sideRect(side, 1.1, 1.1 + depth, y, h);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    sideRect(side, 1.18, 1.1 + depth - 0.08, y + 0.08 * u, h - 0.16 * u);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    sideRect(side, 1.24, 1.1 + depth - 0.14, y + 0.14 * u, h - 0.28 * u);
-    /* water tank */
-    var tx = sideX(side, 1.1 + depth * (0.5 + h2 * 0.3)), ty = y + h * (0.2 + h3 * 0.6);
-    ctx.fillStyle = '#07070d'; Art.circ(ctx, tx, ty, 0.21 * u); ctx.fill();
-    ctx.strokeStyle = '#4a5174'; ctx.lineWidth = Math.max(1, 0.03 * u); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; Art.circ(ctx, tx, ty, 0.12 * u); ctx.stroke();
+    var col = ROOFS[Math.floor(h2 * ROOFS.length)], style = h4 < 0.42 ? 1 : 0, tier = 1 + Math.floor(h3 * 2);
+    var split = h1 > 0.5 ? h * (0.38 + h2 * 0.24) : 0;
+    if (split) {
+      /* two buildings on the plot, different depth, height and roof */
+      var d2 = depth * (0.6 + h4 * 0.3);
+      roofBlock(sideX(side, 1.1), sideX(side, 1.1 + d2), y, split - 0.05 * u, ROOFS[Math.floor(h4 * ROOFS.length)], 3 - tier, 1 - style);
+      if (1 - style === 0) acUnit(sideX(side, 1.1 + d2 * 0.72), y + split * 0.3, 0.3 * u, 0.2 * u, b);
+      roofBlock(sideX(side, 1.1), sideX(side, 1.1 + depth), y + split, h - split, col, tier, style);
+    } else {
+      roofBlock(sideX(side, 1.1), sideX(side, 1.1 + depth), y, h, col, tier, style);
+    }
+    var by = y + split, bh = h - split;
+    if (style === 0) {
+      /* stair bulkhead: a small upper tier with its own ledge and shadow */
+      var bx = 1.1 + depth - 0.62;
+      roofBlock(sideX(side, bx), sideX(side, bx + 0.46), by + bh * 0.08, 0.5 * u, col, tier + 2, 0);
+      acUnit(sideX(side, 1.1 + depth * 0.45), by + bh - 0.3 * u, 0.32 * u, 0.2 * u, b * 3);
+      if (h3 > 0.5) acUnit(sideX(side, 1.1 + depth * 0.45 + 0.4), by + bh - 0.3 * u, 0.32 * u, 0.2 * u, b * 5);
+    }
+    /* water tank on a stand, with a feed pipe to the ledge */
+    var to = 1.1 + depth * (0.42 + h2 * 0.2), tx = sideX(side, to), ty = by + bh * (0.36 + h3 * 0.22);
+    ctx.strokeStyle = '#5a6392'; ctx.lineWidth = Math.max(1, 0.03 * u);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, by + bh - 0.06 * u); ctx.stroke();
+    waterTank(tx, ty, (0.17 + h4 * 0.06) * u, Math.floor(h1 * 9));
     /* lit skylight */
     if (h3 > 0.45) {
-      var kx = sideX(side, 1.1 + depth * 0.3), ky = y + h * (h1 > 0.5 ? 0.75 : 0.3);
+      var kx = sideX(side, 1.1 + depth * 0.22), ky = by + bh * (h4 > 0.5 ? 0.8 : 0.16);
       Art.drawGlow(ctx, '#ffd98a', kx, ky, 0.9 * u, 0.9 * u, 0.35);
       ctx.fillStyle = '#ffd98a'; ctx.fillRect(kx - 0.09 * u, ky - 0.07 * u, 0.18 * u, 0.14 * u);
     }
     /* striped awning over the pavement */
-    var col = h1 < 0.35 ? accent : NEON[Math.floor(h3 * NEON.length)];
+    col = h1 < 0.35 ? accent : NEON[Math.floor(h3 * NEON.length)];
     var stripes = Math.floor((wp2 - wp1 - 0.3) / 0.22);
     for (var s = 0; s < stripes; s++) {
       ctx.fillStyle = s % 2 ? 'rgba(10,10,20,0.9)' : col;
@@ -187,13 +281,19 @@
           var a1 = hash(j * 13 + si * 71 + 3), a2 = hash(j * 19 + si * 37 + 9);
           y = sy(j * 3.7 + 3.5 - dist);
           if (a1 < 0.62) {
-            ctx.fillStyle = ROOFS[Math.floor(a2 * ROOFS.length)];
-            ctx.globalAlpha = 0.75;
-            sideRect(side, 3.25, 3.25 + 1.5 + a2, y, 3.3 * u);
-            ctx.globalAlpha = 1;
+            /* back-row blocks: taller, varied footprint, penthouse tier, tank and plant */
+            var fl = (2.1 + a1 * 1.9) * u, fo = 3.2 + a2 * 0.25, fd = 1.3 + a2 * 1.1, fc = ROOFS[Math.floor(a2 * ROOFS.length)], fs = a2 > 0.6 ? 1 : 0;
+            roofBlock(sideX(side, fo), sideX(side, fo + fd), y, fl, fc, 3, fs);
+            if (!fs) {
+              roofBlock(sideX(side, fo + fd * 0.45), sideX(side, fo + fd * 0.92), y + fl * 0.12, fl * 0.34, fc, 5, 0);
+              acUnit(sideX(side, fo + fd * 0.25), y + fl * 0.22, 0.34 * u, 0.22 * u, j);
+              acUnit(sideX(side, fo + fd * 0.25), y + fl * 0.4, 0.34 * u, 0.22 * u, j * 2);
+            }
+            waterTank(sideX(side, fo + fd * (0.3 + a1 * 0.5)), y + fl * 0.74, 0.22 * u, j + si);
+            ctx.fillStyle = 'rgba(7,7,15,0.3)'; sideRect(side, fo, fo + fd, y, fl);
             ctx.fillStyle = 'rgba(255,217,138,' + (0.5 + 0.3 * Math.sin(t * 2 + j)) + ')';
             for (var wi = 0; wi < 3; wi++) {
-              if (hash(j * 5 + wi * 3 + si) < 0.55) ctx.fillRect(sideX(side, 3.6 + wi * 0.45) - 0.06 * u, y + (0.5 + wi * 0.8) * u, 0.12 * u, 0.2 * u);
+              if (hash(j * 5 + wi * 3 + si) < 0.55) ctx.fillRect(sideX(side, fo + 0.3 + wi * 0.3) - 0.06 * u, y + (0.35 + wi * 0.5) * u, 0.12 * u, 0.2 * u);
             }
           } else {
             for (var tr = 0; tr < 3; tr++) {
@@ -370,8 +470,8 @@
     var sp = sprites.cone;
     ctx.save();
     ctx.translate(x, y - 0.7 * u); ctx.rotate(rot);
-    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5;
-    ctx.drawImage(sp.img, -sp.w * u / 2, -sp.h * u, sp.w * u, sp.h * u);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.8;
+    ctx.drawImage(sp.img, -sp.w * u / 2, -(sp.h - sp.back) * u, sp.w * u, sp.h * u);
     ctx.restore();
     if (nit) {
       /* nitro flames */
@@ -454,26 +554,95 @@
     ctx.globalAlpha = 1;
   }
 
+  function outlineW(size) { return Math.max(4, size * 0.26); }
   function outlined(str, x, y, size, fill, alpha, maxW) {
     ctx.font = 'italic 900 ' + size + 'px ' + Art.FONT;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.globalAlpha = alpha;
-    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size * 0.2);
-    ctx.strokeStyle = 'rgba(6,4,18,0.92)';
+    /* heavy dark outline so the label holds up on neon signs, headlights and wet road */
+    ctx.lineJoin = 'round'; ctx.lineWidth = outlineW(size);
+    ctx.strokeStyle = 'rgba(5,3,14,0.96)';
     ctx.strokeText(str, x, y, maxW);
     ctx.fillStyle = fill; ctx.fillText(str, x, y, maxW);
     ctx.globalAlpha = 1;
   }
+  /* pixel box of a label drawn by outlined(), outline included */
+  function textBox(str, cx, cy, size, maxW) {
+    ctx.font = 'italic 900 ' + size + 'px ' + Art.FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var m = ctx.measureText(str), lw = outlineW(size), full = m.width || 1;
+    var k = (maxW && full > maxW) ? maxW / full : 1;
+    var l = (m.actualBoundingBoxLeft === undefined ? full / 2 : m.actualBoundingBoxLeft) * k;
+    var r = (m.actualBoundingBoxRight === undefined ? full / 2 : m.actualBoundingBoxRight) * k;
+    var a = m.actualBoundingBoxAscent === undefined ? size * 0.4 : m.actualBoundingBoxAscent;
+    var d = m.actualBoundingBoxDescent === undefined ? size * 0.4 : m.actualBoundingBoxDescent;
+    return { x: cx - l - lw / 2, y: cy - a - lw / 2, w: l + r + lw, h: a + d + lw };
+  }
+  function hits(a, b, gap) { return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y; }
 
+  /* Floating popups. Each frame the newest label takes its natural spot beside the event and
+     every older one that would touch an already placed label is lifted clear above it (the lift
+     only ever grows, so labels never drop back or jitter). Labels stay inside the road's width,
+     which also keeps them out of the gutter banner and the horn status slot. */
   function drawTexts(dt) {
-    for (var i = texts.length - 1; i >= 0; i--) {
-      var q = texts[i];
+    var i, j, q, k, placed = [], gap = Math.max(3, 0.05 * u), maxW = roadW - 8;
+    for (i = texts.length - 1; i >= 0; i--) {
+      q = texts[i];
       q.life += dt;
-      if (q.life >= q.max) { texts.splice(i, 1); continue; }
-      var k = q.life / q.max;
-      var pop = MR.reducedMotion ? 1 : 0.55 + 0.45 * outBack(Math.min(1, k / 0.16));
-      outlined(q.s, MR.clamp(q.x, 0.2 * W, 0.8 * W), q.y - k * u * 1.3, q.size * pop, q.color, k > 0.7 ? (1 - k) / 0.3 : 1, W * 0.9);
+      if (q.life >= q.max) texts.splice(i, 1);
     }
+    for (i = texts.length - 1; i >= 0; i--) {
+      q = texts[i];
+      k = q.life / q.max;
+      var pop = MR.reducedMotion ? 1 : 0.55 + 0.45 * outBack(Math.min(1, k / 0.16));
+      var cy = q.y - k * u * 1.3 - q.lift;
+      /* reserve room for the settled size plus the pop overshoot */
+      var lay = textBox(q.s, 0, cy, q.size * Math.max(1.06, pop), maxW);
+      var cx = MR.clamp(q.x, roadX + 2 - lay.x, roadX + roadW - 2 - (lay.x + lay.w));
+      lay.x += cx;
+      for (var guard = 0; guard < 24; guard++) {
+        var hit = null;
+        for (j = 0; j < placed.length; j++) { if (hits(lay, placed[j], gap)) { hit = placed[j]; break; } }
+        if (!hit) break;
+        var dy = lay.y + lay.h - hit.y + gap + 0.5;
+        q.lift += dy; lay.y -= dy; cy -= dy;
+      }
+      placed.push(lay);
+      q.box = textBox(q.s, cx, cy, q.size * pop, maxW);
+      outlined(q.s, cx, cy, q.size * pop, q.color, k > 0.78 ? (1 - k) / 0.22 : 1, maxW);
+    }
+  }
+
+  /* Horn status slot: a small tag in the right gutter beside the road. Wraps to two lines when
+     the gutter is narrow (portrait phones). Never over the tarmac, never near the matatu. */
+  function drawSlot(dt) {
+    if (!slot) return;
+    slot.life += dt;
+    if (slot.life >= slot.max) { slot = null; return; }
+    var k = slot.life / slot.max;
+    var gx = roadX + roadW + 0.2 * u, gw = W - gx - 6;
+    var size = MR.clamp(0.3 * u, 15, 30), pad = size * 0.42, maxW = gw - pad * 2;
+    if (maxW < 20) { slot.box = null; return; }
+    ctx.font = 'italic 900 ' + size + 'px ' + Art.FONT;
+    var lines = [slot.s], sp = slot.s.indexOf(' ');
+    if (ctx.measureText(slot.s).width > maxW && sp > 0) lines = [slot.s.slice(0, sp), slot.s.slice(sp + 1)];
+    var tw = 0, i;
+    for (i = 0; i < lines.length; i++) tw = Math.max(tw, Math.min(maxW, ctx.measureText(lines[i]).width));
+    var lh = size * 1.02, bw = tw + pad * 2, bh = lines.length * lh + pad * 1.1;
+    var cx = gx + gw / 2, cy = H * 0.42;
+    slot.box = { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh };
+    var sc = MR.reducedMotion ? 1 : 0.8 + 0.2 * outBack(Math.min(1, k / 0.12));
+    var al = k > 0.8 ? (1 - k) / 0.2 : Math.min(1, k / 0.05);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(Math.min(1, sc), Math.min(1, sc));
+    ctx.globalAlpha = al;
+    Art.drawGlow(ctx, slot.color, 0, 0, bw * 1.6, bh * 2.4, 0.3);
+    ctx.fillStyle = 'rgba(5,5,14,0.9)'; Art.rr(ctx, -bw / 2, -bh / 2, bw, bh, size * 0.3); ctx.fill();
+    ctx.strokeStyle = slot.color; ctx.lineWidth = Math.max(1.5, size * 0.09); ctx.stroke();
+    ctx.font = 'italic 900 ' + size + 'px ' + Art.FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = slot.color;
+    for (i = 0; i < lines.length; i++) ctx.fillText(lines[i], 0, (i - (lines.length - 1) / 2) * lh + size * 0.04, maxW);
+    ctx.restore(); ctx.globalAlpha = 1;
   }
 
   function drawOverlay(g, dt) {
@@ -501,6 +670,7 @@
       ctx.fillStyle = 'rgba(33,230,255,0.05)'; ctx.fillRect(0, 0, W, H);
     }
     ctx.drawImage(vignette, 0, 0, W, H);
+    drawSlot(dt);
     if (flashHit > 0) {
       ctx.fillStyle = 'rgba(255,30,60,' + (flashHit * 0.38 * (MR.reducedMotion ? 0.5 : 1)) + ')'; ctx.fillRect(0, 0, W, H);
       flashHit = Math.max(0, flashHit - dt * 3.2);
@@ -516,7 +686,15 @@
       var sp = bannerSpot(g.autopilot);
       var sc = MR.reducedMotion ? 1 : 0.7 + 0.3 * outBack(Math.min(1, k / 0.14));
       var al = k > 0.75 ? (1 - k) / 0.25 : Math.min(1, k / 0.06);
-      var size = sp.size, subSize = size * 0.56;
+      var size = sp.size, subSize = sp.sub, hudLine = sp.zone === 'hud' && !!banner.sub;
+      if (hudLine) {
+        /* narrow screens: headline and detail share one line under the HUD */
+        var line = banner.s + '  ' + banner.sub;
+        var hb = textBox(line, sp.cx, sp.cy, size, sp.maxW);
+        banner.box = { zone: sp.zone, x: hb.x, y: hb.y, w: hb.w, h: hb.h };
+        outlined(line, sp.cx, sp.cy, size * sc, banner.color, al, sp.maxW);
+        return;
+      }
       ctx.font = 'italic 900 ' + size + 'px ' + Art.FONT;
       var bw = Math.min(sp.maxW, ctx.measureText(banner.s).width);
       if (banner.sub) { ctx.font = 'italic 900 ' + subSize + 'px ' + Art.FONT; bw = Math.max(bw, Math.min(sp.maxW, ctx.measureText(banner.sub).width)); }
@@ -531,7 +709,7 @@
 
   /* ---------- frame ---------- */
   R.draw = function (g, dt) {
-    t += dt;
+    t += dt; lastPx = g.px;
     if (g.mode === 'title') idle += dt * 2.6;
     var dist = g.dist + idle;
     var accent = Art.ZONE_ACCENTS[g.level % Art.ZONE_ACCENTS.length];

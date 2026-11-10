@@ -39,7 +39,7 @@
     <span class="cl">COMBO</span>
     <span class="bar"><i id="comboBar"></i></span>
   </div>
-  <div id="demoTag" class="demo" hidden>DEMO: autopilot is driving. Press Esc for the menu.</div>
+  <div id="demoTag" class="demo" hidden>DEMO. Esc for menu</div>
 </div>
 
 <div id="controls" hidden>
@@ -60,12 +60,12 @@
   <div class="panel">
     <h1 id="logo" class="logo"><span class="l1">MATATU</span><span class="l2">RUSH</span></h1>
     <p class="tag">Nairobi after dark. Beba passengers, dodge the chaos, hoot for nitro.</p>
-    <ul class="legend">
-      <li class="good"><canvas data-icon="stage" width="56" height="56" aria-hidden="true"></canvas><div><b>Stage</b><span>Drive through to collect fare. Chain pickups for a combo.</span></div></li>
-      <li class="good"><canvas data-icon="horn" width="56" height="56" aria-hidden="true"></canvas><div><b>Horn nitro</b><span>Fares fill the meter. Hoot to smash through anything.</span></div></li>
-      <li><canvas data-icon="boda" width="56" height="56" aria-hidden="true"></canvas><div><b>Boda boda</b><span>Dodge. A blinking indicator means it is about to swerve.</span></div></li>
-      <li><canvas data-icon="pothole" width="56" height="56" aria-hidden="true"></canvas><div><b>Pothole</b><span>Dodge. Each hit costs a heart.</span></div></li>
-      <li><canvas data-icon="askari" width="56" height="56" aria-hidden="true"></canvas><div><b>Kanjo checkpoint</b><span>Blocks two lanes. A heart and a KSh 100 fine.</span></div></li>
+    <ul class="legend" aria-label="How to play, in short">
+      <li class="good"><canvas data-icon="stage" width="56" height="56" aria-hidden="true"></canvas><b>Stage</b><span>Fare</span></li>
+      <li class="good"><canvas data-icon="horn" width="56" height="56" aria-hidden="true"></canvas><b>Horn</b><span>Nitro</span></li>
+      <li><canvas data-icon="boda" width="56" height="56" aria-hidden="true"></canvas><b>Boda</b><span>Dodge</span></li>
+      <li><canvas data-icon="pothole" width="56" height="56" aria-hidden="true"></canvas><b>Pothole</b><span>Dodge</span></li>
+      <li><canvas data-icon="askari" width="56" height="56" aria-hidden="true"></canvas><b>Kanjo</b><span>Dodge</span></li>
     </ul>
     <div class="keys" aria-label="Controls">
       <p><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> switch lane</p>
@@ -77,8 +77,31 @@
       <button id="btnStart" class="cta" type="button">TWENDE! <small>Start</small></button>
       <button id="btnDemo" class="ghost" type="button">Watch demo</button>
       <button id="btnMute" class="ghost" type="button" aria-pressed="false">Sound: On</button>
+      <button id="btnHow" class="ghost" type="button" aria-haspopup="dialog">How to play</button>
     </div>
     <p id="titleBest" class="bestline">Best fare: KSh 0</p>
+  </div>
+</section>
+
+<section id="howto" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="howH">
+  <div class="panel small">
+    <h2 id="howH" class="h2">HOW TO PLAY</h2>
+    <ul class="rules">
+      <li class="good"><canvas data-icon="stage" width="56" height="56" aria-hidden="true"></canvas><div><b>Stage</b><span>Pick up fares. Chain a combo.</span></div></li>
+      <li class="good"><canvas data-icon="horn" width="56" height="56" aria-hidden="true"></canvas><div><b>Horn nitro</b><span>Meter full? Hoot and smash.</span></div></li>
+      <li><canvas data-icon="boda" width="56" height="56" aria-hidden="true"></canvas><div><b>Boda boda</b><span>Dodge. Blinker means a swerve.</span></div></li>
+      <li><canvas data-icon="pothole" width="56" height="56" aria-hidden="true"></canvas><div><b>Pothole</b><span>Dodge. A hit costs a heart.</span></div></li>
+      <li><canvas data-icon="askari" width="56" height="56" aria-hidden="true"></canvas><div><b>Kanjo checkpoint</b><span>Two lanes. A heart and a fine.</span></div></li>
+    </ul>
+    <div class="keys" aria-label="Controls">
+      <p><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> switch lane</p>
+      <p><kbd>Space</kbd> horn nitro</p>
+      <p><kbd>P</kbd> pause <kbd>M</kbd> mute</p>
+      <p class="touch">Touch: tap a side of the road, or use the buttons.</p>
+    </div>
+    <div class="actions">
+      <button id="btnHowClose" class="ghost" type="button">Got it</button>
+    </div>
   </div>
 </section>
 

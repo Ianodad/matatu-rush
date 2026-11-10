@@ -13,7 +13,9 @@
     muted: MR.store.get(MUTE_KEY, '0') === '1',
     musicOn: false,
     intensity: 0,
-    nitro: false
+    nitro: false,
+    steps: 0,      /* sequencer steps actually scheduled (read-only evidence for tests) */
+    fired: {}      /* sound effects actually scheduled on a running context, by name */
   };
 
   function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
@@ -183,7 +185,7 @@
     if (!ctx || !A.musicOn || ctx.state !== 'running') return;
     if (nextT < ctx.currentTime - 0.25) nextT = ctx.currentTime + 0.05;
     while (nextT < ctx.currentTime + 0.16) {
-      try { playStep(step, nextT); } catch (e) { /* never let audio break the game */ }
+      try { playStep(step, nextT); A.steps++; } catch (e) { /* never let audio break the game */ }
       nextT += 60 / A.bpm() / 4;
       step++;
     }
@@ -200,9 +202,10 @@
   };
 
   /* ---------- sound effects ---------- */
+  var sfxName = '';
   function sfx(fn) {
     if (!ctx || ctx.state !== 'running') return;
-    try { fn(ctx.currentTime + 0.005); } catch (e) { /* ignore */ }
+    try { fn(ctx.currentTime + 0.005); A.fired[sfxName] = (A.fired[sfxName] || 0) + 1; } catch (e) { /* ignore */ }
   }
   function tone(type, f0, f1, t, dur, vel, dest) {
     var g = ctx.createGain(); g.connect(dest || sfxBus);
@@ -281,4 +284,9 @@
     },
     ready: function () { sfx(function (t) { tone('square', 523, 523, t, 0.06, 0.14); tone('square', 784, 784, t + 0.07, 0.1, 0.14); }); }
   };
+  /* tag each effect with its name so A.fired counts what really got scheduled */
+  Object.keys(A.sfx).forEach(function (name) {
+    var f = A.sfx[name];
+    A.sfx[name] = function () { sfxName = name; return f.apply(null, arguments); };
+  });
 })();

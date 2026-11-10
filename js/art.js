@@ -4,7 +4,8 @@
   'use strict';
   var MR = window.MR;
   var Art = MR.Art = {};
-  Art.FONT = 'Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Bold", "Barlow Condensed", "Roboto Condensed", "Archivo Narrow", "DejaVu Sans Condensed", "Arial Black", sans-serif';
+  /* Barlow Condensed Black Italic is bundled in fonts/ (OFL) and declared in css/style.css */
+  Art.FONT = '"Barlow Condensed", "Arial Narrow Bold", "Roboto Condensed", "Archivo Narrow", "DejaVu Sans Condensed", "Arial Black", sans-serif';
   Art.PAL = {
     pink: '#ff2d95', cyan: '#21e6ff', yellow: '#ffe14a', lime: '#b6ff3c',
     orange: '#ff8a1f', violet: '#a06bff', red: '#ff3b3b', ink: '#07070f'
@@ -292,7 +293,7 @@
     if (!smashed) {
       /* boom barrier, red and white */
       c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(x, -0.05 * s, w, 0.2 * s);
-      rr(c, x, -0.1 * s, w, 0.18 * s, 0.04 * s); c.fillStyle = '#f4f4f4'; c.fill();
+      rr(c, x, -0.1 * s, w, 0.18 * s, 0.04 * s); c.fillStyle = '#ffffff'; c.fill();
       c.save(); c.clip();
       c.fillStyle = '#e01b2f';
       var sw = 0.2 * s;
@@ -300,6 +301,7 @@
         poly(c, [[x + k * sw, -0.1 * s], [x + (k + 1) * sw, -0.1 * s], [x + (k + 1) * sw - 0.1 * s, 0.08 * s], [x + k * sw - 0.1 * s, 0.08 * s]]); c.fill();
       }
       c.restore();
+      c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = Math.max(1, 0.018 * s); rr(c, x, -0.1 * s, w, 0.18 * s, 0.04 * s); c.stroke();
       c.fillStyle = '#10101a'; rr(c, -0.26 * s, -0.085 * s, 0.52 * s, 0.15 * s, 0.03 * s); c.fill();
       c.font = '900 ' + (0.13 * s) + 'px ' + Art.FONT;
       c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
@@ -311,7 +313,7 @@
       c.fillStyle = '#1a1a26'; rr(c, ends[i] - 0.08 * s, -0.14 * s, 0.16 * s, 0.26 * s, 0.04 * s); c.fill();
       var on = (flash === i);
       var col = i === 0 ? '#ff2a3c' : '#2f7bff';
-      Art.drawGlow(c, col, ends[i], -0.01 * s, (on ? 1.5 : 0.6) * s, (on ? 1.5 : 0.6) * s, on ? 0.95 : 0.4);
+      Art.drawGlow(c, col, ends[i], -0.01 * s, (on ? 1.6 : 0.8) * s, (on ? 1.6 : 0.8) * s, on ? 1 : 0.55);
       c.fillStyle = on ? '#fff' : col; circ(c, ends[i], -0.01 * s, 0.055 * s); c.fill();
     }
     /* the officer, hi-vis vest, waving a lit baton */
@@ -325,13 +327,44 @@
     Art.drawGlow(c, '#ff2a3c', bx, by, 0.5 * s, 0.5 * s, 0.8);
     c.strokeStyle = '#ff5a66'; c.lineWidth = 0.04 * s;
     c.beginPath(); c.moveTo(ax + 0.13 * s + Math.cos(ang) * 0.1 * s, ay + Math.sin(ang) * 0.1 * s); c.lineTo(bx, by); c.stroke();
-    c.fillStyle = '#17233f';
-    c.beginPath(); c.ellipse(ax, ay, 0.15 * s, 0.1 * s, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = '#d7ff2e';
-    c.fillRect(ax - 0.1 * s, ay - 0.085 * s, 0.045 * s, 0.17 * s); c.fillRect(ax + 0.055 * s, ay - 0.085 * s, 0.045 * s, 0.17 * s);
+    c.beginPath(); c.ellipse(ax, ay, 0.15 * s, 0.1 * s, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f4f6ff';
+    c.fillRect(ax - 0.1 * s, ay - 0.085 * s, 0.03 * s, 0.17 * s); c.fillRect(ax + 0.07 * s, ay - 0.085 * s, 0.03 * s, 0.17 * s);
     c.fillStyle = '#17233f'; circ(c, ax, ay - 0.01 * s, 0.075 * s); c.fill();
     c.fillStyle = '#f4f4f4'; circ(c, ax, ay - 0.01 * s, 0.045 * s); c.fill();
     c.fillStyle = '#17233f'; c.fillRect(ax - 0.06 * s, ay - 0.1 * s, 0.12 * s, 0.035 * s);
+  };
+
+  /* Title icon for the kanjo checkpoint. Drawn for 38 to 56 px: a fat red and white boom, two
+     glowing beacons and a hi-vis officer on a lifted backdrop, instead of the dense in-world art. */
+  Art.drawAskariIcon = function (c) {
+    c.fillStyle = '#2a2f58'; rr(c, -26, -26, 52, 52, 10); c.fill();
+    Art.drawGlow(c, '#ff2a3c', -19, 9, 34, 34, 0.9);
+    Art.drawGlow(c, '#2f7bff', 19, 9, 34, 34, 0.9);
+    /* officer: lime vest, white cap, glowing baton */
+    c.strokeStyle = '#ff4a5c'; c.lineWidth = 4; c.lineCap = 'round';
+    Art.drawGlow(c, '#ff2a3c', 17, -19, 22, 22, 0.9);
+    c.beginPath(); c.moveTo(9, -9); c.lineTo(17, -19); c.stroke();
+    c.fillStyle = '#d7ff2e'; c.beginPath(); c.ellipse(0, -8, 13, 8.5, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#0b1026'; c.lineWidth = 1.5; c.stroke();
+    c.fillStyle = '#f4f6ff'; c.fillRect(-9, -9.5, 18, 2.6);
+    c.fillStyle = '#17233f'; circ(c, 0, -10, 6.4); c.fill();
+    c.fillStyle = '#ffffff'; circ(c, 0, -10.5, 4.3); c.fill();
+    c.fillStyle = '#17233f'; c.fillRect(-5.5, -17, 11, 3);
+    /* boom */
+    rr(c, -24, 3, 48, 12, 3); c.fillStyle = '#ffffff'; c.fill();
+    c.save(); c.clip();
+    c.fillStyle = '#ff1f38';
+    for (var k = -1; k < 5; k += 1) { poly(c, [[-24 + k * 12, 3], [-18 + k * 12, 3], [-23 + k * 12, 15], [-29 + k * 12, 15]]); c.fill(); }
+    c.restore();
+    c.strokeStyle = '#0b1026'; c.lineWidth = 1.5; rr(c, -24, 3, 48, 12, 3); c.stroke();
+    /* beacons */
+    c.fillStyle = '#ff5a68'; circ(c, -20, 9, 5); c.fill(); c.fillStyle = '#fff'; circ(c, -20, 9, 2.4); c.fill();
+    c.fillStyle = '#5aa0ff'; circ(c, 20, 9, 5); c.fill(); c.fillStyle = '#fff'; circ(c, 20, 9, 2.4); c.fill();
+    /* spikes */
+    c.fillStyle = '#e6ebfa';
+    for (var i = 0; i < 6; i++) { poly(c, [[-21 + i * 8, 24], [-18 + i * 8, 18], [-15 + i * 8, 24]]); c.fill(); }
   };
 
   Art.drawRepair = function (c, s, t) {
@@ -362,17 +395,29 @@
       c = mk(0.7 * s, 1.2 * s); x = c.getContext('2d'); x.translate(c.width / 2, c.height / 2); Art.drawBoda(x, s, kinds[i]);
       out['boda_' + kinds[i]] = { img: c, w: 0.7, h: 1.2 };
     }
-    /* headlight cone */
-    c = mk(1.8 * s, 3.6 * s); x = c.getContext('2d');
-    var g = x.createLinearGradient(0, c.height, 0, 0);
-    g.addColorStop(0, 'rgba(255,244,190,0.85)'); g.addColorStop(0.35, 'rgba(255,240,180,0.3)'); g.addColorStop(1, 'rgba(255,240,180,0)');
-    x.fillStyle = g;
-    poly(x, [[c.width * 0.36, c.height], [c.width * 0.64, c.height], [c.width, 0], [0, 0]]); x.fill();
-    x.globalCompositeOperation = 'destination-in';
-    var g2 = x.createLinearGradient(0, 0, c.width, 0);
-    g2.addColorStop(0, 'rgba(0,0,0,0)'); g2.addColorStop(0.3, 'rgba(0,0,0,1)'); g2.addColorStop(0.7, 'rgba(0,0,0,1)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
-    x.fillStyle = g2; x.fillRect(0, 0, c.width, c.height);
-    out.cone = { img: c, w: 1.8, h: 3.6 };
+    /* headlights: a soft radial falloff, brightest at the lamps and gone by about 3 lanes ahead.
+       Two overlapping lobes (one per lamp), each a radial gradient whose focus sits on the lamp
+       and whose outer circle reaches forward, squeezed sideways. No wedge, no hard edge. */
+    var CW = 2.6, CH = 3.5, BACK = 0.35;            /* sprite size in lane units; lamp sits BACK above the bottom */
+    c = mk(CW * s, CH * s); x = c.getContext('2d');
+    x.globalCompositeOperation = 'lighter';
+    for (var lamp = -1; lamp <= 1; lamp += 2) {
+      x.save();
+      x.translate(c.width / 2 + lamp * 0.17 * s, c.height - BACK * s);
+      x.rotate(lamp * 0.05);
+      x.scale(0.62, 1);
+      var hg = x.createRadialGradient(0, 0, 0.02 * s, 0, -1.45 * s, 1.6 * s);
+      hg.addColorStop(0, 'rgba(255,246,200,0.42)');
+      hg.addColorStop(0.1, 'rgba(255,243,190,0.28)');
+      hg.addColorStop(0.28, 'rgba(255,240,180,0.16)');
+      hg.addColorStop(0.5, 'rgba(255,238,176,0.08)');
+      hg.addColorStop(0.75, 'rgba(255,236,172,0.03)');
+      hg.addColorStop(1, 'rgba(255,236,172,0)');
+      x.fillStyle = hg;
+      x.fillRect(-3 * s, -3.2 * s, 6 * s, 3.6 * s);
+      x.restore();
+    }
+    out.cone = { img: c, w: CW, h: CH, back: BACK, reach: 3.05 };
     return out;
   };
 
@@ -386,7 +431,7 @@
     if (type === 'stage') { Art.drawPerson(c, 90, -13, 8, '#ff2d95', -1); Art.drawPerson(c, 90, 12, 10, '#21e6ff', 0); Art.drawCoin(c, 90, 2, -10, 11); }
     else if (type === 'boda') { Art.drawBoda(c, 46, 'cruiser'); }
     else if (type === 'pothole') { Art.drawPothole(c, 52, 4242, 1, '#21e6ff'); }
-    else if (type === 'askari') { c.translate(0, 8); Art.drawAskari(c, 36, 1.5, 0.3, false); }
+    else if (type === 'askari') { Art.drawAskariIcon(c); }
     else if (type === 'horn') {
       Art.drawGlow(c, '#21e6ff', 0, 0, 60, 60, 0.6);
       c.fillStyle = '#21e6ff'; poly(c, [[-16, -6], [-6, -6], [8, -16], [8, 16], [-6, 6], [-16, 6]]); c.fill();

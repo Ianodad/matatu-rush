@@ -163,6 +163,7 @@ async function smallScreenChecks(browser) {
     const page = await ctx.newPage(); watch(page, 'small-' + w + 'x' + h);
     await page.goto(URL + '?seed=7');
     await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
     await sleep(300);
     const fit = await page.evaluate(() => {
       const box = (id) => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), h: Math.round(r.height) }; };
@@ -189,6 +190,156 @@ async function smallScreenChecks(browser) {
     await ctx.close();
   }
 }
+
+/* ---------- round 3 additions: popup overlap audit, font audit, layout, audio capture ---------- */
+const fontsReady = (page) => page.evaluate(() => (document.fonts && document.fonts.ready) ? document.fonts.load('italic 900 20px "Barlow Condensed"').then(() => document.fonts.ready).then(() => true) : true);
+
+function mkPopupAudit() { return { frames: 0, overlaps: [], both: 0, hornWithPickup: 0, slotSeen: 0, slotBad: [], hornInFloat: 0, floatOffRoad: 0, maxFloats: 0, copy: {} }; }
+/* reads view.floats / view.slot / view.road / view.player from one snapshot; never writes anything */
+function popupAudit(s, a) {
+  const v = s.view, fl = v.floats || [];
+  if (!fl.length && !v.slot) return null;
+  a.frames++;
+  a.maxFloats = Math.max(a.maxFloats, fl.length);
+  const all = fl.map((f) => Object.assign({ kind: 'float' }, f)).concat(v.slot ? [Object.assign({ kind: 'slot' }, v.slot)] : []);
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+    if (rectsOverlap(all[i], all[j]) && a.overlaps.length < 8) a.overlaps.push({ t: s.time, a: all[i], b: all[j] });
+  }
+  const fare = fl.some((f) => /^\+KSh/.test(f.text)), beba = fl.some((f) => /^BEBA!/.test(f.text));
+  if (fare && beba) a.both++;
+  for (const f of fl) {
+    if (/HORN/.test(f.text)) a.hornInFloat++;
+    if (f.x < v.road.x - 0.5 || f.x + f.w > v.road.x + v.road.w + 0.5 || f.w <= 0 || f.h <= 0) a.floatOffRoad++;
+  }
+  let horn = false;
+  if (v.slot) {
+    a.slotSeen++; a.copy[v.slot.text] = (a.copy[v.slot.text] || 0) + 1;
+    const sl = v.slot;
+    const bad = rectsOverlap(sl, v.road) || rectsOverlap(sl, v.player) || sl.x < v.road.x + v.road.w || sl.x + sl.w > v.w || sl.y < 0 || sl.y + sl.h > v.h;
+    if (bad && a.slotBad.length < 5) a.slotBad.push({ t: s.time, slot: sl, road: v.road, player: v.player });
+    horn = /^HORN READY!?$/.test(sl.text);
+    if (horn && (fare || beba)) a.hornWithPickup++;
+  }
+  return { fare, beba, horn };
+}
+
+/* runs in the page: every visible text node must be set at 14 px or more */
+const FONT_AUDIT = () => {
+  const bad = []; let n = 0, min = 1e9;
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let t;
+  while ((t = w.nextNode())) {
+    if (!t.nodeValue.trim()) continue;
+    const el = t.parentElement;
+    if (!el || el.closest('.sr, noscript, script, style')) continue;
+    if (!el.getClientRects().length) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const fs = parseFloat(cs.fontSize); n++; if (fs < min) min = fs;
+    if (fs < 14) bad.push({ text: t.nodeValue.trim().slice(0, 24), px: fs, on: el.id || el.className || el.tagName });
+  }
+  return { n, min, bad };
+};
+const fontAudit = (page) => page.evaluate(FONT_AUDIT);
+
+/* Items 4 and 5 of the round 3 QC: text sizes, how-to-play never clipped, pause and mute off the
+   right lane, a visible shop strip in portrait. Real clicks and keys only. */
+async function layoutChecks(browser) {
+  const sizes = [[320, 568, true, '20'], [844, 390, true, '30'], [390, 844, true, '40'], [1280, 720, false, '50']];
+  for (const [w, h, touch, pre] of sizes) {
+    const tag = w + 'x' + h;
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: touch ? 2 : 1 });
+    const page = await ctx.newPage(); watch(page, 'layout-' + tag);
+    await page.goto(URL + '?seed=7');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page); await sleep(350);
+    const clipInfo = (rootId, itemSel) => page.evaluate(([rootId, itemSel]) => {
+      const root = document.getElementById(rootId);
+      const items = Array.from(root.querySelectorAll(itemSel)).map((el) => { const r = el.getBoundingClientRect(); return { in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1 }; });
+      return { n: items.length, allIn: items.every((i) => i.in), noneClipped: items.every((i) => !i.clipped), scrolls: root.scrollHeight > root.clientHeight + 1, sideways: document.documentElement.scrollWidth > innerWidth };
+    }, [rootId, itemSel]);
+    const fam = await page.evaluate(() => ({ logo: getComputedStyle(document.querySelector('.l1')).fontFamily, body: getComputedStyle(document.body).fontFamily, barlow: document.fonts.check('italic 900 20px "Barlow Condensed"'), raj: document.fonts.check('700 16px "Rajdhani"'), loaded: Array.from(document.fonts).filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '') + ' ' + f.weight) }));
+    if (pre === '50') check('fonts', 'bundled faces are loaded and in use: Barlow Condensed for display, Rajdhani for body', /^"?Barlow Condensed/.test(fam.logo) && /^"?Rajdhani/.test(fam.body) && fam.barlow && fam.raj && fam.loaded.some((f) => /Barlow/.test(f)) && fam.loaded.some((f) => /Rajdhani/.test(f)), fam.loaded);
+    const tl = await clipInfo('title', '.legend li, .actions button, .logo, .tag, .bestline');
+    const tf = await fontAudit(page);
+    check('layout', tag + ' title: how-to-play icon row and every button fully on screen, nothing clipped, no scrolling', tl.n >= 9 && tl.allIn && tl.noneClipped && !tl.scrolls && !tl.sideways, tl);
+    check('text', tag + ' title: every visible text is at least 14 px', tf.n > 8 && tf.bad.length === 0, { nodes: tf.n, min: tf.min, bad: tf.bad });
+    await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-title.png') });
+    await page.click('#btnHow'); await sleep(200);
+    const hl = await clipInfo('howto', '.rules li, .rules li span, .keys, #btnHowClose, .h2');
+    const hf = await fontAudit(page);
+    check('layout', tag + ' How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling', hl.n >= 13 && hl.allIn && hl.noneClipped && !hl.scrolls, hl);
+    check('text', tag + ' How to play sheet: every visible text is at least 14 px', hf.n > 10 && hf.bad.length === 0, { nodes: hf.n, min: hf.min, bad: hf.bad });
+    await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-howto.png') });
+    await page.keyboard.press('Escape'); await sleep(120);
+    const closed = await page.evaluate(() => document.getElementById('howto').hidden && window.MatatuRush.snapshot().mode === 'title');
+    await page.click('#btnStart');
+    await waitFor(page, (x) => x.mode === 'running', 3000, 'layout run ' + tag);
+    let gf = null, comboAudit = null, shot = false;
+    const pa = mkPopupAudit();
+    const run = await drive(page, {
+      ms: 9000, mode: 'play', steer: keySteer(page),
+      onTick: async (q) => {
+        popupAudit(q, pa);
+        if (!comboAudit && q.combo >= 2) comboAudit = await fontAudit(page);
+        if (!shot && q.time > 4.2 && (q.view.floats.length || q.time > 7)) { shot = true; gf = await fontAudit(page); await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-play.png') }); }
+        if (shot && comboAudit && q.time > 6) return 'stop';
+      }
+    });
+    const s = run.s, v = s.view;
+    const btn = await page.evaluate(() => { const r = (id) => { const q = document.getElementById(id).getBoundingClientRect(); return { x: q.left, y: q.top, w: q.width, h: q.height }; }; return { pause: r('btnPause'), mute: r('btnMuteHud'), vw: innerWidth, vh: innerHeight }; });
+    const inView = (r) => r.x >= 0 && r.y >= 0 && r.x + r.w <= btn.vw && r.y + r.h <= btn.vh && r.w >= 44 && r.h >= 44;
+    check('layout', tag + ' play: closing the sheet returned to the title and Start began the run', closed && s.time > 4, { time: s.time });
+    check('layout', tag + ' play: pause and mute buttons do not cover the right lane (or any tarmac) and stay on screen at 44 px',
+      !rectsOverlap(btn.pause, v.rightLane) && !rectsOverlap(btn.mute, v.rightLane) && !rectsOverlap(btn.pause, v.road) && !rectsOverlap(btn.mute, v.road) && inView(btn.pause) && inView(btn.mute) && !rectsOverlap(btn.pause, btn.mute),
+      { pauseX: Math.round(btn.pause.x), muteX: Math.round(btn.mute.x), roadRight: v.road.x + v.road.w, rightLane: v.rightLane.x });
+    const portrait = h > w;
+    check('layout', tag + ' play: a shop strip is visible on both sides of the road' + (portrait ? ' in portrait (at least half a lane and 20 px each side)' : ''),
+      v.shopsDrawn && v.shops.length === 2 && v.shops.every((r) => r.w === v.shopStrip) && v.shopStrip >= 0.5 * v.unit && v.shopStrip >= 20 && v.roadW < 0.6 * v.w, { shopStrip: v.shopStrip, unit: v.unit, roadX: v.roadX, roadW: v.roadW, w: v.w });
+    check('text', tag + ' play: every visible HUD and control text is at least 14 px (combo chip included)', !!gf && gf.bad.length === 0 && !!comboAudit && comboAudit.bad.length === 0, { hud: gf && { nodes: gf.n, min: gf.min, bad: gf.bad }, combo: comboAudit && { min: comboAudit.min, bad: comboAudit.bad } });
+    check('popup', tag + ' play: no two live floating popups overlap and all stay within the road width', pa.frames > 0 && pa.overlaps.length === 0 && pa.floatOffRoad === 0 && pa.slotBad.length === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
+    if (s.mode === 'running') {
+      await page.keyboard.press('p');
+      await waitFor(page, (x) => x.mode === 'paused', 1500, 'layout pause');
+      await sleep(150);
+      const pf = await fontAudit(page);
+      check('text', tag + ' pause: every visible text is at least 14 px', pf.n > 3 && pf.bad.length === 0, { nodes: pf.n, min: pf.min, bad: pf.bad });
+      await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-pause.png') });
+    } else check('text', tag + ' pause: run ended before the pause check', false, s.mode);
+    await ctx.close();
+  }
+}
+
+/* Recorder for the audio-on capture. Installed by the test before the page loads; it only taps the
+   Web Audio graph (whatever is connected to the destination is also fed to a MediaRecorder). It
+   never touches game state, and nothing is recorded until the game itself creates its context,
+   which only happens after a real click. */
+const AUDIO_TAP = () => {
+  const rec = window.__rec = { chunks: [], startedAt: 0, mr: null, error: null };
+  const orig = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (dest) {
+    const r = orig.apply(this, arguments);
+    try {
+      if (dest === this.context.destination && !rec.mr) {
+        const msd = this.context.createMediaStreamDestination();
+        orig.call(this, msd);
+        const mr = rec.mr = new MediaRecorder(msd.stream, { mimeType: 'audio/webm;codecs=opus' });
+        mr.ondataavailable = (e) => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+        mr.onstart = () => { rec.startedAt = Date.now() / 1000; };
+        mr.start(250);
+      }
+    } catch (e) { rec.error = String(e && e.message || e); }
+    return r;
+  };
+  rec.stop = () => new Promise((res) => {
+    if (!rec.mr) return res({ b64: null, error: rec.error || 'no recorder' });
+    rec.mr.onstop = () => {
+      const fr = new FileReader();
+      fr.onload = () => res({ b64: String(fr.result).split(',')[1], startedAt: rec.startedAt, error: rec.error });
+      fr.readAsDataURL(new Blob(rec.chunks, { type: 'audio/webm' }));
+    };
+    rec.mr.stop();
+  });
+};
 
 /* Near-miss: steer at a hazard with real keys and swerve out at the last moment. Repair: take a
    hit, then drive into the fundi spanner. Both asserted from the event log only. */
@@ -245,7 +396,7 @@ async function nearMissAndRepair(browser, seed) {
   return out;
 }
 
-if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, results, problems }; return; }
+if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, layoutChecks, results, problems }; return; }
 
 (async () => {
   const { pw, from } = loadPlaywright();
@@ -266,6 +417,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     const page = await ctx.newPage(); watch(page, 'title');
     await page.goto(URL);
     await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
     await sleep(1200);
     const s = await snap(page);
     check('title', 'opens from file:// with title screen', s.mode === 'title' && s.screen === 'title' && await page.isVisible('#btnStart'), { mode: s.mode });
@@ -281,15 +433,31 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   }
   {
     const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
-    const bad = [], net = [];
+    const bad = [], net = [], fontUrls = [], impact = [];
     for (const f of files) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
       if (/[\u2014\u2013]/.test(src)) bad.push(f);
-      if (/https?:\/\/|\/\/cdn|@import|fetch\(|XMLHttpRequest|WebSocket|<img|<audio|<video|url\(/i.test(src)) net.push(f);
+      /* the only url() allowed anywhere is a relative link from css/style.css to a bundled .ttf in fonts/ */
+      let scan = src;
+      if (f === 'css/style.css') {
+        scan = src.replace(/url\("\.\.\/fonts\/([A-Za-z0-9-]+\.ttf)"\)/g, (m, name) => { fontUrls.push(name); return 'LOCALFONT'; });
+      }
+      if (/https?:\/\/|\/\/cdn|@import|fetch\(|XMLHttpRequest|WebSocket|<img|<audio|<video|url\(/i.test(scan)) net.push(f);
+      if (/\bImpact\b|Haettenschweiler/.test(src)) impact.push(f);
     }
+    const css = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+    const small = [];
+    css.replace(/font(?:-size)?\s*:\s*([^;}]+)/g, (m, val) => { (val.match(/(\d+(?:\.\d+)?)px/g) || []).forEach((px) => { if (parseFloat(px) < 14) small.push(m.trim()); }); return m; });
+    const faces = (css.match(/@font-face/g) || []).length;
+    const fontsOk = fontUrls.length === 4 && faces === 4 && fontUrls.every((n) => fs.existsSync(path.join(ROOT, 'fonts', n))) &&
+      ['OFL-BarlowCondensed.txt', 'OFL-Rajdhani.txt'].every((n) => fs.existsSync(path.join(ROOT, 'fonts', n)));
+    check('static', 'fonts: four @font-face rules, each a relative url to a bundled .ttf that exists, OFL texts present, no Impact left', fontsOk && impact.length === 0, { fontUrls, impact });
+    check('static', 'no font size below 14 px anywhere in css/style.css', small.length === 0, small);
+    {
     check('static', 'no em or en dashes anywhere in shipped source (covers all on-screen text)', bad.length === 0, bad);
-    check('static', 'no URLs, fetch, XHR, image or media tags in shipped source', net.length === 0, net);
+    check('static', 'no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed)', net.length === 0, net);
     check('static', 'inline data: favicon is declared, so http serving never requests /favicon.ico', /<link rel="icon"[^>]*href="data:image\/png;base64,[A-Za-z0-9+\/=]+"/.test(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')));
+    }
   }
 
   /* ===== 2. Keyboard controls, audio on gesture, mute, pause ===== */
@@ -363,9 +531,11 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.keyboard.press('Enter');
     const s0 = await waitFor(page, (x) => x.mode === 'running', 2000, 'running');
     let shotPlay = false, shotCombo = false, shotNitro = false, hornPressed = false, secondHorn = false, nitroSpeed = 0, nitroSnap = null;
+    const pa = mkPopupAudit(); let runPeak = 0; const states = new Set();
     const run = await drive(page, {
       ms: 26500, mode: 'play', steer: keySteer(page),
       onTick: async (s, newEv) => {
+        popupAudit(s, pa); runPeak = Math.max(runPeak, s.audio.level); states.add(s.audio.state);
         if (!shotPlay && s.time > 5.5) { shotPlay = true; await page.screenshot({ path: path.join(SHOTS, '02-gameplay-desktop.png') }); }
         if (!shotCombo && newEv.some((x) => x.type === 'pickup' && x.combo >= 2)) { shotCombo = true; await sleep(90); await page.screenshot({ path: path.join(SHOTS, '03-pickup-combo-desktop.png') }); }
         if (!hornPressed && s.time > 12 && s.horn.ready) { hornPressed = true; await page.keyboard.press('Space'); }
@@ -396,6 +566,14 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('horn', 'nitro drains the meter and boosts speed (> 1.4x base)', !!nitroSnap && nitroSnap.horn.meter === 0 && nitroSpeed > 1.4, { peakSpeedRatio: +nitroSpeed.toFixed(2) });
     check('horn', 'pressing horn again with an empty meter does not re-trigger nitro', evs.some((x) => x.type === 'hornEmpty') && evs.filter((x) => x.type === 'horn').length === 1 && evs.some((x) => x.type === 'nitroEnd'));
     check('shots', 'gameplay, pickup/combo and nitro screenshots captured', shotPlay && shotCombo && shotNitro);
+    notes.popupsKeyboardRun = { frames: pa.frames, maxFloats: pa.maxFloats, comboAndFareFrames: pa.both, hornReadyWithPickupFrames: pa.hornWithPickup, slotCopy: pa.copy };
+    check('popup', 'keyboard run: no two live floating popups (or the horn slot) ever overlap; combo and fare seen together', pa.frames > 20 && pa.overlaps.length === 0 && pa.both > 0 && pa.floatOffRoad === 0, { frames: pa.frames, comboAndFare: pa.both, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
+    check('popup', 'keyboard run: horn status only ever appears in its gutter slot (off the road, clear of the matatu), never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
+    const au = s.audio, fired = au.fired || {};
+    notes.audioRun = { state: au.state, statesSeen: Array.from(states), musicOn: au.musicOn, sequencerSteps: au.steps, peakRms: runPeak, sfxFired: fired };
+    console.log('  AUDIO  AudioContext state: ' + au.state + ', music on: ' + au.musicOn + ', sequencer steps: ' + au.steps + ', peak RMS: ' + runPeak + ', sfx fired: ' + JSON.stringify(fired));
+    check('audio', 'during the run the context stays running, music is sequencing and the output is audible', au.state === 'running' && states.size === 1 && au.musicOn && au.steps > 100 && runPeak > 0.01, { state: au.state, steps: au.steps, peakRms: runPeak });
+    check('audio', 'sound effects were triggered by real game events: one pickup sfx per pickup, horn, lane and start', fired.pickup === picks.length && fired.horn === 1 && fired.start === 1 && fired.lane >= 5 && fired.hornShort >= 1, fired);
     await ctx.close();
   }
 
@@ -408,6 +586,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.waitForFunction(() => !!window.MatatuRush);
     const want = new Set(['pothole', 'boda', 'askari']);
     const allHits = [], runs = [];
+    let overFonts = null;
     let badGeom = 0, badHealth = 0, badGrace = 0, shotOver = false, bestSoFar = 0, restartOk = true, overUiOk = true, bestOk = true;
     for (let r = 0; r < 5 && (want.size > 0 || r < 2); r++) {
       if (r === 0) await page.keyboard.press('Enter');
@@ -439,7 +618,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
       if (ui.score !== fmt(s.score) || ui.best !== fmt(expBest)) overUiOk = false;
       if (s.best !== expBest || Number(ui.ls || 0) !== expBest || ui.nb !== (s.score > bestSoFar)) bestOk = false;
       bestSoFar = expBest;
-      if (!shotOver) { shotOver = true; await sleep(250); await page.screenshot({ path: path.join(SHOTS, '05-gameover-desktop.png') }); }
+      if (!shotOver) { shotOver = true; await sleep(250); overFonts = await fontAudit(page); await page.screenshot({ path: path.join(SHOTS, '05-gameover-desktop.png') }); }
     }
     notes.collisions = { runs, hits: allHits.map((x) => ({ kind: x.kind, px: x.px, entX: x.entX, d: x.d, health: x.health, fine: x.fine })) };
     const kinds = new Set(allHits.map((x) => x.kind));
@@ -450,6 +629,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     const ask = allHits.filter((x) => x.kind === 'askari');
     check('collision', 'askari checkpoint also charges a fine (max KSh 100)', ask.length > 0 && ask.every((x) => x.fine >= 0 && x.fine <= 100) && ask.some((x) => x.fine > 0), ask.map((x) => x.fine));
     check('gameover', 'health reaching zero ends the run and shows the game over screen with the right numbers', overUiOk && runs.length >= 2, runs);
+    check('text', 'game over screen: every visible text is at least 14 px', !!overFonts && overFonts.n > 8 && overFonts.bad.length === 0, overFonts && { nodes: overFonts.n, min: overFonts.min, bad: overFonts.bad });
     check('restart', 'Enter and R restart a clean run (3 hearts, zero score, same fixed seed)', restartOk && runs.length >= 2);
     check('persist', 'best score is the max across runs, flagged as new best only when beaten, written to localStorage', bestOk && bestSoFar > 0, { best: bestSoFar });
     await page.reload();
@@ -471,6 +651,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     const page = await ctx.newPage(); watch(page, 'phone');
     await page.goto(URL + '?seed=7');
     await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
     await sleep(500);
     const fit = await page.evaluate(() => {
       const r = document.getElementById('btnStart').getBoundingClientRect();
@@ -535,6 +716,10 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   /* ===== 5b. Short screens: Start without scrolling, banner out of the road ===== */
   console.log('\n5b. Short screens (320x568, 360x640, 844x390) and banner placement');
   await smallScreenChecks(browser);
+
+  /* ===== 5d. Round 3 layout: text sizes, how-to sheet, pause/mute placement, shop strip ===== */
+  console.log('\n5d. Layout at 320x568, 844x390, 390x844 and 1280x720');
+  await layoutChecks(browser);
 
   /* ===== 5c. Near-miss and repair with real keys ===== */
   console.log('\n5c. Near-miss bonus and fundi repair, driven by real keys');
@@ -605,7 +790,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
       await ctx.close();
       return { s, ev, frames };
     };
-    const A = await grab(true), B = await grab(false);
+    const A = await grab(false), B = await grab(false);
     const node = nodeReplay(42, MAXTICK);
     const ja = JSON.stringify(A.ev), jb = JSON.stringify(B.ev), jn = JSON.stringify(node);
     notes.demo = { events: A.ev.length, pickups: A.ev.filter((x) => x.type === 'pickup').length, hits: A.ev.filter((x) => x.type === 'hit').length };
@@ -613,20 +798,97 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('audio', 'autostarted demo with no gesture never creates an AudioContext', A.s.audio.created === false && B.s.audio.created === false, A.s.audio);
     check('determinism', 'same seed gives an identical event log in two browser runs', A.ev.length > 10 && ja === jb, { events: A.ev.length });
     check('determinism', 'browser event log equals a pure Node replay of js/game.js (events are real simulation output)', ja === jn, { browser: A.ev.length, node: node.length });
-    let videoNote = 'not recorded';
-    if (A.frames.length > 30) {
+
+    /* ----- 7b. Seed 7 demo started by a REAL click on "Watch demo": popups, audio, recording ----- */
+    console.log('\n7b. Seed 7 demo after a real click: popup overlap audit, audio-on recording');
+    const ctx = await browser.newContext(desktop);
+    await ctx.addInitScript(AUDIO_TAP);
+    const page = await ctx.newPage(); watch(page, 'demo-audio');
+    const frames = [];
+    let cdp = null;
+    /* CDP screencast -> JPEG frames -> system ffmpeg (Playwright's own ffmpeg build is not installed here) */
+    fs.rmSync(FRAMES, { recursive: true, force: true }); fs.mkdirSync(FRAMES, { recursive: true });
+    try {
+      cdp = await ctx.newCDPSession(page);
+      cdp.on('Page.screencastFrame', (f) => {
+        const file = path.join(FRAMES, 'f' + String(frames.length).padStart(5, '0') + '.jpg');
+        fs.writeFileSync(file, Buffer.from(f.data, 'base64'));
+        frames.push({ file, ts: f.metadata.timestamp });
+        cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
+      });
+    } catch (e) { cdp = null; }
+    await page.goto(URL + '?seed=7');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page); await sleep(300);
+    const pre = await snap(page);
+    const preRec = await page.evaluate(() => ({ hasRecorder: !!window.__rec.mr, chunks: window.__rec.chunks.length }));
+    if (cdp) await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 82, maxWidth: 1280, maxHeight: 720, everyNthFrame: 2 });
+    await sleep(250);
+    await page.click('#btnDemo');
+    const first = await waitFor(page, (x) => x.mode === 'running', 3000, 'demo click');
+    const pa = mkPopupAudit();
+    let since = 0, peak = 0, shotPop = false, demoFonts = null, last = first;
+    const dEv = [], states = new Set();
+    const tEnd = Date.now() + 40000;
+    while (Date.now() < tEnd) {
+      const r = await read(page, since); last = r.s;
+      for (const x of r.e) { dEv.push(x); since = x.i; }
+      peak = Math.max(peak, last.audio.level); states.add(last.audio.state);
+      const seen = popupAudit(last, pa);
+      if (!demoFonts && last.time > 1) demoFonts = await fontAudit(page);
+      if (!shotPop && seen && seen.horn && seen.fare && seen.beba) { shotPop = true; await page.screenshot({ path: path.join(SHOTS, '12-popups-fare-combo-hornready-desktop.png') }); }
+      if (last.mode !== 'running' || last.time >= 21.2) break;
+      await sleep(20);
+    }
+    const aud = await page.evaluate(() => window.__rec.stop());
+    if (cdp) { await sleep(400); await cdp.send('Page.stopScreencast').catch(() => {}); }
+    await ctx.close();
+    const dp = dEv.filter((x) => x.type === 'pickup'), fired = last.audio.fired || {};
+    notes.demoAudio = { seed: 7, simSeconds: last.time, pickups: dp.length, hornReadyEvents: dEv.filter((x) => x.type === 'hornReady').length, audioState: last.audio.state, statesSeen: Array.from(states), sequencerSteps: last.audio.steps, peakRms: peak, sfxFired: fired,
+      popups: { frames: pa.frames, maxFloats: pa.maxFloats, comboAndFareFrames: pa.both, hornReadyWithPickupFrames: pa.hornWithPickup, slotFrames: pa.slotSeen, slotCopy: pa.copy } };
+    console.log('  AUDIO  demo AudioContext state: ' + last.audio.state + ', sequencer steps: ' + last.audio.steps + ', peak RMS: ' + peak + ', sfx fired: ' + JSON.stringify(fired));
+    check('audio', 'recording page: no AudioContext and no recorder before the click; the click on Watch demo starts audio (running, music on)', pre.audio.created === false && !preRec.hasRecorder && preRec.chunks === 0 && first.audio.created && first.audio.state === 'running' && first.audio.musicOn, { before: pre.audio.state, after: first.audio.state });
+    check('audio', 'demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)', peak > 0.01 && states.size === 1 && fired.pickup === dp.length && dp.length >= 5 && (fired.ready || 0) === dEv.filter((x) => x.type === 'hornReady').length && (fired.horn || 0) === dEv.filter((x) => x.type === 'horn').length, { peakRms: peak, fired, pickups: dp.length });
+    check('popup', 'seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame', pa.frames > 50 && pa.overlaps.length === 0 && pa.floatOffRoad === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
+    check('popup', 'seed 7 demo: combo (BEBA) and fare popups were visible in the same frame', pa.both > 0, { frames: pa.both });
+    check('popup', 'seed 7 demo: HORN READY was visible at the same time as pickup text', pa.hornWithPickup > 0 && shotPop, { frames: pa.hornWithPickup });
+    check('popup', 'seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
+    check('text', 'demo HUD (short demo tag included): every visible text is at least 14 px', !!demoFonts && demoFonts.bad.length === 0, demoFonts && { nodes: demoFonts.n, min: demoFonts.min, bad: demoFonts.bad });
+
+    let videoNote = 'not recorded', audioNote = 'no audio captured';
+    if (frames.length > 30) {
       try {
         let list = 'ffconcat version 1.0\n';
-        for (let i = 0; i < A.frames.length; i++) {
-          const dur = i + 1 < A.frames.length ? Math.max(0.005, A.frames[i + 1].ts - A.frames[i].ts) : 0.04;
-          list += 'file ' + path.basename(A.frames[i].file) + '\nduration ' + dur.toFixed(4) + '\n';
+        for (let i = 0; i < frames.length; i++) {
+          const dur = i + 1 < frames.length ? Math.max(0.005, frames[i + 1].ts - frames[i].ts) : 0.04;
+          list += 'file ' + path.basename(frames[i].file) + '\nduration ' + dur.toFixed(4) + '\n';
         }
         fs.writeFileSync(path.join(FRAMES, 'list.txt'), list);
         const mp4 = path.join(OUT, 'gameplay-demo.mp4');
-        execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(FRAMES, 'list.txt'), '-vf', 'fps=30,scale=1280:720', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', '-movflags', '+faststart', mp4]);
-        const secs = A.frames[A.frames.length - 1].ts - A.frames[0].ts;
-        videoNote = 'out/gameplay-demo.mp4 (' + A.frames.length + ' frames, ' + secs.toFixed(1) + ' s, ' + Math.round(fs.statSync(mp4).size / 1024) + ' KB, silent)';
-      } catch (e) { videoNote = 'encode failed: ' + String(e.message).slice(0, 120); }
+        const args = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(FRAMES, 'list.txt')];
+        let hasAudio = false;
+        if (aud && aud.b64 && aud.startedAt) {
+          const webm = path.join(FRAMES, 'audio.webm');
+          fs.writeFileSync(webm, Buffer.from(aud.b64, 'base64'));
+          /* line the sound up with the picture: both clocks are wall-clock seconds */
+          const off = aud.startedAt - frames[0].ts;
+          args.push('-itsoffset', off.toFixed(3), '-i', webm, '-map', '0:v:0', '-map', '1:a:0', '-c:a', 'aac', '-b:a', '160k');
+          hasAudio = true;
+          audioNote = 'WebAudio destination recorded with MediaRecorder (opus, ' + Math.round(fs.statSync(webm).size / 1024) + ' KB), offset ' + off.toFixed(2) + ' s';
+        } else audioNote = 'audio capture failed: ' + (aud && aud.error);
+        args.push('-vf', 'fps=30,scale=1280:720', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', '-movflags', '+faststart', mp4);
+        execFileSync('ffmpeg', args);
+        const secs = frames[frames.length - 1].ts - frames[0].ts;
+        videoNote = 'out/gameplay-demo.mp4 (' + frames.length + ' frames, ' + secs.toFixed(1) + ' s, ' + Math.round(fs.statSync(mp4).size / 1024) + ' KB, ' + (hasAudio ? 'with audio' : 'silent') + ')';
+        if (hasAudio) {
+          /* prove the muxed file really carries sound: stream present and not digital silence */
+          const { spawnSync } = require('child_process');
+          const probe = spawnSync('ffmpeg', ['-hide_banner', '-i', mp4, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' });
+          const mean = /mean_volume:\s*(-?[\d.]+) dB/.exec(probe.stderr || ''), max = /max_volume:\s*(-?[\d.]+) dB/.exec(probe.stderr || '');
+          notes.videoAudio = { note: audioNote, meanDb: mean ? +mean[1] : null, maxDb: max ? +max[1] : null };
+          check('audio', 'out/gameplay-demo.mp4 has a muxed audio stream that is not silent (ffmpeg volumedetect)', !!mean && +mean[1] > -50 && !!max && +max[1] > -30, notes.videoAudio);
+        } else check('audio', 'audio-on capture muxed into the recording', false, audioNote);
+      } catch (e) { videoNote = 'encode failed: ' + String(e.message).slice(0, 200); }
     }
     fs.rmSync(FRAMES, { recursive: true, force: true });
     notes.video = videoNote;
