@@ -282,7 +282,16 @@
         tone('sine', 110, 40, t + 0.76, 0.8, 0.6);
       });
     },
-    ready: function () { sfx(function (t) { tone('square', 523, 523, t, 0.06, 0.14); tone('square', 784, 784, t + 0.07, 0.1, 0.14); }); }
+    ready: function () { sfx(function (t) { tone('square', 523, 523, t, 0.06, 0.14); tone('square', 784, 784, t + 0.07, 0.1, 0.14); }); },
+    /* overlap: a gravelly swerve onto the shoulder, then a short rising chime for the ready cue */
+    overlap: function () {
+      sfx(function (t) {
+        var f = burst(t, 0.3, 0.32, 'bandpass', 500, 1.1); f.frequency.exponentialRampToValueAtTime(2400, t + 0.26);
+        tone('sawtooth', 120, 260, t, 0.24, 0.2);
+        tone('triangle', 392, 587, t + 0.1, 0.16, 0.22);
+      });
+    },
+    overlapReady: function () { sfx(function (t) { tone('triangle', 659, 659, t, 0.07, 0.17); tone('triangle', 880, 880, t + 0.07, 0.07, 0.17); tone('sine', 1319, 1319, t + 0.14, 0.16, 0.2); }); }
   };
   /* tag each effect with its name so A.fired counts what really got scheduled */
   Object.keys(A.sfx).forEach(function (name) {

@@ -112,22 +112,30 @@ kbd {
 }
 .pad svg { width: 30px; height: 30px; fill: #fff; }
 .pad:active, .pad.down { background: rgba(33, 230, 255, 0.3); border-color: var(--cyan); transform: scale(0.96); }
-.horn {
+.horn, .ovl {
   position: relative; flex: 0 1 230px; min-width: 120px; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 8px;
   background: rgba(16, 15, 40, 0.82); border: 2px solid #5b5ba6; border-radius: 16px; padding: 0 12px;
 }
-.horn i {
+.horn i, .ovl i {
   position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; transform: scaleX(0);
   background: linear-gradient(90deg, #5b2cff, var(--pink)); opacity: 0.85;
 }
-.horn .hl, .horn kbd { position: relative; }
-.horn .hl { font: italic 900 24px/1 var(--display); letter-spacing: 0.08em; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); }
+.horn .hl, .horn kbd, .ovl .hl, .ovl kbd { position: relative; }
+.horn .hl, .ovl .hl { font: italic 900 24px/1 var(--display); letter-spacing: 0.08em; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); }
 .horn.ready { border-color: var(--yellow); box-shadow: 0 0 22px rgba(255, 225, 74, 0.55); animation: ready 0.9s ease-in-out infinite; }
 .horn.ready i { background: linear-gradient(90deg, #ff8a1f, var(--yellow)); }
 .horn.ready .hl { color: #14100a; text-shadow: none; }
 .horn.nitro { border-color: var(--cyan); box-shadow: 0 0 26px rgba(33, 230, 255, 0.7); }
 .horn.nitro i { background: linear-gradient(90deg, #1b7bff, var(--cyan)); }
-.horn:active { transform: scale(0.97); }
+.horn:active, .ovl:active { transform: scale(0.97); }
+/* OVERLAP: its own accent (green / lime) so it is never mistaken for the horn (pink / yellow / cyan) */
+.ovl { flex-basis: 190px; border-color: #3f8f6a; }
+.ovl i { background: linear-gradient(90deg, #0e5a46, #1fbf86); }
+.ovl.ready { border-color: var(--lime); box-shadow: 0 0 22px rgba(182, 255, 60, 0.55); animation: ready 0.9s ease-in-out infinite; }
+.ovl.ready i { background: linear-gradient(90deg, #5fd13a, var(--lime)); }
+.ovl.ready .hl { color: #0b1405; text-shadow: none; }
+.ovl.active { border-color: var(--lime); border-style: dashed; box-shadow: 0 0 26px rgba(182, 255, 60, 0.6); }
+.ovl.active i { background: linear-gradient(90deg, #2c8f3a, #7fe04a); }
 
 /* ---------- screens ---------- */
 .screen {
@@ -204,6 +212,38 @@ kbd {
 .stats dd { margin: 5px 0 0; font: italic 900 24px/1 var(--display); color: #fff; }
 .stats .big dd { font-size: 42px; color: var(--yellow); }
 
+/* ---------- Top 5 board and name entry ---------- */
+.nameform { margin: 0 0 14px; padding: 10px 12px 12px; background: rgba(33, 230, 255, 0.07); border: 1.5px solid rgba(33, 230, 255, 0.5); border-radius: 12px; }
+.namerank { margin: 0 0 6px; font: italic 900 22px/1.1 var(--display); letter-spacing: 0.04em; color: var(--cyan); }
+.nameform label { display: block; margin: 0 0 4px; font: 800 14px/1.2 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: #aeb4dc; }
+#nameInput {
+  display: block; width: 100%; min-height: 46px; margin: 0 0 10px; padding: 8px 12px;
+  font: 700 18px/1.2 var(--body); text-align: center; color: #fff;
+  background: rgba(8, 8, 22, 0.9); border: 1.5px solid #5b5ba6; border-radius: 12px;
+  -webkit-user-select: text; user-select: text;
+}
+#nameInput::placeholder { color: #8d93bd; opacity: 1; }
+#nameInput:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; border-color: var(--cyan); }
+.ghost.save { border-color: var(--lime); color: var(--lime); }
+.namesaved { margin: 0 0 12px; font: 800 16px/1.2 var(--body); letter-spacing: 0.04em; color: var(--lime); }
+.h3 { margin: 0 0 6px; font: 800 14px/1 var(--body); letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan); }
+.boardbox { margin: 0 0 16px; }
+.board { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 5px; text-align: left; }
+.boardbox .board { margin: 0; }
+.board li {
+  display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; align-items: baseline; column-gap: 8px;
+  padding: 6px 10px; background: rgba(255, 255, 255, 0.06); border: 1.5px solid transparent; border-radius: 10px;
+  font: 700 17px/1.2 var(--body); color: #fff;
+}
+.board .rk { font: italic 900 18px/1.2 var(--display); color: var(--yellow); }
+.board .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .sc { font: italic 900 18px/1.2 var(--display); color: var(--yellow); white-space: nowrap; }
+.board li.me { background: rgba(182, 255, 60, 0.12); border-color: var(--lime); }
+.board li.me .nm { color: var(--lime); }
+#board { z-index: 6; background: radial-gradient(120% 90% at 50% 40%, rgba(10, 6, 30, 0.9), rgba(4, 3, 12, 0.97)); }
+#board .h2 { font-size: clamp(30px, 8vw, 44px); margin-bottom: 12px; }
+#board .tag { margin: 8px auto 14px; }
+
 @keyframes bump { 0% { transform: scale(1.28); } 100% { transform: scale(1); } }
 .combo.pulse { animation-name: bumpc; }
 @keyframes bumpc { 0% { scale: 1.3; } 100% { scale: 1; } }
@@ -211,12 +251,18 @@ kbd {
 
 @media (max-width: 700px), (pointer: coarse) {
   :root { --ctl-h: 76px; }
-  .pad kbd, .horn kbd { display: none; }
-  .pad { flex-basis: 104px; }
+  .pad kbd, .horn kbd, .ovl kbd { display: none; }
+  .pad { flex-basis: 84px; min-width: 52px; }
+  .horn, .ovl { flex: 1 1 0; min-width: 0; max-width: 200px; padding: 0 6px; }
   .keys p:not(.touch) { display: none; }
   .keys .touch { color: #dfe2ff; font-size: 14px; }
 }
 @media (max-width: 520px) {
+  #controls { gap: 6px; padding: 0 max(8px, env(safe-area-inset-left)); }
+  .pad { flex-basis: 56px; min-width: 48px; }
+  .pad svg { width: 26px; height: 26px; }
+  .horn .hl, .ovl .hl { font-size: 20px; letter-spacing: 0.04em; }
+  .ovl .hl { font-size: 18px; letter-spacing: 0.02em; }
   .legend { gap: 4px; }
   .legend canvas { width: 38px; height: 38px; }
   .legend b { font-size: 14px; letter-spacing: 0; }
@@ -225,6 +271,10 @@ kbd {
   .zone { letter-spacing: 0.03em; padding: 5px 7px 4px; }
   .lbl { letter-spacing: 0.14em; }
   .sub { letter-spacing: 0.02em; }
+}
+@media (max-width: 300px) {
+  /* the OVERLAP! ready label is 67 px at 18 px; the button has 63 px inside its border, so shrink it a little (still >= 14 px) */
+  .ovl .hl { font-size: 16px; letter-spacing: 0; }
 }
 /* narrow gutter: the combo chip sits in the left road-side strip, one column */
 #hud.narrow .combo { left: max(4px, env(safe-area-inset-left)); grid-template-columns: auto; justify-items: center; row-gap: 2px; padding: 5px 6px 6px; transform: rotate(-3deg); }
@@ -252,6 +302,9 @@ kbd {
   #title .cta { flex: 0 1 300px; width: auto; }
   .rules { grid-template-columns: 1fr 1fr; margin: 10px 0; }
   #howto .panel.small { width: min(720px, 100%); padding: 12px 16px; }
+  /* five buttons in the title row (Top 5 added): trim the Start width and the ghost padding so they stay on one row */
+  #title .cta { flex-basis: 260px; }
+  #title .actions .ghost { padding: 8px 14px; }
 }
 @media (max-height: 700px) and (max-width: 420px) {
   #howto .panel.small { padding: 12px 10px 12px; }
@@ -263,7 +316,18 @@ kbd {
   .l1 { font-size: clamp(48px, 16vw, 72px); }
   .l2 { font-size: clamp(40px, 13vw, 60px); }
 }
+@media (max-width: 420px) {
+  .board li { grid-template-columns: 1.9em minmax(0, 1fr) auto; column-gap: 6px; padding: 5px 8px; font-size: 16px; }
+  .board .rk, .board .sc { font-size: 17px; }
+  #board .panel.small { padding: 16px 10px 14px; }
+}
+@media (max-height: 700px) {
+  #over .panel.small { padding: 16px 14px 14px; }
+  #over .stats { margin-bottom: 12px; gap: 6px; }
+  #over .stats .big dd { font-size: 34px; }
+  .board li { padding: 4px 10px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .horn.ready, .newbest, .val.bump, .combo.pulse, #hearts svg.pop { animation: none; }
+  .horn.ready, .ovl.ready, .newbest, .val.bump, .combo.pulse, #hearts svg.pop { animation: none; }
   .cta { transition: none; }
 }

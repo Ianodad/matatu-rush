@@ -132,6 +132,290 @@ async function drive(page, opt) {
   return { evs, s, seenTypes, passed, since };
 }
 
+/* the Top 5 name box takes focus on a qualifying game over; Escape inside it is Skip and moves focus to Play again */
+async function skipNameIfShown(page) {
+  /* closing the form starts a 600 ms input guard on Play again, so wait it out */
+  if (await page.isVisible('#nameForm')) { await page.keyboard.press('Escape'); await sleep(680); }
+}
+
+/* ---------- Top 5 board: pure Node harness around js/core.js + js/game.js (no browser) ---------- */
+function boardHarness(initial) {
+  const store = Object.assign({}, initial || {});
+  const win = { location: { search: '' }, localStorage: { getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; } } };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  const g = win.MR.createGame();
+  const evs = [];
+  g.onEvent = (e) => evs.push(JSON.parse(JSON.stringify(e)));
+  const crash = (seed, auto) => { evs.length = 0; g.start(seed, !!auto); while (g.mode === 'running' && g.tick < 400000) g.step(); return evs.find((e) => e.type === 'gameover'); };
+  return { store, g, evs, crash };
+}
+function boardNodeChecks() {
+  const G = 'board';
+  const KEY = 'matatuRush.top5', ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
+  let h = boardHarness();
+  let over = h.crash(3);
+  let b = h.g.board();
+  check(G, 'node: first qualifying run is inserted at once under an alias (matatu-crew word + 3 digits, max 12 chars) with rank 1', !!over && over.rank === 1 && h.g.boardRank === 1 && b.length === 1 && ALIAS.test(b[0].name) && b[0].name.length <= 12 && b[0].score === over.score && over.score > 0 && b[0].id === h.g.boardId && JSON.parse(h.store[KEY]).length === 1, { rank: over && over.rank, board: b });
+  const firstId = b[0].id;
+  over = h.crash(3);
+  b = h.g.board();
+  check(G, 'node: equal scores keep the older entry above (tie goes below)', over.rank === 2 && b.length === 2 && b[0].id === firstId && b[1].id === h.g.boardId && b[0].score === b[1].score);
+  const sn = h.g.snapshot();
+  check(G, 'node: snapshot carries a copy of the board and the run rank; board() returns copies', sn.boardRank === 2 && sn.board.length === 2 && (() => { const c = h.g.board(); c[0].name = 'HACK'; sn.board[0].name = 'HACK'; return h.g.board()[0].name !== 'HACK'; })());
+  for (let sd = 1; sd <= 9; sd++) h.crash(sd);
+  b = h.g.board();
+  check(G, 'node: after many runs the board never exceeds 5 entries and stays sorted by score, high to low', b.length === 5 && b.every((e, i) => i === 0 || b[i - 1].score >= e.score) && JSON.parse(h.store[KEY]).length === 5, b.map((e) => e.score));
+  /* a run that cannot beat the 5th place must not enter */
+  h = boardHarness({ [KEY]: JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'P' + n, score: 999999999 - n, id: 'p' + n }))) });
+  const beforeHigh = h.store[KEY];
+  over = h.crash(4);
+  check(G, 'node: a score below the 5th place gets no entry, rank 0, board untouched', over.rank === 0 && h.g.boardRank === 0 && h.g.boardId === null && h.store[KEY] === beforeHigh && h.g.board().length === 5, { rank: over.rank });
+  h = boardHarness();
+  over = h.crash(3, true);
+  check(G, 'node: an autopilot demo run never adds an entry', over.rank === 0 && h.g.board().length === 0 && h.store[KEY] === undefined, { rank: over.rank });
+  h = boardHarness({ 'matatuRush.best': '5000' });
+  check(G, 'node: migration: a stored best with an empty board does not invent an entry and best stays as is', h.g.board().length === 0 && h.g.best === 5000 && h.store[KEY] === undefined);
+  const hz = (raw) => boardHarness({ [KEY]: raw }).g.board();
+  const messy = hz(JSON.stringify([1, 'x', null, { name: 5, score: 10 }, { name: '  Bob  ', score: 10.7, id: 'a' }, { name: 'A very long name indeed', score: 20, id: 'b' }, { name: 'Z', score: -1 }, { name: 'Q', score: 'NaN' }, { name: '   ', score: 99 }]));
+  check(G, 'node: bad JSON and wrong shapes give an empty board; bad entries are dropped; names trimmed to 12; scores whole numbers above 0', hz('not json').length === 0 && hz('{"a":1}').length === 0 && hz('null').length === 0 && hz('"str"').length === 0 && messy.length === 2 && messy[0].name === 'A very long' && messy[1].name === 'Bob' && messy[1].score === 10, messy);
+  h = boardHarness();
+  h.crash(3);
+  const id = h.g.boardId, alias = h.g.board()[0].name;
+  const r1 = h.g.setBoardName(id, '   Mr    Fast   Driver Long  ');
+  const r2 = h.g.setBoardName(id, '    ');
+  const r3 = h.g.setBoardName('nope', 'X');
+  check(G, 'node: setBoardName trims, collapses spaces, caps at 12; empty keeps the stored name; unknown id returns an empty string', r1 === 'Mr Fast Driv' && r1.length <= 12 && r2 === 'Mr Fast Driv' && r3 === '' && JSON.parse(h.store[KEY])[0].name === 'Mr Fast Driv' && alias !== r1, { r1, r2, r3 });
+  const a = boardHarness(), c = boardHarness({ [KEY]: JSON.stringify([{ name: 'Old', score: 1, id: 'o1' }]) });
+  const strip = (e) => JSON.stringify(e.filter((x) => x.type !== 'gameover'));
+  a.crash(3); c.crash(3);
+  check(G, 'node: the board does not touch the seeded game RNG: same seed gives the same non-final events whether the board is empty or not', strip(a.evs) === strip(c.evs) && a.evs.length > 5 && c.g.boardRank === 1 && a.g.boardRank === 1);
+}
+
+/* ---------- OVERLAP (second power): Node-level simulation checks, no browser ---------- */
+function simHarness() {
+  const win = { location: { search: '' }, localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} } };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  const MR = win.MR, g = MR.createGame(), evs = [];
+  g.onEvent = (e) => evs.push(JSON.parse(JSON.stringify(e)));
+  return { MR, g, evs, C: MR.CONST };
+}
+/* a hand-built road: random rows are switched off and the test places every entity itself */
+function overlapScene(seed) {
+  const h = simHarness(), g = h.g, evs = h.evs;
+  g.start(seed || 5, false);
+  g.nextRowAt = Infinity; g.ents.length = 0;
+  let nid = 9000;
+  const S = Object.assign({}, h, {
+    step(n) { for (let i = 0; i < n && g.mode === 'running'; i++) g.step(); },
+    secs(t) { S.step(Math.round(t / h.C.STEP)); },
+    until(pred, max) { let i = 0; while (!pred() && i++ < (max || 6000) && g.mode === 'running') g.step(); return pred(); },
+    add(e) { e.id = nid++; g.ents.push(e); return e; },
+    stage(lane, d) { return S.add({ type: 'stage', lane, d, pax: 2, taken: false }); },
+    pothole(lane, d) { return S.add({ type: 'pothole', lane, d, shape: 1 }); },
+    askari(lane, d) { return S.add({ type: 'askari', lane, span: 2, d }); },
+    boda(lane, d, v) { return S.add({ type: 'boda', kind: 'cruiser', lane, x: lane, d, v: v || 2.5, signal: 0, signalT: 0, weaveT: 99, spin: 0, vx: 0 }); },
+    repair(lane, d) { return S.add({ type: 'repair', lane, d }); },
+    pickup() { const n = g.stats.pickups; S.stage(g.lane, 2); S.until(() => g.stats.pickups > n, 1500); },
+    charge() { let n = 0; while (g.overlap < 1 && n < 40) { S.pickup(); n++; } return n; },
+    count(type, from) { return evs.slice(from || 0).filter((e) => e.type === type); }
+  });
+  return S;
+}
+/* captured from the UNMODIFIED simulation (before OVERLAP existed): autopilot, 120 s of sim time or game over */
+const AUTOPILOT_BASELINE = {
+  7: { rows: { 1200: [806, 56.1088, 3, 1, 1, 5, 5], 6000: [7877, 352.0523, 3, 2, 2.925, 25, 12], 12000: [23263, 863.0856, 3, 1, 1, 52, 39] }, final: [14400, 26107, 1107.1704749184764, 3, 'running'], events: 214, md5: '8d6925f2976ab0a7dbe04994fe95629e' },
+  42: { rows: { 1200: [2366, 66.0215, 3, 2, 2.175, 7, 7], 6000: [13932, 357.8173, 3, 3, 3, 27, 1], 12000: [34269, 884.7808, 3, 1, 1, 64, 38] }, final: [14400, 40169, 1164.6012535547197, 3, 'running'], events: 266, md5: '65ff6024bb9447b7659d22110a4424d4' }
+};
+function overlapNodeChecks() {
+  const G = 'overlap', crypto = require('crypto');
+  let S = overlapScene(), g = S.g, C = S.C;
+  const hitTotal = () => g.stats.hits.pothole + g.stats.hits.boda + g.stats.hits.askari;
+
+  /* --- meter: starts empty, only pickups fill it --- */
+  const sn0 = g.snapshot().overlap;
+  check(G, 'node: the meter starts EMPTY (the horn starts full) and a run starts with no uses', g.overlap === 0 && g.horn === 1 && sn0.meter === 0 && sn0.ready === false && sn0.active === false && sn0.time === 0 && sn0.uses === 0 && g.stats.overlaps === 0, sn0);
+  S.secs(30);
+  S.pothole(1, 3.0);
+  S.until(() => g.ents[0].d < 1.5, 3000);
+  g.input('left', 'keyboard');
+  S.secs(1.5);
+  check(G, 'node: 30 s of driving and a near miss (RADA bonus) leave the meter at 0: only passenger pickups fill it', g.overlap === 0 && g.stats.nearMiss >= 1 && g.stats.pickups === 0 && S.count('overlapReady').length === 0, { nearMiss: g.stats.nearMiss, meter: g.overlap });
+
+  S = overlapScene(); g = S.g;
+  const marks = [];
+  for (let k = 1; k <= 8; k++) { S.pickup(); marks.push(g.overlap); }
+  const rdy = S.count('overlapReady');
+  check(G, 'node: the first charge takes exactly 8 pickups (0.125 each); overlapReady fires once, on the 8th', marks.every((m, i) => m === (i + 1) * 0.125) && g.stats.pickups === 8 && rdy.length === 1 && g.snapshot().overlap.ready === true, { marks, ready: rdy.length });
+  S.pickup();
+  check(G, 'node: a 9th pickup with a full meter keeps it at 1 and does not announce ready again', g.overlap === 1 && S.count('overlapReady').length === 1);
+
+  /* --- each charge fills 12 percent slower than the one before (compounding) --- */
+  S = overlapScene(); g = S.g;
+  const need = [], per = [], readyFlags = [];
+  for (let use = 0; use < 3; use++) {
+    const before = g.overlap;
+    S.pickup(); per.push(g.overlap - before);
+    need.push(1 + S.charge());
+    readyFlags.push(g.overlap >= 1 && g.snapshot().overlap.ready && g.input('overlap', 'keyboard'));
+    S.secs(C.OVERLAP_TIME + 0.2);
+  }
+  const want1 = 0.125, want2 = 0.125 * 0.88, want3 = 0.125 * 0.88 * 0.88;
+  check(G, 'node: fill per pickup is 0.125 on the first charge, 0.88x of that after 1 use (0.11), 0.88^2 after 2 uses (0.0968)', Math.abs(per[0] - want1) < 1e-12 && Math.abs(per[1] - want2) < 1e-12 && Math.abs(per[2] - want3) < 1e-12 && Math.abs(want2 - 0.11) < 1e-12 && Math.abs(want3 - 0.0968) < 1e-12, per);
+  check(G, 'node: so the pickups needed grow 8, 10, 11 (1 / (0.125 * 0.88^uses), rounded up) and every charge can be fired', need.join(',') === '8,10,11' && readyFlags.every((x) => x === true) && g.overlapUses === 3 && g.stats.overlaps === 3, need);
+
+  /* --- input rules --- */
+  S = overlapScene(); g = S.g;
+  let from = S.evs.length;
+  const r0 = g.input('overlap', 'touch');
+  const emp = S.count('overlapEmpty', from);
+  check(G, 'node: overlap input when not ready does nothing but emit overlapEmpty', r0 === false && emp.length === 1 && emp[0].reason === 'charging' && emp[0].source === 'touch' && S.count('overlap', from).length === 0 && g.overlapTime === 0 && g.overlapUses === 0 && g.stats.overlaps === 0);
+  S.charge();
+  g.input('horn', 'keyboard');
+  const nitroOn = g.nitro > 0, rdyDuringNitro = g.snapshot().overlap.ready;
+  from = S.evs.length;
+  const r1 = g.input('overlap', 'keyboard');
+  const e1 = S.count('overlapEmpty', from);
+  check(G, 'node: overlap cannot start during nitro (meter kept, overlapEmpty says why)', nitroOn && r1 === false && !rdyDuringNitro && e1.length === 1 && e1[0].reason === 'nitro' && g.overlap === 1 && g.overlapUses === 0 && g.overlapTime === 0, e1);
+  S.secs(C.NITRO_TIME + 0.2);
+  check(G, 'node: once nitro has ended the full meter fires', g.nitro === 0 && g.input('overlap', 'keyboard') === true && g.overlapTime > 0 && g.overlap === 0);
+
+  S = overlapScene(); g = S.g;
+  S.charge();
+  g.input('overlap', 'keyboard');
+  const hornBefore = g.horn; from = S.evs.length;
+  const hr = g.input('horn', 'keyboard');
+  const he = S.count('hornEmpty', from), hornAfter = g.horn;
+  check(G, 'node: the horn is refused during overlap and the horn meter is not spent', hr === false && he.length === 1 && he[0].reason === 'overlap' && hornBefore === 1 && hornAfter === 1 && g.nitro === 0 && g.stats.horns === 0 && S.count('horn', from).length === 0);
+  S.secs(C.OVERLAP_TIME + 0.2);
+  check(G, 'node: after the overlap the horn meter is still full and the horn fires', g.horn === 1 && g.input('horn', 'keyboard') === true && g.nitro > 0);
+
+  /* --- during overlap nothing can touch the matatu --- */
+  const gauntlet = (S2) => {
+    const items = { stage: [], repair: [], block: [] };
+    for (const d of [3, 9, 15]) for (let l = 0; l < 4; l++) items.block.push(S2.pothole(l, d + l * 0.05));
+    items.block.push(S2.askari(0, 6), S2.askari(2, 12));
+    items.block.push(S2.boda(0, 4), S2.boda(1, 7), S2.boda(3, 8, 2.0));
+    /* point blank, right on top of the matatu at the moment it leaves the road: the eased exit must not collide or collect */
+    items.block.push(S2.pothole(1, 0.4), S2.pothole(0, 0.6), S2.boda(1, 0.3, 2.5));
+    items.stage.push(S2.stage(1, 5), S2.stage(0, 10), S2.stage(0, 3.5), S2.stage(1, 0.2));
+    items.repair.push(S2.repair(0, 13));
+    return items;
+  };
+  S = overlapScene(); g = S.g;
+  gauntlet(S);
+  S.secs(6);
+  check(G, 'node: control run: the same gauntlet (every lane blocked, askari, bodas) really does hurt a matatu that stays on the road', hitTotal() >= 1 && g.health < C.MAX_HEALTH, { hits: g.stats.hits, health: g.health });
+
+  S = overlapScene(); g = S.g;
+  S.charge();
+  S.secs(0.3);
+  g.lane = 1; g.px = 1;
+  const pick0 = g.stats.pickups, laneChanges0 = g.stats.laneChanges;
+  g.input('overlap', 'keyboard');
+  const combo0 = g.combo, timer0 = g.comboTimer, score0 = g.score, startEv = S.evs.length;
+  const gt = gauntlet(S);
+  const inputsBefore = S.evs.length;
+  const lr = [g.input('left', 'keyboard'), g.input('right', 'keyboard'), g.input('left', 'touch')];
+  S.secs(0.6);
+  const settledPx = g.px;
+  lr.push(g.input('right', 'keyboard'));
+  S.secs(C.OVERLAP_TIME - 0.65);
+  const preEnd = { active: g.overlapTime > 0, health: g.health };
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const evAfter = S.evs.slice(startEv);
+  const bad = evAfter.filter((e) => /^(hit|smash|nearMiss|pickup|repair|comboEnd|gameover|lane|bump)$/.test(e.type));
+  check(G, 'node: during overlap: bodas, potholes, an askari checkpoint and a fully blocked road cost zero health, zero hits, no smash, no near-miss credit, no game over', preEnd.active && g.health === C.MAX_HEALTH && hitTotal() === 0 && bad.length === 0 && g.mode === 'running' && S.count('overlapEnd').length === 1, { bad: bad.slice(0, 4), hits: g.stats.hits, health: g.health });
+  check(G, 'node: during overlap nothing is collected (stage and fundi items stay untaken) and the combo does not change', g.stats.pickups === pick0 && gt.stage.every((s) => !s.taken) && gt.repair.every((s) => !s.taken) && g.combo === combo0 && g.comboTimer === timer0 && g.stats.repairs === 0, { combo: g.combo, combo0, timer: g.comboTimer, timer0 });
+  check(G, 'node: lane inputs are ignored while overlapping (no lane change, no event, no bump), and the matatu parks one lane outside the left edge (px -1)', lr.every((x) => x === false) && g.stats.laneChanges === laneChanges0 && Math.abs(settledPx - (-1)) < 0.001 && evAfter.filter((e) => e.type === 'lane' || e.type === 'bump').length === 0, { lr, settledPx });
+
+  /* --- the end: edge lane, invulnerability, no unfair hit on re-entry --- */
+  S = overlapScene(); g = S.g;
+  S.charge();
+  g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  const tStart = S.count('overlap')[0].t;
+  S.until(() => g.overlapTime < 0.03, 1000);
+  const merge = [S.pothole(0, 1.25), S.askari(0, 2.6), S.boda(0, 3.4), S.pothole(1, 2.2)];
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const endEv = S.count('overlapEnd')[0], invAtEnd = g.invuln, laneAtEnd = g.lane, healthAtEnd = g.health;
+  S.secs(0.9);
+  const hitsIn09 = S.evs.filter((e) => e.type === 'hit');
+  S.secs(2.5);
+  check(G, 'node: overlap lasts OVERLAP_TIME (4.0 s), then the lane becomes the edge lane on that side (left: lane 0) and overlapEnd is emitted', Math.abs((endEv.t - tStart) - C.OVERLAP_TIME) < 0.02 && endEv.lane === 0 && endEv.side === -1 && laneAtEnd === 0 && g.overlapTime === 0 && g.snapshot().overlap.active === false, { dt: endEv.t - tStart, lane: laneAtEnd });
+  check(G, 'node: the merge grants 0.9 s of invulnerability and obstacles waiting in the re-entry lane cannot hurt (no hit, no health lost, now or later)', invAtEnd >= 0.89 && merge.slice(0, 3).some((e) => e.hit === true) && hitsIn09.length === 0 && hitTotal() === 0 && g.health === healthAtEnd && g.mode === 'running', { invAtEnd, hit: merge.map((e) => !!e.hit), hits: hitsIn09.length });
+
+  /* --- no near-miss credit for obstacles ghosted past on the shoulder, even with a lane change right after the merge --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  S.until(() => g.overlapTime > 0 && g.overlapTime < 0.15, 1000);
+  const ghost = { pothole: S.pothole(0, 0.2), askari: S.askari(0, 0.5), boda: S.boda(0, 0.9, 2.5) };
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const ghostNm0 = g.stats.nearMiss, ghostScore0 = g.score, ghostHorn0 = g.horn, ghostEv0 = S.evs.length;
+  g.input('right', 'keyboard');
+  S.secs(1.5);
+  const ghostIds = [ghost.pothole.id, ghost.askari.id, ghost.boda.id];
+  const ghostNm = S.evs.slice(ghostEv0).filter((e) => e.type === 'nearMiss' && ghostIds.indexOf(e.id) >= 0);
+  check(G, 'node: obstacles passed on the shoulder (pothole, askari, boda) earn no near-miss after the merge, even with a lane change right after: no event, no stat, no horn bonus', ghostNm.length === 0 && g.stats.nearMiss === ghostNm0 && hitTotal() === 0 && g.horn <= ghostHorn0, { ghostNm, nearMiss: g.stats.nearMiss, ghostNm0, score: g.score, ghostScore0, horn: g.horn, ghostHorn0 });
+
+  /* --- fairness: a boda may not cut into the lane the matatu will merge back into --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  const cutter = S.boda(1, 2.5, 2.5); cutter.signal = -1; cutter.signalT = 0.01;
+  S.secs(0.1);
+  check(G, 'node: fairness: a boda that signals into the re-entry lane (lane 0) at close range is held back while the matatu is on the left shoulder', cutter.lane === 1 && cutter.signal === 0, { lane: cutter.lane, signal: cutter.signal });
+
+  /* --- side choice --- */
+  const sides = [];
+  for (let l = 0; l < 4; l++) {
+    S = overlapScene(); g = S.g;
+    g.lane = l; g.px = l; g.overlap = 1; g.overlapReadyFlag = true;
+    g.input('overlap', 'keyboard');
+    const side = g.overlapSide, ev = S.count('overlap')[0];
+    S.secs(0.7);
+    const px = g.px;
+    S.secs(C.OVERLAP_TIME);
+    sides.push({ l, side, evSide: ev.side, px: Math.round(px * 100) / 100, endLane: g.lane });
+  }
+  check(G, 'node: side choice: lanes 0 and 1 go left (px -1, merge into lane 0); lanes 2 and 3 go right (px 4, merge into lane 3)', sides.every((x) => x.side === (x.l <= 1 ? -1 : 1) && x.evSide === x.side && x.px === (x.l <= 1 ? -1 : 4) && x.endLane === (x.l <= 1 ? 0 : 3)), sides);
+
+  /* --- pause and resume --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.input('overlap', 'keyboard');
+  S.secs(1.5);
+  const tl = g.overlapTime, tick = g.tick;
+  g.mode = 'paused'; S.step(2000);
+  const pr = g.input('overlap', 'keyboard');
+  const frozen = g.overlapTime === tl && g.tick === tick && pr === false;
+  g.mode = 'running'; S.secs(1);
+  check(G, 'node: pause freezes the overlap and resume carries on from the same time left', frozen && Math.abs(g.overlapTime - (tl - 1)) < 0.02 && g.overlapUses === 1 && g.snapshot().overlap.active, { tl, now: g.overlapTime });
+
+  /* --- determinism --- */
+  S = overlapScene(); g = S.g;
+  let rngCalls = 0; const orig = g.rng; g.rng = () => { rngCalls++; return orig(); };
+  S.charge(); g.input('overlap', 'keyboard'); g.input('horn', 'keyboard'); S.secs(C.OVERLAP_TIME + 1);
+  check(G, 'node: charging, firing, riding and ending an overlap never touch the seeded rng (0 calls)', rngCalls === 0 && g.overlapUses === 1, { rngCalls });
+
+  for (const seed of [7, 42]) {
+    const h = simHarness(), a = h.g, base = AUTOPILOT_BASELINE[seed];
+    a.start(seed, true);
+    const types = [], rows = {};
+    a.onEvent = (e) => types.push(e.type + '@' + e.tick);
+    while (a.mode === 'running' && a.time < 120) { a.step(); if (a.tick % 600 === 0) rows[a.tick] = [a.score, +a.dist.toFixed(4), a.health, a.lane, +a.px.toFixed(4), a.stats.pickups, a.combo]; }
+    const kept = types.filter((x) => !x.startsWith('overlapReady@'));
+    const md5 = crypto.createHash('md5').update(kept.join(',')).digest('hex');
+    const never = !types.some((x) => /^overlap(@|End|Empty)/.test(x)) && a.stats.overlaps === 0 && a.overlapUses === 0 && a.overlapTime === 0;
+    const sameRows = Object.keys(base.rows).every((k) => JSON.stringify(rows[k]) === JSON.stringify(base.rows[k]));
+    const fin = [a.tick, a.score, a.dist, a.health, a.mode];
+    check(G, 'node: seed ' + seed + ' autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)', never && sameRows && JSON.stringify(fin) === JSON.stringify(base.final) && kept.length === base.events && md5 === base.md5, { never, sameRows, fin, events: kept.length, md5 });
+  }
+}
+
 const keySteer = (page) => (dir) => page.keyboard.press(dir < 0 ? 'ArrowLeft' : 'ArrowRight');
 
 function validHitGeometry(ev) {
@@ -305,6 +589,192 @@ async function layoutChecks(browser) {
       check('text', tag + ' pause: every visible text is at least 14 px', pf.n > 3 && pf.bad.length === 0, { nodes: pf.n, min: pf.min, bad: pf.bad });
       await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-pause.png') });
     } else check('text', tag + ' pause: run ended before the pause check', false, s.mode);
+    await ctx.close();
+  }
+}
+
+/* ---------- OVERLAP: the real screens (keys, taps, button, drawn matatu, popups) ---------- */
+const ovlUi = (page) => page.evaluate(() => {
+  const b = document.getElementById('btnOverlap'), f = document.getElementById('ovlFill').style.transform;
+  return { label: document.getElementById('ovlLbl').textContent, aria: b.getAttribute('aria-label'), ready: b.classList.contains('ready'), active: b.classList.contains('active'), fill: parseFloat((/scaleX\(([\d.]+)\)/.exec(f) || [0, NaN])[1]), live: document.getElementById('live').textContent };
+});
+/* Watches one overlap from "ready" to 1.3 s after it ends. fire() presses the key or taps the button. */
+async function watchOverlap(page, fire, o) {
+  o = o || {};
+  const pa = mkPopupAudit();
+  const out = { prior: o.prior || [], evs: [], samples: [], banner: false, floats: new Set(), readyUi: null, readyState: null, activeUi: [], afterUi: null, afterState: null, probe: null, shot: false };
+  let since = o.since || 0, phase = 'wait', endT = null;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 100000) {
+    const r = await read(page, since);
+    const s = r.s;
+    for (const x of r.e) { out.evs.push(x); since = x.i; }
+    popupAudit(s, pa);
+    for (const f of (s.view.floats || [])) out.floats.add(f.text);
+    if (s.view.banner && s.view.banner.text === 'OVERLAP!') out.banner = true;
+    if (phase === 'wait') {
+      if (s.mode !== 'running') break;
+      if (s.overlap.ready) {
+        out.readyState = s; out.readyUi = await ovlUi(page);
+        await fire();
+        phase = 'active';
+      }
+    } else if (phase === 'active') {
+      if (s.overlap.active && s.overlap.time < 3.3 && s.overlap.time > 0.2) {
+        out.samples.push({ player: s.view.player, road: s.view.road, w: s.view.w, h: s.view.h, side: s.overlap.side, time: s.overlap.time, px: s.player.x });
+        if (out.activeUi.length < 40) out.activeUi.push(await ovlUi(page));
+        if (o.probe && !out.probe) out.probe = await o.probe(s);
+        if (o.shot && !out.shot) { out.shot = true; await page.screenshot({ path: o.shot }); }
+      }
+      const endEv = out.evs.find((e) => e.type === 'overlapEnd');
+      if (endEv) { endT = endEv.t; phase = 'after'; out.afterState = s; out.afterUi = await ovlUi(page); }
+    } else if (s.time >= endT + 1.3 || s.mode !== 'running') { out.final = s; break; }
+    await sleep(25);
+  }
+  out.pa = pa;
+  return out;
+}
+function overlapAssertions(tag, via, out, fireSource) {
+  const G = 'overlap', C = { OVERLAP_TIME: 4.0 };
+  const ov = out.evs.find((e) => e.type === 'overlap'), end = out.evs.find((e) => e.type === 'overlapEnd'), rdy = out.evs.concat(out.prior || []).find((e) => e.type === 'overlapReady');
+  /* by event number, not time: the pickup that filled the meter can share a tick with the activation */
+  const within = (e) => ov && end && e.i > ov.i && e.t <= end.t + 0.9;
+  const sam = out.samples;
+  const inside = (a, b) => a.x >= b.x && a.x + a.w <= b.x + b.w;
+  const outsideRoad = sam.length >= 5 && sam.every((m) => !rectsOverlap(m.player, m.road) && (ov.side < 0 ? m.player.x + m.player.w <= m.road.x + 0.5 : m.player.x >= m.road.x + m.road.w - 0.5));
+  const onScreen = sam.length >= 5 && sam.every((m) => m.player.x >= -0.5 && m.player.x + m.player.w <= m.w + 0.5 && m.player.y >= 0 && m.player.y + m.player.h <= m.h);
+  check(G, tag + ': ' + via + ' fires OVERLAP when the meter is full: one overlap event (source ' + fireSource + ', uses 1, side chosen from the lane), meter back to 0', !!rdy && !!ov && ov.source === fireSource && ov.uses === 1 && (ov.side === -1 || ov.side === 1) && out.readyState.overlap.meter >= 1 && out.evs.filter((e) => e.type === 'overlap').length === 1, { ov, rdy: !!rdy });
+  check(G, tag + ': the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels', !!out.readyUi && out.readyUi.label === 'OVERLAP!' && out.readyUi.aria === 'Overlap ready' && out.readyUi.ready && out.activeUi.length >= 3 && out.activeUi.every((u) => u.label === 'PITA!' && u.aria === 'Overlap active' && u.active && !u.ready) && out.activeUi[0].fill > out.activeUi[out.activeUi.length - 1].fill && !!out.afterUi && out.afterUi.label === 'OVERLAP' && out.afterUi.aria === 'Overlap charging' && !out.afterUi.ready && !out.afterUi.active, { ready: out.readyUi, first: out.activeUi[0], last: out.activeUi[out.activeUi.length - 1], after: out.afterUi });
+  check(G, tag + ': while active the matatu is drawn outside the road rect, on the ' + (ov && ov.side < 0 ? 'left' : 'right') + ' shoulder, fully on screen', outsideRoad && onScreen, { n: sam.length, first: sam[0], side: ov && ov.side });
+  const bad = out.evs.filter((e) => within(e) && /^(hit|smash|nearMiss|pickup|repair|gameover)$/.test(e.type) && (e.type === 'hit' || e.type === 'gameover' || e.i < end.i));
+  check(G, tag + ': from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side', !!end && bad.length === 0 && end.lane === (ov.side < 0 ? 0 : 3) && end.side === ov.side && out.afterState.player.invuln > 0.25, { bad: bad.slice(0, 3), end, invuln: out.afterState && out.afterState.player.invuln });
+  check(G, tag + ': the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu', out.banner && out.floats.has('OVERLAP READY!') && out.pa.frames > 0 && out.pa.overlaps.length === 0 && out.pa.floatOffRoad === 0 && out.pa.slotBad.length === 0, { banner: out.banner, floats: Array.from(out.floats).slice(0, 8), pa: { frames: out.pa.frames, overlaps: out.pa.overlaps.length, off: out.pa.floatOffRoad, slotBad: out.pa.slotBad.length } });
+}
+async function ovlControlsFit(page, tag) {
+  const r = await page.evaluate(() => {
+    const ids = ['btnLeft', 'btnHorn', 'btnOverlap', 'btnRight'];
+    const box = ids.map((id) => { const q = document.getElementById(id).getBoundingClientRect(); return { id, x: q.left, y: q.top, w: q.width, h: q.height }; });
+    const o = document.getElementById('btnOverlap'), l = document.getElementById('ovlLbl');
+    return { box, vw: innerWidth, vh: innerHeight, clipped: o.scrollWidth > o.clientWidth + 1 || l.scrollWidth > l.clientWidth + 1, font: parseFloat(getComputedStyle(l).fontSize) };
+  });
+  const allIn = r.box.every((b) => b.x >= 0 && b.y >= 0 && b.x + b.w <= r.vw && b.y + b.h <= r.vh && b.w >= 44 && b.h >= 44);
+  let apart = true;
+  for (let i = 0; i < r.box.length; i++) for (let j = i + 1; j < r.box.length; j++) if (rectsOverlap(r.box[i], r.box[j])) apart = false;
+  check('overlap', tag + ': the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more', allIn && apart && !r.clipped && r.font >= 14, { box: r.box.map((b) => b.id + ':' + Math.round(b.w) + 'x' + Math.round(b.h)), clipped: r.clipped, font: r.font });
+}
+
+async function overlapBrowserChecks(browser) {
+  const G = 'overlap';
+  const cfg = [
+    /* [w, h, touch, how it is fired, source] */
+    [844, 390, true, 'key S', 'keyboard'],
+    [320, 568, true, 'key ArrowDown', 'keyboard'],
+    [390, 844, true, 'a tap on #btnOverlap', 'touch']
+  ];
+  /* ---- A. real human run on desktop: pick up passengers with the test bot, press the O key ---- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await ctx.newPage(); watch(page, 'overlap-desktop');
+    await page.goto(URL + '?seed=7');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page); await sleep(300);
+    const text = await page.evaluate(() => ({ title: document.getElementById('title').innerText, keys: document.querySelector('#title .keys').innerText }));
+    check(G, 'title controls text explains overlap (O or S) next to horn nitro', /overlap/i.test(text.keys) && /\bO\b/.test(text.keys) && /\bS\b/.test(text.keys) && /horn nitro/i.test(text.title), text.keys);
+    await page.click('#btnHow');
+    const how = await page.evaluate(() => ({ rules: document.querySelector('#howto .rules').innerText, keys: document.querySelector('#howto .keys').innerText }));
+    check(G, 'How to play: one line "fill it with passengers, then ride the shoulder past everything" and the key in the keys block', /Overlap/.test(how.rules) && /fill it with passengers, then ride the shoulder past everything/i.test(how.rules) && /overlap/i.test(how.keys), how);
+    await page.keyboard.press('Escape');
+    await page.click('#btnStart');
+    let s = await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap desktop run');
+    await ovlControlsFit(page, '1280x720');
+    await sleep(150); /* let the HUD paint its first frame */
+    const ui0 = await ovlUi(page);
+    check(G, '1280x720: before any pickup the meter is empty and the button reads OVERLAP with the aria-label "Overlap charging"', s.overlap.meter === 0 && ui0.label === 'OVERLAP' && ui0.aria === 'Overlap charging' && !ui0.ready && !ui0.active && ui0.fill === 0, { overlap: s.overlap, ui0 });
+    /* not ready: O, S and ArrowDown all reach the game and answer overlapEmpty (nothing else happens) */
+    const e0 = (await read(page, 0)).e.length;
+    for (const k of ['o', 'S', 'ArrowDown']) { await page.keyboard.press(k); await sleep(60); }
+    let r = await read(page, e0);
+    const emp = r.e.filter((x) => x.type === 'overlapEmpty');
+    check(G, '1280x720: O, S and ArrowDown while charging each give overlapEmpty (source keyboard) and start nothing', emp.length === 3 && emp.every((x) => x.source === 'keyboard' && x.reason === 'charging') && !r.s.overlap.active && r.e.filter((x) => x.type === 'overlap').length === 0, emp.map((x) => x.reason));
+    /* typing in a text box never fires it */
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmpType'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    const e1 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb1 = (await snap(page)).inputs.keyboard;
+    for (const k of ['o', 'O', 's', 'ArrowDown']) { await page.keyboard.press(k); await sleep(40); }
+    const e2 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb2 = (await snap(page)).inputs.keyboard;
+    await page.evaluate(() => { document.getElementById('tmpType').remove(); });
+    check(G, '1280x720: typing O, S or ArrowDown inside a text box fires nothing (no overlapEmpty, keyboard input count unchanged)', e1 === e2 && kb1 === kb2, { e1, e2, kb1, kb2 });
+    /* pick up passengers with real keys until the meter is full */
+    let readyRun = null, attempts = 0, since = 0;
+    while (!readyRun && attempts < 4) {
+      attempts++;
+      const run = await drive(page, { ms: 80000, mode: 'seek', want: new Set(['stage']), steer: keySteer(page), since, onTick: (q) => (q.overlap.ready ? 'stop' : undefined) });
+      since = run.since;
+      if (run.s.overlap.ready) readyRun = run; else { await sleep(800); await skipNameIfShown(page); await page.keyboard.press('Enter'); await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap retry'); since = 0; }
+    }
+    check(G, '1280x720: a real run fills the meter ONLY through pickups: ready after at least 8 pickups, announced once (live region says "Overlap ready")', !!readyRun && readyRun.s.stats.pickups >= 8 && readyRun.evs.filter((x) => x.type === 'overlapReady').length === 1, { pickups: readyRun && readyRun.s.stats.pickups, attempts });
+    if (readyRun) {
+      const liveNow = (await ovlUi(page)).live;
+      const out = await watchOverlap(page, () => page.keyboard.press('o'), {
+        since, prior: readyRun.evs,
+        shot: path.join(SHOTS, '60-overlap-1280x720.png'),
+        probe: async (q) => {
+          const hb = q.horn.meter, ln = q.player.lane;
+          await page.keyboard.press('Space'); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowRight'); await sleep(60);
+          const rr = await read(page, 0), q2 = rr.s;
+          const mine = rr.e.filter((x) => x.t >= q.time);
+          return { hornEmpty: mine.filter((x) => x.type === 'hornEmpty' && x.reason === 'overlap').length, horn: mine.filter((x) => x.type === 'horn').length, lane: mine.filter((x) => x.type === 'lane' || x.type === 'bump').length, nitro: q2.horn.nitro, meterBefore: hb, meterAfter: q2.horn.meter, laneBefore: ln, laneAfter: q2.player.lane };
+        }
+      });
+      overlapAssertions('1280x720', 'the O key', out, 'keyboard');
+      const pr = out.probe || {};
+      check(G, '1280x720: pressing Space (horn) and the lane keys while overlapping is refused: hornEmpty (reason overlap), no horn event, no nitro, horn meter not spent, no lane change', !!out.probe && pr.hornEmpty >= 1 && pr.horn === 0 && pr.lane === 0 && !pr.nitro && pr.meterAfter >= pr.meterBefore - 0.001 && pr.laneAfter === pr.laneBefore, pr);
+      const fin = out.final || (await snap(page));
+      check(G, '1280x720: sound: one overlap sfx and the ready chime were scheduled; the horn nitro sfx was never used for it', fin.audio.fired.overlap === 1 && fin.audio.fired.overlapReady >= 1 && (fin.audio.fired.horn || 0) === 0, fin.audio.fired);
+      check(G, '1280x720: the live region announced "Overlap ready" when it filled (read right after the fill)', /Overlap ready/.test(liveNow), liveNow);
+    }
+    await ctx.close();
+  }
+  /* ---- B. small and touch viewports: demo (autopilot) collects the passengers, the test fires it ---- */
+  for (const [w, h, touch, how, src] of cfg) {
+    const tag = w + 'x' + h;
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: touch ? 2 : 1 });
+    const page = await ctx.newPage(); watch(page, 'overlap-' + tag);
+    await page.goto(URL + '?seed=7&autostart=1&autopilot=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
+    await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap demo ' + tag);
+    await sleep(300);
+    await ovlControlsFit(page, tag);
+    const tapBtn = async () => { const b = await page.locator('#btnOverlap').boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+    const fire = how.indexOf('tap') >= 0 ? tapBtn : (how === 'key S' ? () => page.keyboard.press('S') : () => page.keyboard.press('ArrowDown'));
+    /* one early press while charging */
+    const sEarly = await snap(page);
+    const e0 = (await read(page, 0)).e.length;
+    if (sEarly.overlap.meter < 1) {
+      await fire(); await sleep(80);
+      const rr = await read(page, e0), ui = await ovlUi(page);
+      check(G, tag + ': ' + how + ' while charging gives overlapEmpty (' + src + ') and the button stays "OVERLAP / Overlap charging"', rr.e.filter((x) => x.type === 'overlapEmpty' && x.source === src).length === 1 && !rr.s.overlap.active && ui.label === 'OVERLAP' && ui.aria === 'Overlap charging', { events: rr.e.map((x) => x.type + ':' + (x.source || '')).slice(-6), ui });
+    }
+    const out = await watchOverlap(page, fire, { since: 0, shot: (w === 320 || w === 844) ? path.join(SHOTS, '61-overlap-' + tag + '.png') : null });
+    overlapAssertions(tag, how, out, src);
+    await ctx.close();
+  }
+  /* ---- C. 280 px wide: the longest label (the ready one, OVERLAP!) must sit inside the button ---- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 280, height: 653 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+    const page = await ctx.newPage(); watch(page, 'overlap-280x653');
+    await page.goto(URL + '?seed=7&autostart=1&autopilot=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
+    await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap demo 280x653');
+    const r = await page.evaluate(() => {
+      const o = document.getElementById('btnOverlap'), l = document.getElementById('ovlLbl');
+      l.textContent = 'OVERLAP!'; /* measured in the same turn, before the game rewrites it */
+      const b = o.getBoundingClientRect(), t = l.getBoundingClientRect(), cs = getComputedStyle(l);
+      const bw = o.clientLeft;
+      return { btn: [b.left, b.right], label: [t.left, t.right], border: bw, font: parseFloat(cs.fontSize), vw: innerWidth };
+    });
+    check(G, '280x653: the ready label (OVERLAP!) is not clipped by the overlap button and is 14 px or more', r.vw === 280 && r.label[0] >= r.btn[0] + r.border - 0.01 && r.label[1] <= r.btn[1] - r.border + 0.01 && r.font >= 14, r);
     await ctx.close();
   }
 }
@@ -591,7 +1061,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     let badGeom = 0, badHealth = 0, badGrace = 0, shotOver = false, bestSoFar = 0, restartOk = true, overUiOk = true, bestOk = true;
     for (let r = 0; r < 5 && (want.size > 0 || r < 2); r++) {
       if (r === 0) await page.keyboard.press('Enter');
-      else { await sleep(750); await page.keyboard.press(r % 2 ? 'Enter' : 'r'); }
+      else { await sleep(750); await skipNameIfShown(page); await page.keyboard.press(r % 2 ? 'Enter' : 'r'); }
       const st = await waitFor(page, (x) => x.mode === 'running', 3000, 'run ' + r);
       if (r > 0 && !(st.health === 3 && st.score < 30 && st.time < 2 && st.combo === 0 && st.seed === 5)) restartOk = false;
       let health = 3, lastHitT = -9;
@@ -643,6 +1113,216 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.waitForFunction(() => !!window.MatatuRush);
     check('storage', 'corrupt stored best is ignored safely', (await snap(page)).best === 0);
     await ctx.close();
+  }
+
+  /* ===== 4b. Top 5 board: name entry, keyboard safety, persistence, sheet layout ===== */
+  console.log('\n4b. Top 5 board (data checks in Node, then the real screens in the browser)');
+  boardNodeChecks();
+  console.log('\n4c. OVERLAP power: simulation checks in Node');
+  overlapNodeChecks();
+  {
+    const G = 'board', KEY = 'matatuRush.top5';
+    const ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
+    const ctx = await browser.newContext(desktop);
+    const page = await ctx.newPage(); watch(page, 'board');
+    let dialogs = 0;
+    page.on('dialog', (d) => { dialogs++; d.dismiss().catch(() => {}); });
+    const seedBoard = async (list) => {
+      await page.evaluate(([k, v]) => { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }, [KEY, list === null ? null : JSON.stringify(list)]);
+      await page.reload();
+      await page.waitForFunction(() => !!window.MatatuRush);
+    };
+    const fivePlus = (score) => [1, 2, 3, 4, 5].map((n) => ({ name: 'Seed ' + n, score: score - n, id: 'seed' + n }));
+    const toOver = async () => {
+      await page.keyboard.press('Enter');
+      await waitFor(page, (x) => x.mode === 'running', 3000, 'board run');
+      const out = await drive(page, { ms: 90000, mode: 'seek', want: new Set(['pothole', 'boda', 'askari']), steer: keySteer(page) });
+      await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+      await sleep(80);
+      return out;
+    };
+    const overUi = () => page.evaluate(() => {
+      const f = document.getElementById('nameForm'), act = document.activeElement;
+      return {
+        form: !f.hidden, focus: act ? act.id : '', saved: document.getElementById('nameSaved').hidden ? '' : document.getElementById('nameSaved').textContent,
+        rows: Array.from(document.querySelectorAll('#overBoard li')).map((li) => li.textContent), cur: Array.from(document.querySelectorAll('#overBoard li[aria-current="true"]')).map((li) => li.querySelector('.nm').textContent),
+        rankLine: document.getElementById('nameRank').textContent, placeholder: document.getElementById('nameInput').placeholder, overShown: !document.getElementById('over').hidden
+      };
+    });
+    const stored = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || '[]'), KEY);
+
+    await page.goto(URL + '?seed=5');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await seedBoard(null);
+
+    /* --- run 1: empty board, so the run qualifies. Keyboard safety, Save by Enter, reload, title sheet --- */
+    await toOver();
+    let s = await snap(page), u = await overUi();
+    check(G, 'qualifying run: name form shown with the Top 5 line, input focused, an alias entry is already on the board and in storage',
+      u.form && u.focus === 'nameInput' && s.boardRank >= 1 && s.board.length >= 1 && ALIAS.test(s.board[s.boardRank - 1].name) && s.board[s.boardRank - 1].score === s.score && /^You made the Top 5! Rank #1$/.test(u.rankLine) && u.placeholder === s.board[0].name && (await stored()).length === s.board.length, { rank: s.boardRank, board: s.board, focus: u.focus, line: u.rankLine });
+    check(G, 'game over list highlights this run with aria-current and the alias', u.cur.length === 1 && u.cur[0] === s.board[0].name && u.rows.length === 1, u);
+    const mutedBefore = s.audio.muted;
+    await page.keyboard.type('  m r m r  ');
+    await sleep(120);
+    s = await snap(page);
+    const typed = await page.inputValue('#nameInput');
+    check(G, 'typing m, r and spaces in the name box does not mute, restart or leave the game over screen', typed === '  m r m r  ' && s.audio.muted === mutedBefore && s.mode === 'gameover' && s.screen === 'over' && (await page.isVisible('#nameForm')), { typed, muted: s.audio.muted, mode: s.mode, screen: s.screen });
+    /* hold Enter: the first keydown submits; the repeats that follow land on Play again and must not restart */
+    await page.keyboard.down('Enter');
+    await sleep(150);
+    s = await snap(page); u = await overUi();
+    const st = await stored();
+    check(G, 'Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board',
+      s.screen === 'over' && s.mode === 'gameover' && !u.form && u.saved === 'Saved as m r m r' && u.focus === 'btnAgain' && st[0].name === 'm r m r' && st[0].name.length <= 12 && u.rows.length === 1 && /m r m r/.test(u.rows[0]) && /KSh/.test(u.rows[0]) && u.cur[0] === 'm r m r', { u, st });
+    check(G, 'confirmation is announced in the live region', /Saved as m r m r/.test(await page.textContent('#live')));
+    await sleep(750);
+    for (let i = 0; i < 4; i++) { await page.keyboard.down('Enter'); await sleep(150); }
+    const heldMid = await snap(page);
+    await page.keyboard.up('Enter');
+    await sleep(150);
+    s = await snap(page); u = await overUi();
+    check(G, 'holding Enter after saving (auto-repeat keydowns well past the 600 ms guard) does not restart the game', heldMid.screen === 'over' && heldMid.mode === 'gameover' && s.screen === 'over' && s.mode === 'gameover' && u.focus === 'btnAgain' && s.tick === heldMid.tick, { mid: heldMid.screen, end: s.screen, mode: s.mode });
+    await page.reload();
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await page.click('#btnBoard');
+    await sleep(120);
+    const sheet = await page.evaluate(() => ({ open: !document.getElementById('board').hidden, focus: document.activeElement && document.activeElement.id, rows: Array.from(document.querySelectorAll('#boardList li')).map((li) => li.textContent), empty: !document.getElementById('boardEmpty').hidden, role: document.getElementById('board').getAttribute('role'), modal: document.getElementById('board').getAttribute('aria-modal') }));
+    check(G, 'saved name survives a page reload and shows in the title Top 5 sheet (role dialog, aria-modal, focus on Close)', sheet.open && sheet.rows.length === 1 && /m r m r/.test(sheet.rows[0]) && !sheet.empty && sheet.focus === 'btnBoardClose' && sheet.role === 'dialog' && sheet.modal === 'true', sheet);
+    await page.keyboard.press('Escape');
+    await sleep(100);
+    const closed = await page.evaluate(() => ({ hidden: document.getElementById('board').hidden, focus: document.activeElement && document.activeElement.id }));
+    s = await snap(page);
+    check(G, 'Escape closes the sheet, stays on the title and returns focus to the Top 5 button', closed.hidden && closed.focus === 'btnBoard' && s.screen === 'title', closed);
+
+    /* --- run 2 (320x568): Escape in the input is Skip; alias kept, stays on the over screen --- */
+    await page.setViewportSize({ width: 320, height: 568 });
+    await seedBoard([{ name: 'Old', score: 1, id: 'old1' }]);
+    await fontsReady(page);
+    await toOver();
+    s = await snap(page); u = await overUi();
+    const aliasBefore = s.board[0].name;
+    const lay = await page.evaluate(() => { const r = document.querySelector('#over .panel').getBoundingClientRect(); const i = document.getElementById('nameInput'); return { panelW: Math.round(r.width), left: Math.round(r.left), right: Math.round(r.right), sideways: document.documentElement.scrollWidth > innerWidth, inputFont: parseFloat(getComputedStyle(i).fontSize), inputH: Math.round(i.getBoundingClientRect().height) }; });
+    const of = await fontAudit(page);
+    check(G, '320x568 game over with the form: no sideways scroll, input font at least 16 px, every visible text at least 14 px', u.form && !lay.sideways && lay.inputFont >= 16 && lay.left >= 0 && lay.right <= 320 && of.bad.length === 0, { lay, bad: of.bad });
+    await sleep(200);
+    await page.screenshot({ path: path.join(SHOTS, '13-gameover-top5-320x568.png') });
+    await page.keyboard.type('mm');
+    await page.keyboard.down('Escape');
+    await sleep(120);
+    s = await snap(page); u = await overUi();
+    check(G, 'Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)', s.screen === 'over' && u.overShown && !u.form && s.board.some((e) => e.name === aliasBefore) && u.saved === 'Saved as ' + aliasBefore && u.focus === 'btnAgain' && (await stored()).some((e) => e.name === aliasBefore), { u, aliasBefore });
+    /* keep Escape held: auto-repeat keydowns past the guard must not reach the title */
+    await sleep(700);
+    for (let i = 0; i < 3; i++) { await page.keyboard.down('Escape'); await sleep(150); }
+    await page.keyboard.up('Escape');
+    await sleep(100);
+    s = await snap(page);
+    check(G, 'holding Escape after Skip (repeats past the guard) does not jump to the title', s.screen === 'over' && s.mode === 'gameover', { screen: s.screen, mode: s.mode });
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    check(G, 'a fresh Escape press on the game over screen still goes to the title', (await snap(page)).screen === 'title');
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    /* --- run 3 (844x390): full board of low scores. Skip with a held Enter keeps the alias and Play again is scrolled into view; the board stays at 5, sorted --- */
+    await page.setViewportSize({ width: 844, height: 390 });
+    await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await fontsReady(page);
+    await toOver();
+    await sleep(200);
+    s = await snap(page); u = await overUi();
+    const alias3 = s.board[s.boardRank - 1] && s.board[s.boardRank - 1].name;
+    const inView = (sel) => page.evaluate((q) => { const r = document.querySelector(q).getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), vh: innerHeight, vw: innerWidth, ok: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth && r.height > 0 }; }, sel);
+    const inpView = await inView('#nameInput');
+    check(G, '844x390 game over with the form: the focused name input is fully inside the viewport', u.form && u.focus === 'nameInput' && inpView.ok, inpView);
+    check(G, 'qualifying run on a full board: form shown, board still exactly 5 and sorted high to low', u.form && s.boardRank === 1 && s.board.length === 5 && s.board.every((e, i) => i === 0 || s.board[i - 1].score >= e.score) && ALIAS.test(alias3), { rank: s.boardRank, scores: s.board.map((e) => e.score) });
+    await page.focus('#btnSkipName');
+    await page.keyboard.down('Enter');
+    await sleep(150);
+    s = await snap(page); u = await overUi();
+    const againView = await inView('#btnAgain');
+    check(G, 'Skip button (by Enter) keeps the alias, hides the form and stays on the game over screen', s.screen === 'over' && !u.form && u.saved === 'Saved as ' + alias3 && u.focus === 'btnAgain' && (await stored()).filter((e) => e.name === alias3).length === 1, { saved: u.saved });
+    check(G, '844x390 after Skip: Play again has focus AND sits fully inside the viewport (panel scrolled to it)', u.focus === 'btnAgain' && againView.ok, againView);
+    await sleep(750);
+    for (let i = 0; i < 4; i++) { await page.keyboard.down('Enter'); await sleep(150); }
+    await page.keyboard.up('Enter');
+    await sleep(150);
+    s = await snap(page);
+    check(G, 'holding Enter on Skip (repeats land on Play again) does not restart the game', s.screen === 'over' && s.mode === 'gameover', { screen: s.screen, mode: s.mode });
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    /* --- run 4: hostile name is rendered as text only --- */
+    await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await toOver();
+    await page.fill('#nameInput', '<img src=x onerror=alert(1)>');
+    await page.click('#btnSaveName');
+    await sleep(200);
+    const x1 = await page.evaluate(() => ({ imgs: document.querySelectorAll('.board img').length, anyImg: document.querySelectorAll('#over img, #board img').length, names: Array.from(document.querySelectorAll('#overBoard .nm')).map((n) => n.textContent) }));
+    await page.reload();
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await page.click('#btnBoard'); await sleep(120);
+    const x2 = await page.evaluate(() => ({ imgs: document.querySelectorAll('.board img').length, names: Array.from(document.querySelectorAll('#boardList .nm')).map((n) => n.textContent) }));
+    check(G, 'a name like <img src=x onerror=alert(1)> is cut to 12 chars and shown as text: no img element in any board, no alert fired', x1.imgs === 0 && x1.anyImg === 0 && x1.names.includes('<img src=x o') && x2.imgs === 0 && x2.names.includes('<img src=x o') && dialogs === 0, { x1, x2, dialogs });
+
+    /* --- run 5: board full of high scores, so this run does not qualify --- */
+    await seedBoard(fivePlus(999999999));
+    const before5 = JSON.stringify(await stored());
+    await toOver();
+    s = await snap(page); u = await overUi();
+    check(G, 'a score below the 5th place shows no form: rank 0, board unchanged, Play again keeps focus', !u.form && s.boardRank === 0 && JSON.stringify(await stored()) === before5 && u.focus === 'btnAgain' && u.cur.length === 0 && u.rows.length === 5, { rank: s.boardRank, focus: u.focus });
+    await page.keyboard.press('Enter');
+    s = await waitFor(page, (x) => x.mode === 'running', 3000, 'restart after no-form over');
+    check(G, 'with no form, Enter on Play again still restarts the run', s.mode === 'running' && s.screen === 'game', { screen: s.screen });
+    await ctx.close();
+  }
+  {
+    /* a demo (autopilot) run that really reaches game over must not enter the board, show the form, or highlight a row.
+       Seed 101 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 53 s);
+       the board is pre-filled with score 1 entries so a wrongly inserted demo score (thousands) would show up. */
+    const ctx = await browser.newContext(desktop);
+    const page = await ctx.newPage(); watch(page, 'board-demo');
+    const seeded = JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await page.goto(URL + '?seed=7');
+    await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), seeded);
+    await page.goto(URL + '?seed=101&autopilot=1&autostart=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    const sDemo = await waitFor(page, (x) => x.mode === 'gameover', 90000, 'demo game over');
+    await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+    await sleep(100);
+    const d = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden, cur: document.querySelectorAll('#overBoard li[aria-current]').length, rows: document.querySelectorAll('#overBoard li').length, tag: document.getElementById('overTag').textContent }));
+    check('board', 'a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
+      sDemo.autopilot === true && sDemo.boardRank === 0 && sDemo.score > 1 && !d.form && d.ls === seeded && d.cur === 0 && d.rows === 5 && /Demo over/.test(d.tag), { rank: sDemo.boardRank, score: sDemo.score, d });
+    await ctx.close();
+  }
+  {
+    /* Top 5 sheet fits the small layout sizes, text at least 14 px, nothing clipped */
+    /* worst realistic case: twelve wide-ish letters and six-digit fares (KSh 999,999) */
+    const names = ['Mwangi Kamau', 'Makanga 999', 'Wanjiru Mwen', 'Konda 100', 'Rubani Omwa'];
+    const list = names.map((n, i) => ({ name: n, score: 999999 - i, id: 'fit' + i }));
+    const sizes = [[320, 568, true], [844, 390, true], [390, 844, true], [1280, 720, false]];
+    for (const [w, h, touch] of sizes) {
+      const tag = w + 'x' + h;
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: touch ? 2 : 1 });
+      const page = await ctx.newPage(); watch(page, 'board-sheet-' + tag);
+      await page.goto(URL + '?seed=7');
+      await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), JSON.stringify(list));
+      await page.reload();
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await fontsReady(page); await sleep(300);
+      const btn = await page.evaluate(() => { const r = document.getElementById('btnBoard').getBoundingClientRect(); return { inView: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, h: r.height, scroll: document.getElementById('title').scrollTop }; });
+      await page.click('#btnBoard'); await sleep(200);
+      const fit = await page.evaluate(() => {
+        const root = document.getElementById('board'), items = Array.from(root.querySelectorAll('.board li, .board .nm, .board .sc, #btnBoardClose, .h2'));
+        const rect = items.map((el) => { const r = el.getBoundingClientRect(); return { in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 }; });
+        return { n: rect.length, allIn: rect.every((i) => i.in), noneClipped: rect.every((i) => !i.clipped), scrolls: root.scrollHeight > root.clientHeight + 1, sideways: document.documentElement.scrollWidth > innerWidth, rows: root.querySelectorAll('.board li').length };
+      });
+      const tf = await fontAudit(page);
+      check('board', tag + ' title: the Top 5 button is on screen without scrolling and at least 44 px tall', btn.inView && btn.scroll === 0 && btn.h >= 44, btn);
+      check('board', tag + ' Top 5 sheet: five rows, Close and heading fully on screen, nothing clipped, no scrolling', fit.rows === 5 && fit.allIn && fit.noneClipped && !fit.scrolls && !fit.sideways, fit);
+      check('text', tag + ' Top 5 sheet: every visible text is at least 14 px', tf.n > 8 && tf.bad.length === 0, { nodes: tf.n, min: tf.min, bad: tf.bad });
+      if (w === 320 || w === 1280) await page.screenshot({ path: path.join(SHOTS, (w === 320 ? '14' : '15') + '-top5-sheet-' + tag + '.png') });
+      await page.keyboard.press('Escape');
+      await ctx.close();
+    }
   }
 
   /* ===== 5. Touch on a phone viewport ===== */
@@ -722,6 +1402,10 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   console.log('\n5d. Layout at 320x568, 844x390, 390x844 and 1280x720');
   await layoutChecks(browser);
 
+  /* ===== 5e. OVERLAP: keys, taps, button states, the matatu on the shoulder ===== */
+  console.log('\n5e. OVERLAP power in the browser (real keys and taps)');
+  await overlapBrowserChecks(browser);
+
   /* ===== 5c. Near-miss and repair with real keys ===== */
   console.log('\n5c. Near-miss bonus and fundi repair, driven by real keys');
   {
@@ -753,7 +1437,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.waitForSelector('#over:not([hidden])', { timeout: 3000 });
     s = await snap(page);
     check('storage', 'full run to game over works, best kept in memory', out.s.mode === 'gameover' && s.best === out.s.score && s.best > 0, { best: s.best });
-    await sleep(700); await page.keyboard.press('Enter');
+    await sleep(700); await skipNameIfShown(page); await page.keyboard.press('Enter');
     s = await waitFor(page, (x) => x.mode === 'running', 2000, 'restart');
     check('storage', 'restart works without storage', s.health === 3 && s.best > 0);
     await ctx.close();

@@ -92,7 +92,7 @@
       slot: sl,
       road: { x: r1(roadX), y: 0, w: r1(roadW), h: H },
       rightLane: { x: r1(roadX + 3 * u), y: 0, w: r1(u), h: H },
-      player: { x: r1(laneX(lastPx) - 0.45 * u), y: r1(py - 0.875 * u), w: r1(0.9 * u), h: r1(1.75 * u) },
+      player: { x: r1(playerDrawX(lastPx) - 0.45 * u), y: r1(py - 0.875 * u), w: r1(0.9 * u), h: r1(1.75 * u) },
       /* visible shop strips beyond the pavement, left and right */
       shopStrip: r1(strip), shopsDrawn: roadX / u > 0.8,
       shops: [{ x: 0, y: 0, w: r1(strip), h: H }, { x: r1(W - strip), y: 0, w: r1(strip), h: H }] };
@@ -100,6 +100,9 @@
 
   function r1(v) { return Math.round(v * 10) / 10; }
   function laneX(lx) { return roadX + (lx + 0.5) * u; }
+  /* where the matatu is drawn: its lane position, held fully on screen (on a narrow portrait screen the
+     shoulder strip can be thinner than the matatu, so an overlapping matatu may straddle the kerb there) */
+  function playerDrawX(lx) { return MR.clamp(laneX(lx), 0.45 * u, Math.max(0.45 * u, W - 0.45 * u)); }
   function sy(d) { return py - d * u; }
   R.laneX = laneX; R.sy = sy;
 
@@ -460,11 +463,17 @@
   }
 
   function drawPlayer(g) {
-    var x = laneX(g.px), y = py, rot = (g.lane - g.px) * 0.24;
+    var x = playerDrawX(g.px), y = py;
+    var ovl = g.overlapTime > 0 && g.mode !== 'gameover';
+    /* on the shoulder the matatu steers towards the outside edge, not towards its (stale) lane */
+    var steerTo = ovl ? (g.overlapSide < 0 ? -1 : MR.LANES) : g.lane;
+    var rot = (steerTo - g.px) * 0.24;
     if (g.mode === 'gameover') rot = 0.3;
     var nit = g.nitro > 0;
+    /* overlap: last stretch is flagged by a blink (a steady dim for reduced motion) and a draining bar */
+    var warn = ovl && g.overlapTime < MR.CONST.OVERLAP_WARN;
     /* neon underglow reflecting on the wet road */
-    Art.drawGlow(ctx, nit ? '#21e6ff' : '#ff2d95', x, y + 0.1 * u, 1.9 * u, 2.7 * u, 0.5 + 0.1 * Math.sin(t * 8));
+    Art.drawGlow(ctx, nit ? '#21e6ff' : (ovl ? '#b6ff3c' : '#ff2d95'), x, y + 0.1 * u, 1.9 * u, 2.7 * u, 0.5 + 0.1 * Math.sin(t * 8));
     Art.drawGlow(ctx, '#ff2a2a', x, y + 0.95 * u, 1.1 * u, 1.3 * u, 0.5);
     /* headlights */
     var sp = sprites.cone;
@@ -485,6 +494,7 @@
       Art.drawGlow(ctx, '#21e6ff', x, y + 1.0 * u, 1.6 * u, 1.8 * u, 0.7);
     }
     var blink = g.invuln > 0 && g.nitro <= 0 && g.mode === 'running' && Math.floor(t * 14) % 2 === 0;
+    if (warn) blink = MR.reducedMotion ? true : (Math.floor(t * 8) % 2 === 0);
     if (punch) {
       var pf = punch.a * (1 - outBack(Math.min(1, punch.life / punch.max)));
       ctx.save(); ctx.translate(x, y); ctx.scale(1 + pf, 1 - pf); ctx.translate(-x, -y);
@@ -505,6 +515,7 @@
       ctx.beginPath(); ctx.ellipse(0, 0, 0.5 * u, 0.98 * u, 0, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.restore();
+    if (ovl) drawOverlapBar(g, x, y, warn);
     /* tyre spray */
     if (g.mode === 'running' && parts.length < 380) {
       for (var s = -1; s <= 1; s += 2) {
@@ -515,10 +526,29 @@
         });
       }
     }
+    if (ovl && g.mode === 'running' && parts.length < 380) {
+      /* shoulder dust kicked up behind the matatu */
+      for (var dd = 0; dd < 2; dd++) {
+        parts.push({
+          x: x + (Math.random() - 0.5) * 0.6 * u, y: y + 0.75 * u, vx: (Math.random() - 0.5) * 0.8 * u, vy: (1 + Math.random() * 1.5) * u,
+          life: 0, max: 0.45 + Math.random() * 0.35, size: (0.05 + Math.random() * 0.06) * u,
+          color: 'rgba(200,176,126,0.42)', type: 'smoke', grav: 0
+        });
+      }
+    }
     if (g.mode === 'gameover' && Math.random() < 0.3 && parts.length < 380) {
       parts.push({ x: x + (Math.random() - 0.5) * 0.3 * u, y: y - 0.6 * u, vx: (Math.random() - 0.5) * u, vy: -u * (0.5 + Math.random()),
         life: 0, max: 1.2, size: 0.12 * u, color: 'rgba(160,160,180,0.35)', type: 'smoke', grav: -u * 0.4 });
     }
+  }
+
+  /* thin bar over the matatu: how much of the overlap is left; turns red for the last stretch */
+  function drawOverlapBar(g, x, y, warn) {
+    var w = 0.9 * u, h = Math.max(4, 0.09 * u), bx = x - w / 2, by = y - 1.12 * u;
+    var k = MR.clamp(g.overlapTime / MR.CONST.OVERLAP_TIME, 0, 1);
+    ctx.fillStyle = 'rgba(5,5,14,0.85)'; Art.rr(ctx, bx - 2, by - 2, w + 4, h + 4, h * 0.6); ctx.fill();
+    ctx.fillStyle = warn ? '#ff5a66' : Art.PAL.lime;
+    if (k > 0) { Art.rr(ctx, bx, by, w * k, h, h * 0.5); ctx.fill(); }
   }
 
   function drawParticles(dt) {

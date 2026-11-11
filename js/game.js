@@ -12,6 +12,10 @@
     SPAWN_D: 14,
     ZONE_LEN: 150,
     NITRO_TIME: 2.6,
+    OVERLAP_TIME: 4.0,    /* seconds on the shoulder */
+    OVERLAP_FILL: 0.125,  /* meter per pickup for the first charge: 8 pickups */
+    OVERLAP_SLOWER: 0.88, /* each later charge fills this much as fast as the one before (compounding) */
+    OVERLAP_WARN: 0.8,    /* last seconds of an overlap: the renderer blinks the matatu */
     COMBO_TIME: 5.5,
     MAX_HEALTH: 3,
     START_SPEED: 5.5,
@@ -30,6 +34,45 @@
     var v = parseInt(MR.store.get(BEST_KEY, '0'), 10);
     return (isFinite(v) && v > 0) ? v : 0;
   }
+
+  /* ---------- local Top 5 board (this device only) ---------- */
+  var TOP_KEY = 'matatuRush.top5';
+  var TOP_N = 5;
+  var NAME_MAX = 12;
+  var ALIASES = ['Dere', 'Konda', 'Makanga', 'Rubani'];
+
+  function cleanName(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX).trim();
+  }
+  /* parses defensively: anything that is not an array of valid entries gives [] (invalid entries are dropped) */
+  function readBoard() {
+    var raw = [], out = [], i;
+    try { raw = JSON.parse(MR.store.get(TOP_KEY, '[]')); } catch (e) { return []; }
+    if (!Array.isArray(raw)) return [];
+    for (i = 0; i < raw.length; i++) {
+      var r = raw[i];
+      if (!r || typeof r !== 'object') continue;
+      var name = cleanName(r.name), score = r.score;
+      if (!name || typeof score !== 'number' || !isFinite(score)) continue;
+      score = Math.floor(score);
+      if (score <= 0) continue;
+      var id = (typeof r.id === 'string' || typeof r.id === 'number') ? String(r.id).slice(0, 40) : '';
+      if (!id) id = 'x' + i + '-' + Math.floor(Math.random() * 1e6).toString(36);
+      out.push({ name: name, score: score, id: id, ord: i });
+    }
+    /* score desc; equal scores keep their stored order (older stays above) */
+    out.sort(function (a, b) { return (b.score - a.score) || (a.ord - b.ord); });
+    out = out.slice(0, TOP_N);
+    for (i = 0; i < out.length; i++) delete out[i].ord;
+    return out;
+  }
+  function writeBoard(list) { MR.store.set(TOP_KEY, JSON.stringify(list)); }
+  /* Math.random on purpose: the seeded game RNG must not be touched, so seeded runs stay deterministic */
+  function makeAlias() {
+    return ALIASES[Math.floor(Math.random() * ALIASES.length)] + ' ' + (100 + Math.floor(Math.random() * 900));
+  }
+  function makeBoardId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
   MR.createGame = function () {
     var g = {
@@ -62,14 +105,16 @@
       g.lane = 1; g.px = 1; g.lastLaneFrom = 1; g.sinceLane = 99;
       g.combo = 0; g.comboTimer = 0;
       g.horn = 1; g.hornReadyFlag = true; g.nitro = 0;
+      g.overlap = 0; g.overlapReadyFlag = false; g.overlapTime = 0; g.overlapUses = 0; g.overlapSide = 0;
       g.invuln = 0;
       g.ents = [];
       g.rowIndex = 0; g.nextRowAt = 2; g.safe = 1;
       g.newBest = false;
+      g.boardRank = 0; g.boardId = null;
       g.apCool = 0; g.apHornHold = 0;
       g.stats = {
         pickups: 0, passengers: 0, bestCombo: 0, nearMiss: 0, smashed: 0, laneChanges: 0,
-        horns: 0, repairs: 0, hits: { pothole: 0, boda: 0, askari: 0 }
+        horns: 0, overlaps: 0, repairs: 0, hits: { pothole: 0, boda: 0, askari: 0 }
       };
       g.inputs = { keyboard: 0, touch: 0, mouse: 0, autopilot: 0 };
       g.log = []; g.seq = 0;
@@ -80,6 +125,21 @@
       g.reset(seed, autopilot);
       g.mode = 'running';
       emit('start', { seed: g.seed, autopilot: g.autopilot });
+    };
+
+    /* copy of the saved Top 5 */
+    g.board = function () { return readBoard(); };
+    /* renames one entry. Trims, collapses spaces, caps at 12 chars; empty keeps the alias. Returns the stored name ('' if the entry is gone). */
+    g.setBoardName = function (id, name) {
+      var list = readBoard();
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) {
+          var n = cleanName(name);
+          if (n) { list[i].name = n; writeBoard(list); }
+          return list[i].name;
+        }
+      }
+      return '';
     };
 
     g.zoneName = function (level) {
@@ -94,6 +154,7 @@
       if (g.inputs[source] === undefined) g.inputs[source] = 0;
       g.inputs[source]++;
       if (action === 'left' || action === 'right') {
+        if (g.overlapTime > 0) return false; /* off the road: lane inputs do nothing */
         var dir = action === 'left' ? -1 : 1;
         var to = g.lane + dir;
         if (to < 0 || to >= C.LANES) { emit('bump', { lane: g.lane, source: source }); return false; }
@@ -104,7 +165,28 @@
         emit('lane', { from: g.lastLaneFrom, to: to, source: source });
         return true;
       }
+      if (action === 'overlap') {
+        if (g.overlap >= 1 && g.overlapTime <= 0 && g.nitro <= 0) {
+          g.overlap = 0; g.overlapReadyFlag = false;
+          g.overlapUses++;
+          g.overlapTime = C.OVERLAP_TIME;
+          g.overlapSide = g.lane <= 1 ? -1 : 1;
+          g.stats.overlaps++;
+          emit('overlap', { source: source, side: g.overlapSide, uses: g.overlapUses, lane: g.lane });
+          return true;
+        }
+        emit('overlapEmpty', {
+          source: source, meter: Math.round(g.overlap * 100) / 100,
+          reason: g.overlapTime > 0 ? 'active' : (g.overlap >= 1 ? 'nitro' : 'charging')
+        });
+        return false;
+      }
       if (action === 'horn') {
+        if (g.overlapTime > 0) {
+          /* refused while on the shoulder; the horn meter is not touched */
+          emit('hornEmpty', { source: source, meter: Math.round(g.horn * 100) / 100, reason: 'overlap' });
+          return false;
+        }
         if (g.horn >= 1 && g.nitro <= 0) {
           g.horn = 0; g.hornReadyFlag = false;
           g.nitro = C.NITRO_TIME;
@@ -293,6 +375,11 @@
       return false;
     }
 
+    /* the lane the player is in, or about to merge back into while overlapping (so a boda never cuts into the re-entry lane) */
+    function playerLane() {
+      return g.overlapTime > 0 ? (g.overlapSide < 0 ? 0 : C.LANES - 1) : g.lane;
+    }
+
     function updateBoda(e, dt) {
       if (e.scatter) { e.x += e.scatter * dt * 5; e.spin += dt * 3 * e.scatter; return; }
       if (e.crashed) { e.spin += dt * 10; e.x += e.vx * dt; e.v *= (1 - dt * 2.5); return; }
@@ -305,7 +392,7 @@
         if (e.signalT <= 0) {
           var to = e.lane + e.signal;
           /* fairness: never cut into the player's lane at close range */
-          var unfair = (to === g.lane && e.d < 3.2 && e.d > -1.5);
+          var unfair = (to === playerLane() && e.d < 3.2 && e.d > -1.5);
           if (!unfair) e.lane = to;
           e.signal = 0;
         }
@@ -365,7 +452,21 @@
         g.newBest = true;
         MR.store.set(BEST_KEY, String(g.best));
       }
+      g.boardRank = 0; g.boardId = null;
+      if (!g.autopilot && g.score > 0) {
+        var board = readBoard();
+        if (board.length < TOP_N || g.score > board[board.length - 1].score) {
+          var pos = 0;
+          while (pos < board.length && board[pos].score >= g.score) pos++;
+          var entry = { name: makeAlias(), score: g.score, id: makeBoardId() };
+          board.splice(pos, 0, entry);
+          board = board.slice(0, TOP_N);
+          writeBoard(board);
+          g.boardRank = pos + 1; g.boardId = entry.id;
+        }
+      }
       emit('gameover', {
+        rank: g.boardRank,
         score: g.score, best: g.best, newBest: g.newBest, dist: Math.round(g.dist),
         pickups: g.stats.pickups, bestCombo: g.stats.bestCombo
       });
@@ -470,14 +571,27 @@
       }
       if (g.horn >= 1 && !g.hornReadyFlag) { g.hornReadyFlag = true; emit('hornReady', {}); }
       if (g.invuln > 0) g.invuln = Math.max(0, g.invuln - dt);
-      if (g.combo > 0) {
+      if (g.combo > 0 && g.overlapTime <= 0) { /* the combo clock holds while off the road */
         g.comboTimer -= dt;
         if (g.comboTimer <= 0) { emit('comboEnd', { combo: g.combo }); g.combo = 0; g.comboTimer = 0; }
       }
 
       var mxm = C.LANE_RATE * dt;
-      g.px += clamp(g.lane - g.px, -mxm, mxm);
+      var tx = g.lane;
+      if (g.overlapTime > 0) tx = g.overlapSide < 0 ? -1 : C.LANES; /* one lane outside the road edge */
+      g.px += clamp(tx - g.px, -mxm, mxm);
       g.sinceLane += dt;
+
+      if (g.overlapTime > 0) {
+        g.overlapTime -= dt;
+        if (g.overlapTime <= 0) {
+          g.overlapTime = 0;
+          g.lane = g.overlapSide < 0 ? 0 : C.LANES - 1; /* merge back into the edge lane on that side; px eases in */
+          g.invuln = Math.max(g.invuln, 0.9);
+          emit('overlapEnd', { side: g.overlapSide, lane: g.lane, uses: g.overlapUses });
+        }
+      }
+      var onShoulder = g.overlapTime > 0;
 
       if (g.autopilot) autopilotStep(dt);
 
@@ -493,7 +607,7 @@
         }
 
         if (e.type === 'stage' || e.type === 'repair') {
-          if (!e.taken && Math.abs(g.px - e.lane) < 0.62 && Math.abs(e.d) < 1.25) {
+          if (!onShoulder && !e.taken && Math.abs(g.px - e.lane) < 0.62 && Math.abs(e.d) < 1.25) {
             e.taken = true;
             if (e.type === 'repair') {
               if (g.health < C.MAX_HEALTH) g.health++;
@@ -510,13 +624,16 @@
               g.stats.pickups++;
               g.stats.passengers += e.pax;
               if (g.nitro <= 0) g.horn = Math.min(1, g.horn + 0.34);
+              /* the only thing that charges OVERLAP; each charge fills a bit slower than the last */
+              g.overlap = Math.min(1, g.overlap + C.OVERLAP_FILL * Math.pow(C.OVERLAP_SLOWER, g.overlapUses));
+              if (g.overlap >= 1 && !g.overlapReadyFlag) { g.overlapReadyFlag = true; emit('overlapReady', {}); }
               emit('pickup', {
                 id: e.id, lane: e.lane, d: Math.round(e.d * 100) / 100, px: Math.round(g.px * 100) / 100,
                 playerLane: g.lane, fare: fare, combo: g.combo, mult: mult, pax: e.pax, score: g.score
               });
             }
           }
-        } else if (!e.hit && !e.gone && !e.scatter && !e.crashed) {
+        } else if (!onShoulder && !e.hit && !e.gone && !e.scatter && !e.crashed) {
           if (overlaps(e)) {
             if (g.nitro > 0) {
               e.gone = true; e.hit = true;
@@ -540,6 +657,9 @@
               emit('nearMiss', { kind: e.type, id: e.id, lane: e.lane, playerLane: g.lane });
             }
           }
+        } else if (onShoulder && !e.nm && e.d < (lenOf(e) + C.P_LEN) / 2) {
+          /* level with or past the matatu while it rides the shoulder: never near-miss eligible after the merge */
+          e.nm = true;
         }
       }
 
@@ -568,9 +688,11 @@
         version: MR.VERSION, mode: g.mode, seed: g.seed, autopilot: g.autopilot,
         tick: g.tick, time: r2(g.time), dist: r2(g.dist), speed: r2(g.speed), baseSpeed: r2(g.baseSpeed),
         level: g.level, zone: g.zoneName(), score: g.score, best: g.best, newBest: g.newBest,
+        board: readBoard(), boardRank: g.boardRank,
         health: g.health, maxHealth: C.MAX_HEALTH,
         combo: g.combo, comboTimer: r2(g.comboTimer),
         horn: { meter: r2(g.horn), ready: g.horn >= 1 && g.nitro <= 0, nitro: g.nitro > 0, nitroTime: r2(g.nitro) },
+        overlap: { meter: r2(g.overlap), ready: g.overlap >= 1 && g.overlapTime <= 0 && g.nitro <= 0, active: g.overlapTime > 0, time: r2(g.overlapTime), side: g.overlapSide, uses: g.overlapUses },
         player: { lane: g.lane, x: r2(g.px), invuln: r2(g.invuln) },
         lanes: C.LANES,
         stats: JSON.parse(JSON.stringify(g.stats)),

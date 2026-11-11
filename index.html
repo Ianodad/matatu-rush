@@ -51,6 +51,11 @@
     <span id="hornLbl" class="hl">HORN</span>
     <kbd>SPACE</kbd>
   </button>
+  <button id="btnOverlap" class="ovl" type="button" aria-label="Overlap charging">
+    <i id="ovlFill"></i>
+    <span id="ovlLbl" class="hl">OVERLAP</span>
+    <kbd>O</kbd>
+  </button>
   <button id="btnRight" class="pad" type="button" aria-label="Move one lane right">
     <kbd>D</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4l9 8-9 8z"/></svg>
   </button>
@@ -70,6 +75,7 @@
     <div class="keys" aria-label="Controls">
       <p><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> switch lane</p>
       <p><kbd>Space</kbd> horn nitro</p>
+      <p><kbd>O</kbd> or <kbd>S</kbd> overlap</p>
       <p><kbd>P</kbd> pause <kbd>M</kbd> mute</p>
       <p class="touch">Touch: tap the left or right side of the road, or use the on-screen buttons.</p>
     </div>
@@ -78,6 +84,7 @@
       <button id="btnDemo" class="ghost" type="button">Watch demo</button>
       <button id="btnMute" class="ghost" type="button" aria-pressed="false">Sound: On</button>
       <button id="btnHow" class="ghost" type="button" aria-haspopup="dialog">How to play</button>
+      <button id="btnBoard" class="ghost" type="button" aria-haspopup="dialog">Top 5</button>
     </div>
     <p id="titleBest" class="bestline">Best fare: KSh 0</p>
   </div>
@@ -89,6 +96,7 @@
     <ul class="rules">
       <li class="good"><canvas data-icon="stage" width="56" height="56" aria-hidden="true"></canvas><div><b>Stage</b><span>Pick up fares. Chain a combo.</span></div></li>
       <li class="good"><canvas data-icon="horn" width="56" height="56" aria-hidden="true"></canvas><div><b>Horn nitro</b><span>Meter full? Hoot and smash.</span></div></li>
+      <li class="good"><canvas data-icon="overlap" width="56" height="56" aria-hidden="true"></canvas><div><b>Overlap</b><span>Fill it with passengers, then ride the shoulder past everything.</span></div></li>
       <li><canvas data-icon="boda" width="56" height="56" aria-hidden="true"></canvas><div><b>Boda boda</b><span>Dodge. Blinker means a swerve.</span></div></li>
       <li><canvas data-icon="pothole" width="56" height="56" aria-hidden="true"></canvas><div><b>Pothole</b><span>Dodge. A hit costs a heart.</span></div></li>
       <li><canvas data-icon="askari" width="56" height="56" aria-hidden="true"></canvas><div><b>Kanjo checkpoint</b><span>Two lanes. A heart and a fine.</span></div></li>
@@ -96,11 +104,23 @@
     <div class="keys" aria-label="Controls">
       <p><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> switch lane</p>
       <p><kbd>Space</kbd> horn nitro</p>
+      <p><kbd>O</kbd> or <kbd>S</kbd> overlap</p>
       <p><kbd>P</kbd> pause <kbd>M</kbd> mute</p>
       <p class="touch">Touch: tap a side of the road, or use the buttons.</p>
     </div>
     <div class="actions">
       <button id="btnHowClose" class="ghost" type="button">Got it</button>
+    </div>
+  </div>
+</section>
+
+<section id="board" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="boardH">
+  <div class="panel small">
+    <h2 id="boardH" class="h2">TOP 5</h2>
+    <p id="boardEmpty" class="tag" hidden>No fares yet. Be the first on the board.</p>
+    <ol id="boardList" class="board" aria-label="Top 5 fares on this device"></ol>
+    <div class="actions">
+      <button id="btnBoardClose" class="ghost" type="button">Close</button>
     </div>
   </div>
 </section>
@@ -122,6 +142,16 @@
     <h2 id="overH" class="h2 over">MWISHO WA SAFARI</h2>
     <p class="tag" id="overTag">Game over. The matatu needs a fundi.</p>
     <p id="newBest" class="newbest" hidden>REKODI MPYA! New best fare</p>
+    <form id="nameForm" class="nameform" hidden autocomplete="off">
+      <p id="nameRank" class="namerank">You made the Top 5! Rank #1</p>
+      <label for="nameInput">Your name for the board</label>
+      <input id="nameInput" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Dere 100">
+      <div class="actions">
+        <button id="btnSaveName" class="ghost save" type="submit">Save name</button>
+        <button id="btnSkipName" class="ghost" type="button">Skip</button>
+      </div>
+    </form>
+    <p id="nameSaved" class="namesaved" hidden></p>
     <dl class="stats">
       <div class="big"><dt>Fare</dt><dd id="oScore">KSh 0</dd></div>
       <div><dt>Best</dt><dd id="oBest">KSh 0</dd></div>
@@ -129,6 +159,10 @@
       <div><dt>Passengers</dt><dd id="oPax">0</dd></div>
       <div><dt>Best combo</dt><dd id="oCombo">x0</dd></div>
     </dl>
+    <div id="overBoardBox" class="boardbox" hidden>
+      <h3 class="h3">Top 5</h3>
+      <ol id="overBoard" class="board" aria-label="Top 5 fares on this device"></ol>
+    </div>
     <div class="actions">
       <button id="btnAgain" class="cta" type="button">TWENDE TENA <small>Play again</small></button>
       <button id="btnMenu" class="ghost" type="button">Menu</button>

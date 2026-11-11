@@ -8,7 +8,7 @@
   var params = MR.params;
   var fixedSeed = (params.seed !== undefined && isFinite(parseInt(params.seed, 10))) ? (parseInt(params.seed, 10) >>> 0) : null;
   var screen = 'title';       /* 'title' | 'game' | 'pause' | 'over' */
-  var acc = 0, last = 0, overAt = 0, overTimer = null, hitStop = 0;
+  var acc = 0, last = 0, overAt = 0, overTimer = null, hitStop = 0, goRepeat = false;
   var hud = {};
 
   var el = {
@@ -16,7 +16,8 @@
     title: $('title'), pause: $('pause'), over: $('over'),
     score: $('score'), best: $('best'), zone: $('zone'), speed: $('speed'), hearts: $('hearts'),
     combo: $('combo'), comboX: $('comboX'), comboBar: $('comboBar'), demoTag: $('demoTag'),
-    horn: $('btnHorn'), hornFill: $('hornFill'), hornLbl: $('hornLbl'), live: $('live')
+    horn: $('btnHorn'), hornFill: $('hornFill'), hornLbl: $('hornLbl'),
+    ovl: $('btnOverlap'), ovlFill: $('ovlFill'), ovlLbl: $('ovlLbl'), live: $('live')
   };
 
   function announce(msg) { el.live.textContent = msg; }
@@ -27,7 +28,7 @@
     el.title.hidden = name !== 'title';
     el.pause.hidden = name !== 'pause';
     el.over.hidden = name !== 'over';
-    if (name !== 'title') $('howto').hidden = true;
+    if (name !== 'title') { $('howto').hidden = true; $('board').hidden = true; }
     el.hud.hidden = name === 'title';
     el.controls.hidden = !(name === 'game' || name === 'pause');
     measureHud();
@@ -65,6 +66,51 @@
 
   function openHow() { $('howto').hidden = false; try { $('btnHowClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
   function closeHow() { $('howto').hidden = true; try { $('btnHow').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* ---------- Top 5 board ---------- */
+  /* one renderer for both lists. Names are user input: textContent only, never innerHTML. */
+  function renderBoard(ol, list, hiId) {
+    while (ol.firstChild) ol.removeChild(ol.firstChild);
+    for (var i = 0; i < list.length; i++) {
+      var li = document.createElement('li');
+      if (hiId && list[i].id === hiId) { li.className = 'me'; li.setAttribute('aria-current', 'true'); }
+      var rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = '#' + (i + 1);
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = list[i].name;
+      var sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = MR.formatKsh(list[i].score);
+      li.appendChild(rk); li.appendChild(nm); li.appendChild(sc);
+      ol.appendChild(li);
+    }
+  }
+  function openBoard() {
+    var list = g.board();
+    renderBoard($('boardList'), list, null);
+    $('boardEmpty').hidden = list.length > 0;
+    $('boardList').hidden = list.length === 0;
+    $('board').hidden = false;
+    try { $('btnBoardClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+  function closeBoard() { $('board').hidden = true; try { $('btnBoard').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* Save and Skip both end up here: the run is already on the board under its alias, a name only renames it */
+  function finishName(text) {
+    if (!g.boardId || $('nameForm').hidden) return;
+    var stored = g.setBoardName(g.boardId, text);
+    $('nameForm').hidden = true;
+    /* the form is closing under a finger that may still be down: Play again, Menu and the over keys ignore input for 600 ms */
+    overAt = performance.now();
+    if (!stored) { focusAgain(); return; }
+    $('nameSaved').textContent = 'Saved as ' + stored;
+    $('nameSaved').hidden = false;
+    renderBoard($('overBoard'), g.board(), g.boardId);
+    announce('Saved as ' + stored + '. Rank ' + g.boardRank + ' on the Top 5.');
+    focusAgain();
+  }
+  /* on short screens the over panel scrolls: let the focus call bring Play again into view */
+  function focusAgain() {
+    var b = $('btnAgain');
+    try { b.focus(); } catch (e) { /* ignore */ }
+    try { if (b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); } catch (e2) { /* ignore */ }
+  }
 
   function newSeed() {
     if (fixedSeed !== null) return fixedSeed;
@@ -118,10 +164,28 @@
     $('oPax').textContent = String(g.stats.passengers);
     $('oCombo').textContent = 'x' + ev.bestCombo;
     $('newBest').hidden = !ev.newBest;
+    var rank = (!g.autopilot && ev.rank > 0) ? ev.rank : 0;
+    var list = g.board(), alias = '';
+    for (var bi = 0; bi < list.length; bi++) if (list[bi].id === g.boardId) alias = list[bi].name;
+    if (!alias) rank = 0;
+    $('nameSaved').hidden = true;
+    $('nameForm').hidden = rank === 0;
+    if (rank > 0) {
+      $('nameRank').textContent = 'You made the Top 5! Rank #' + rank;
+      $('nameInput').value = '';
+      $('nameInput').placeholder = alias;
+    }
+    renderBoard($('overBoard'), list, rank > 0 ? g.boardId : null);
+    $('overBoardBox').hidden = list.length === 0;
     $('overTag').textContent = g.autopilot ? 'Demo over. Your turn, dere!' :
       (ev.newBest ? 'Umeweza! That is a new record.' : 'Game over. The matatu needs a fundi.');
     show('over');
-    announce('Game over. Fare ' + MR.formatKsh(ev.score) + '. Best ' + MR.formatKsh(ev.best) + '.');
+    if (rank > 0) {
+      el.over.scrollTop = 0;
+      try { $('nameInput').focus(); } catch (e) { /* ignore */ }
+      try { if ($('nameInput').scrollIntoView) $('nameInput').scrollIntoView({ block: 'nearest' }); } catch (e2) { /* ignore */ }
+    }
+    announce('Game over. Fare ' + MR.formatKsh(ev.score) + '. Best ' + MR.formatKsh(ev.best) + '.' + (rank > 0 ? ' You made the Top 5, rank ' + rank + '. Type a name or skip.' : ''));
   }
 
   /* ---------- game events to juice ---------- */
@@ -173,6 +237,7 @@
         announce('Horn nitro');
         break;
       case 'hornEmpty':
+        if (ev.reason === 'overlap') break; /* refused on the shoulder: nothing to say, the meter is untouched */
         A.sfx.hornShort();
         R.status('HORN CHARGING', '#aab4e0');
         break;
@@ -180,6 +245,29 @@
       case 'hornReady':
         A.sfx.ready();
         R.status('HORN READY!', Art.PAL.yellow);
+        break;
+      case 'overlap':
+        A.sfx.overlap();
+        R.shake(FEEL.small); R.punch(-0.08);
+        R.ring(g.px, 0, Art.PAL.lime);
+        R.burst(g.px, 0, 'rgba(200,175,120,0.55)', 14, 2.2, 'smoke');
+        R.banner('OVERLAP!', Art.PAL.lime, 'SHOULDER RIDE');
+        announce('Overlap. Riding the shoulder for ' + C.OVERLAP_TIME + ' seconds.');
+        break;
+      case 'overlapEnd':
+        R.ring(ev.lane, 0, Art.PAL.lime);
+        R.text('RUDI BARABARANI', ev.lane, 1.5, Art.PAL.lime, 0.3);
+        announce('Back on the road.');
+        break;
+      case 'overlapEmpty':
+        if (ev.reason === 'active') break;
+        A.sfx.hornShort();
+        R.status(ev.reason === 'nitro' ? 'AFTER NITRO' : 'OVERLAP CHARGING', '#aab4e0');
+        break;
+      case 'overlapReady':
+        A.sfx.overlapReady();
+        R.text('OVERLAP READY!', g.px, 1.8, Art.PAL.lime, 0.3);
+        announce('Overlap ready');
         break;
       case 'zone':
         A.intensity = ev.level;
@@ -243,6 +331,18 @@
       el.hornLbl.textContent = nit ? 'NITRO!' : (ready ? 'HOOT!' : 'HORN');
       el.horn.setAttribute('aria-label', nit ? 'Horn nitro active' : (ready ? 'Horn nitro ready' : 'Horn nitro charging'));
     }
+    /* OVERLAP button: charging / ready / active (draining) / full but waiting for nitro to end */
+    var ovA = g.overlapTime > 0, ovR = g.overlap >= 1 && !ovA && !nit;
+    var ovFill = ovA ? g.overlapTime / C.OVERLAP_TIME : g.overlap;
+    el.ovlFill.style.transform = 'scaleX(' + MR.clamp(ovFill, 0, 1).toFixed(3) + ')';
+    var ost = ovA ? 'active' : (ovR ? 'ready' : (g.overlap >= 1 ? 'wait' : 'charge'));
+    if (hud.ovlState !== ost) {
+      hud.ovlState = ost;
+      el.ovl.classList.toggle('ready', ovR);
+      el.ovl.classList.toggle('active', ovA);
+      el.ovlLbl.textContent = ovA ? 'PITA!' : (ovR ? 'OVERLAP!' : 'OVERLAP');
+      el.ovl.setAttribute('aria-label', ovA ? 'Overlap active' : (ovR ? 'Overlap ready' : (ost === 'wait' ? 'Overlap full, ready when nitro ends' : 'Overlap charging')));
+    }
   }
 
   /* ---------- input ---------- */
@@ -252,17 +352,29 @@
   }
 
   function onKeyDown(e) {
+    /* remember whether Enter or Space is an auto-repeat: a click made by a repeating key is ignored (see goClickOk); Space fires its click on release, so that one still passes */
+    if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') goRepeat = !!e.repeat;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    /* typing in a text box must never trigger a shortcut (m, r, space, Enter). Escape in the name box is Skip. */
+    var tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+      if (e.key === 'Escape' && e.target.id === 'nameInput') { finishName(''); e.preventDefault(); }
+      return;
+    }
     var k = e.key, onBtn = e.target && e.target.tagName === 'BUTTON';
     var isGo = (k === 'Enter' || k === ' ' || e.code === 'Space');
     if (k === 'm' || k === 'M') { if (!e.repeat) toggleMute(); return; }
     if (!$('howto').hidden) { if (k === 'Escape') { closeHow(); e.preventDefault(); } return; }
+    if (!$('board').hidden) { if (k === 'Escape') { closeBoard(); e.preventDefault(); } return; }
     if (g.mode === 'running') {
       lateAudio();
       if (k === 'ArrowLeft' || k === 'a' || k === 'A') { if (!e.repeat) g.input('left', 'keyboard'); e.preventDefault(); return; }
       if (k === 'ArrowRight' || k === 'd' || k === 'D') { if (!e.repeat) g.input('right', 'keyboard'); e.preventDefault(); return; }
       if (k === ' ' || e.code === 'Space' || k === 'h' || k === 'H' || k === 'ArrowUp' || k === 'w' || k === 'W') {
         if (!e.repeat) g.input('horn', 'keyboard'); e.preventDefault(); return;
+      }
+      if (k === 'o' || k === 'O' || k === 's' || k === 'S' || k === 'ArrowDown') {
+        if (!e.repeat) g.input('overlap', 'keyboard'); e.preventDefault(); return;
       }
       if (k === 'Escape' && g.autopilot) { toTitle(); e.preventDefault(); return; }
       if (k === 'p' || k === 'P' || k === 'Escape') { pauseGame(); e.preventDefault(); }
@@ -278,11 +390,14 @@
     }
     if (screen === 'over') {
       if (performance.now() - overAt < 600) return;
-      if (k === 'Escape') { toTitle(); e.preventDefault(); return; }
+      if (k === 'Escape') { if (!e.repeat) toTitle(); e.preventDefault(); return; }
       if (!e.repeat && ((!onBtn && isGo) || k === 'r' || k === 'R')) { startGame(false, true); e.preventDefault(); }
     }
   }
+  /* a click made by the keyboard has detail 0; while Enter or Space is auto-repeating it is not a real press */
+  function goClickOk(e) { return !(e.detail === 0 && goRepeat); }
   function onKeyUp(e) {
+    if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') goRepeat = false;
     if (g.mode === 'running' && (e.key === ' ' || e.code === 'Space')) e.preventDefault();
   }
 
@@ -354,11 +469,12 @@
     bindControl($('btnLeft'), 'left');
     bindControl($('btnRight'), 'right');
     bindControl($('btnHorn'), 'horn');
+    bindControl($('btnOverlap'), 'overlap');
 
     bindClick('btnStart', function () { startGame(false, true); });
     bindClick('btnDemo', function () { startGame(true, true); });
-    bindClick('btnAgain', function () { if (performance.now() - overAt >= 600) startGame(false, true); });
-    bindClick('btnMenu', toTitle);
+    bindClick('btnAgain', function (e) { if (goClickOk(e) && performance.now() - overAt >= 600) startGame(false, true); });
+    bindClick('btnMenu', function (e) { if (goClickOk(e) && performance.now() - overAt >= 600) toTitle(); });
     bindClick('btnPause', pauseGame);
     bindClick('btnResume', resumeGame);
     bindClick('btnQuit', toTitle);
@@ -367,6 +483,10 @@
     bindClick('btnMuteHud', toggleMute);
     bindClick('btnHow', openHow);
     bindClick('btnHowClose', closeHow);
+    bindClick('btnBoard', openBoard);
+    bindClick('btnBoardClose', closeBoard);
+    bindClick('btnSkipName', function () { finishName(''); });
+    $('nameForm').addEventListener('submit', function (e) { e.preventDefault(); finishName($('nameInput').value); });
 
     var icons = document.querySelectorAll('canvas[data-icon]');
     function drawIcons() { for (var i = 0; i < icons.length; i++) Art.icon(icons[i], icons[i].getAttribute('data-icon')); }
