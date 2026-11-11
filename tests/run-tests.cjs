@@ -134,7 +134,8 @@ async function drive(page, opt) {
 
 /* the Top 5 name box takes focus on a qualifying game over; Escape inside it is Skip and moves focus to Play again */
 async function skipNameIfShown(page) {
-  if (await page.isVisible('#nameForm')) { await page.keyboard.press('Escape'); await sleep(60); }
+  /* closing the form starts a 600 ms input guard on Play again, so wait it out */
+  if (await page.isVisible('#nameForm')) { await page.keyboard.press('Escape'); await sleep(680); }
 }
 
 /* ---------- Top 5 board: pure Node harness around js/core.js + js/game.js (no browser) ---------- */
@@ -755,13 +756,21 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     s = await snap(page);
     const typed = await page.inputValue('#nameInput');
     check(G, 'typing m, r and spaces in the name box does not mute, restart or leave the game over screen', typed === '  m r m r  ' && s.audio.muted === mutedBefore && s.mode === 'gameover' && s.screen === 'over' && (await page.isVisible('#nameForm')), { typed, muted: s.audio.muted, mode: s.mode, screen: s.screen });
-    await page.keyboard.press('Enter');
+    /* hold Enter: the first keydown submits; the repeats that follow land on Play again and must not restart */
+    await page.keyboard.down('Enter');
     await sleep(150);
     s = await snap(page); u = await overUi();
     const st = await stored();
     check(G, 'Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board',
       s.screen === 'over' && s.mode === 'gameover' && !u.form && u.saved === 'Saved as m r m r' && u.focus === 'btnAgain' && st[0].name === 'm r m r' && st[0].name.length <= 12 && u.rows.length === 1 && /m r m r/.test(u.rows[0]) && /KSh/.test(u.rows[0]) && u.cur[0] === 'm r m r', { u, st });
     check(G, 'confirmation is announced in the live region', /Saved as m r m r/.test(await page.textContent('#live')));
+    await sleep(750);
+    for (let i = 0; i < 4; i++) { await page.keyboard.down('Enter'); await sleep(150); }
+    const heldMid = await snap(page);
+    await page.keyboard.up('Enter');
+    await sleep(150);
+    s = await snap(page); u = await overUi();
+    check(G, 'holding Enter after saving (auto-repeat keydowns well past the 600 ms guard) does not restart the game', heldMid.screen === 'over' && heldMid.mode === 'gameover' && s.screen === 'over' && s.mode === 'gameover' && u.focus === 'btnAgain' && s.tick === heldMid.tick, { mid: heldMid.screen, end: s.screen, mode: s.mode });
     await page.reload();
     await page.waitForFunction(() => !!window.MatatuRush);
     await page.click('#btnBoard');
@@ -787,22 +796,48 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await sleep(200);
     await page.screenshot({ path: path.join(SHOTS, '13-gameover-top5-320x568.png') });
     await page.keyboard.type('mm');
-    await page.keyboard.press('Escape');
+    await page.keyboard.down('Escape');
     await sleep(120);
     s = await snap(page); u = await overUi();
     check(G, 'Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)', s.screen === 'over' && u.overShown && !u.form && s.board.some((e) => e.name === aliasBefore) && u.saved === 'Saved as ' + aliasBefore && u.focus === 'btnAgain' && (await stored()).some((e) => e.name === aliasBefore), { u, aliasBefore });
+    /* keep Escape held: auto-repeat keydowns past the guard must not reach the title */
+    await sleep(700);
+    for (let i = 0; i < 3; i++) { await page.keyboard.down('Escape'); await sleep(150); }
+    await page.keyboard.up('Escape');
+    await sleep(100);
+    s = await snap(page);
+    check(G, 'holding Escape after Skip (repeats past the guard) does not jump to the title', s.screen === 'over' && s.mode === 'gameover', { screen: s.screen, mode: s.mode });
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    check(G, 'a fresh Escape press on the game over screen still goes to the title', (await snap(page)).screen === 'title');
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    /* --- run 3: full board of low scores. Skip by click keeps the alias; the board stays at 5, sorted --- */
+    /* --- run 3 (844x390): full board of low scores. Skip with a held Enter keeps the alias and Play again is scrolled into view; the board stays at 5, sorted --- */
+    await page.setViewportSize({ width: 844, height: 390 });
     await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await fontsReady(page);
     await toOver();
+    await sleep(200);
     s = await snap(page); u = await overUi();
     const alias3 = s.board[s.boardRank - 1] && s.board[s.boardRank - 1].name;
+    const inView = (sel) => page.evaluate((q) => { const r = document.querySelector(q).getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), vh: innerHeight, vw: innerWidth, ok: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth && r.height > 0 }; }, sel);
+    const inpView = await inView('#nameInput');
+    check(G, '844x390 game over with the form: the focused name input is fully inside the viewport', u.form && u.focus === 'nameInput' && inpView.ok, inpView);
     check(G, 'qualifying run on a full board: form shown, board still exactly 5 and sorted high to low', u.form && s.boardRank === 1 && s.board.length === 5 && s.board.every((e, i) => i === 0 || s.board[i - 1].score >= e.score) && ALIAS.test(alias3), { rank: s.boardRank, scores: s.board.map((e) => e.score) });
-    await page.click('#btnSkipName');
-    await sleep(120);
+    await page.focus('#btnSkipName');
+    await page.keyboard.down('Enter');
+    await sleep(150);
     s = await snap(page); u = await overUi();
-    check(G, 'Skip button keeps the alias, hides the form and stays on the game over screen', s.screen === 'over' && !u.form && u.saved === 'Saved as ' + alias3 && u.focus === 'btnAgain' && (await stored()).filter((e) => e.name === alias3).length === 1, { saved: u.saved });
+    const againView = await inView('#btnAgain');
+    check(G, 'Skip button (by Enter) keeps the alias, hides the form and stays on the game over screen', s.screen === 'over' && !u.form && u.saved === 'Saved as ' + alias3 && u.focus === 'btnAgain' && (await stored()).filter((e) => e.name === alias3).length === 1, { saved: u.saved });
+    check(G, '844x390 after Skip: Play again has focus AND sits fully inside the viewport (panel scrolled to it)', u.focus === 'btnAgain' && againView.ok, againView);
+    await sleep(750);
+    for (let i = 0; i < 4; i++) { await page.keyboard.down('Enter'); await sleep(150); }
+    await page.keyboard.up('Enter');
+    await sleep(150);
+    s = await snap(page);
+    check(G, 'holding Enter on Skip (repeats land on Play again) does not restart the game', s.screen === 'over' && s.mode === 'gameover', { screen: s.screen, mode: s.mode });
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     /* --- run 4: hostile name is rendered as text only --- */
     await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
@@ -829,14 +864,22 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await ctx.close();
   }
   {
-    /* demo / autopilot runs never add an entry and never show the form */
+    /* a demo (autopilot) run that really reaches game over must not enter the board, show the form, or highlight a row.
+       Seed 101 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 53 s);
+       the board is pre-filled with score 1 entries so a wrongly inserted demo score (thousands) would show up. */
     const ctx = await browser.newContext(desktop);
     const page = await ctx.newPage(); watch(page, 'board-demo');
-    await page.goto(URL + '?seed=42&autopilot=1&autostart=1');
+    const seeded = JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await page.goto(URL + '?seed=7');
+    await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), seeded);
+    await page.goto(URL + '?seed=101&autopilot=1&autostart=1');
     await page.waitForFunction(() => !!window.MatatuRush);
-    await waitFor(page, (x) => x.tick >= 600, 20000, 'demo ticks');
-    const stDemo = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden }));
-    check('board', 'a demo (autopilot) run adds no entry and shows no name form', stDemo.ls === null && !stDemo.form, stDemo);
+    const sDemo = await waitFor(page, (x) => x.mode === 'gameover', 90000, 'demo game over');
+    await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+    await sleep(100);
+    const d = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden, cur: document.querySelectorAll('#overBoard li[aria-current]').length, rows: document.querySelectorAll('#overBoard li').length, tag: document.getElementById('overTag').textContent }));
+    check('board', 'a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
+      sDemo.autopilot === true && sDemo.boardRank === 0 && sDemo.score > 1 && !d.form && d.ls === seeded && d.cur === 0 && d.rows === 5 && /Demo over/.test(d.tag), { rank: sDemo.boardRank, score: sDemo.score, d });
     await ctx.close();
   }
   {

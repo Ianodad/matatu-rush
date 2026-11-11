@@ -1,10 +1,10 @@
 {
-  "generated": "2026-11-11T16:55:39.200Z",
+  "generated": "2026-11-11T17:18:22.673Z",
   "browser": "system Google Chrome",
   "url": "file:///Users/adera/My Work/projects/matatu-rush/index.html",
-  "passed": 175,
+  "passed": 181,
   "failed": 0,
-  "total": 175,
+  "total": 181,
   "notes": {
     "run": {
       "simSeconds": 26.49,
@@ -25,13 +25,13 @@
       "dodged": 17
     },
     "popupsKeyboardRun": {
-      "frames": 599,
+      "frames": 605,
       "maxFloats": 5,
-      "comboAndFareFrames": 360,
+      "comboAndFareFrames": 362,
       "hornReadyWithPickupFrames": 46,
       "slotCopy": {
         "HORN CHARGING": 63,
-        "HORN READY!": 62
+        "HORN READY!": 64
       }
     },
     "audioRun": {
@@ -41,7 +41,7 @@
       ],
       "musicOn": true,
       "sequencerSteps": 185,
-      "peakRms": 0.4292,
+      "peakRms": 0.4203,
       "sfxFired": {
         "start": 1,
         "lane": 22,
@@ -69,7 +69,7 @@
         {
           "run": 2,
           "score": 304,
-          "simSeconds": 9.76,
+          "simSeconds": 9.74,
           "hits": {
             "pothole": 3,
             "boda": 0,
@@ -123,7 +123,7 @@
           "kind": "pothole",
           "px": 1.5,
           "entX": 1,
-          "d": 0.78,
+          "d": 0.88,
           "health": 0,
           "fine": 0
         }
@@ -170,7 +170,7 @@
         "repairs": 1
       },
       "bannerBad": 0,
-      "bannerSeen": 80,
+      "bannerSeen": 81,
       "runs": 1,
       "hits": 1,
       "nearScore": {
@@ -194,7 +194,7 @@
         "running"
       ],
       "sequencerSteps": 148,
-      "peakRms": 0.4349,
+      "peakRms": 0.4329,
       "sfxFired": {
         "start": 1,
         "lane": 17,
@@ -203,9 +203,9 @@
         "ready": 1
       },
       "popups": {
-        "frames": 458,
+        "frames": 460,
         "maxFloats": 4,
-        "comboAndFareFrames": 292,
+        "comboAndFareFrames": 293,
         "hornReadyWithPickupFrames": 44,
         "slotFrames": 63,
         "slotCopy": {
@@ -214,11 +214,11 @@
       }
     },
     "videoAudio": {
-      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s",
-      "meanDb": -11.7,
-      "maxDb": -0.1
+      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.36 s",
+      "meanDb": -11.8,
+      "maxDb": 0
     },
-    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9684 KB, with audio)"
+    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9570 KB, with audio)"
   },
   "results": [
     {
@@ -321,7 +321,7 @@
       "group": "audio",
       "name": "synth music actually reaches the output (analyser RMS > 0)",
       "ok": true,
-      "detail": "{\"peakRms\":0.394}"
+      "detail": "{\"peakRms\":0.3997}"
     },
     {
       "group": "audio",
@@ -339,7 +339,7 @@
       "group": "audio",
       "name": "mute button unmutes: sound returns",
       "ok": true,
-      "detail": "{\"rms\":0.398}"
+      "detail": "{\"rms\":0.3935}"
     },
     {
       "group": "pause",
@@ -411,7 +411,7 @@
       "group": "horn",
       "name": "Space fires horn nitro from the keyboard when the meter is full",
       "ok": true,
-      "detail": "{\"i\":16,\"tick\":1441,\"t\":12.008,\"type\":\"horn\",\"source\":\"keyboard\",\"scattered\":1,\"lane\":0}"
+      "detail": "{\"i\":16,\"tick\":1443,\"t\":12.025,\"type\":\"horn\",\"source\":\"keyboard\",\"scattered\":1,\"lane\":0}"
     },
     {
       "group": "horn",
@@ -435,19 +435,19 @@
       "group": "popup",
       "name": "keyboard run: no two live floating popups (or the horn slot) ever overlap; combo and fare seen together",
       "ok": true,
-      "detail": "{\"frames\":599,\"comboAndFare\":360,\"maxFloats\":5,\"overlaps\":[]}"
+      "detail": "{\"frames\":605,\"comboAndFare\":362,\"maxFloats\":5,\"overlaps\":[]}"
     },
     {
       "group": "popup",
       "name": "keyboard run: horn status only ever appears in its gutter slot (off the road, clear of the matatu), never in the float stack",
       "ok": true,
-      "detail": "{\"slotFrames\":125,\"copy\":{\"HORN CHARGING\":63,\"HORN READY!\":62},\"bad\":[]}"
+      "detail": "{\"slotFrames\":127,\"copy\":{\"HORN CHARGING\":63,\"HORN READY!\":64},\"bad\":[]}"
     },
     {
       "group": "audio",
       "name": "during the run the context stays running, music is sequencing and the output is audible",
       "ok": true,
-      "detail": "{\"state\":\"running\",\"steps\":185,\"peakRms\":0.4292}"
+      "detail": "{\"state\":\"running\",\"steps\":185,\"peakRms\":0.4203}"
     },
     {
       "group": "audio",
@@ -489,7 +489,7 @@
       "group": "gameover",
       "name": "health reaching zero ends the run and shows the game over screen with the right numbers",
       "ok": true,
-      "detail": "[{\"run\":1,\"score\":295,\"simSeconds\":16.64,\"hits\":{\"pothole\":1,\"boda\":1,\"askari\":1},\"mode\":\"gameover\"},{\"run\":2,\"score\":304,\"simSeconds\":9.76,\"hits\":{\"pothole\":3,\"boda\":0,\"askari\":0},\"mode\":\"gameover\"}]"
+      "detail": "[{\"run\":1,\"score\":295,\"simSeconds\":16.64,\"hits\":{\"pothole\":1,\"boda\":1,\"askari\":1},\"mode\":\"gameover\"},{\"run\":2,\"score\":304,\"simSeconds\":9.74,\"hits\":{\"pothole\":3,\"boda\":0,\"askari\":0},\"mode\":\"gameover\"}]"
     },
     {
       "group": "text",
@@ -525,7 +525,7 @@
       "group": "board",
       "name": "node: first qualifying run is inserted at once under an alias (matatu-crew word + 3 digits, max 12 chars) with rank 1",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Dere 409\",\"score\":444,\"id\":\"mwccx6p73jhem1\"}]}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Makanga 514\",\"score\":444,\"id\":\"mwcdp96wch3ndu\"}]}"
     },
     {
       "group": "board",
@@ -585,13 +585,13 @@
       "group": "board",
       "name": "qualifying run: name form shown with the Top 5 line, input focused, an alias entry is already on the board and in storage",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Dere 408\",\"score\":304,\"id\":\"mwccxeig8tci7v\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Makanga 538\",\"score\":304,\"id\":\"mwcdpgzynyxtde\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
     },
     {
       "group": "board",
       "name": "game over list highlights this run with aria-current and the alias",
       "ok": true,
-      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Dere 408KSh 304\"],\"cur\":[\"Dere 408\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Dere 408\",\"overShown\":true}"
+      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Makanga 538KSh 304\"],\"cur\":[\"Makanga 538\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Makanga 538\",\"overShown\":true}"
     },
     {
       "group": "board",
@@ -603,13 +603,19 @@
       "group": "board",
       "name": "Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 304\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Dere 408\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":304,\"id\":\"mwccxeig8tci7v\"}]}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 304\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Makanga 538\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":304,\"id\":\"mwcdpgzynyxtde\"}]}"
     },
     {
       "group": "board",
       "name": "confirmation is announced in the live region",
       "ok": true,
       "detail": ""
+    },
+    {
+      "group": "board",
+      "name": "holding Enter after saving (auto-repeat keydowns well past the 600 ms guard) does not restart the game",
+      "ok": true,
+      "detail": "{\"mid\":\"over\",\"end\":\"over\",\"mode\":\"gameover\"}"
     },
     {
       "group": "board",
@@ -633,7 +639,25 @@
       "group": "board",
       "name": "Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Konda 865\",\"rows\":[\"#1Konda 865KSh 304\",\"#2OldKSh 1\"],\"cur\":[\"Konda 865\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 865\",\"overShown\":true},\"aliasBefore\":\"Konda 865\"}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Rubani 265\",\"rows\":[\"#1Rubani 265KSh 304\",\"#2OldKSh 1\"],\"cur\":[\"Rubani 265\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Rubani 265\",\"overShown\":true},\"aliasBefore\":\"Rubani 265\"}"
+    },
+    {
+      "group": "board",
+      "name": "holding Escape after Skip (repeats past the guard) does not jump to the title",
+      "ok": true,
+      "detail": "{\"screen\":\"over\",\"mode\":\"gameover\"}"
+    },
+    {
+      "group": "board",
+      "name": "a fresh Escape press on the game over screen still goes to the title",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "board",
+      "name": "844x390 game over with the form: the focused name input is fully inside the viewport",
+      "ok": true,
+      "detail": "{\"top\":250,\"bottom\":296,\"left\":221,\"right\":623,\"vh\":390,\"vw\":844,\"ok\":true}"
     },
     {
       "group": "board",
@@ -643,9 +667,21 @@
     },
     {
       "group": "board",
-      "name": "Skip button keeps the alias, hides the form and stays on the game over screen",
+      "name": "Skip button (by Enter) keeps the alias, hides the form and stays on the game over screen",
       "ok": true,
-      "detail": "{\"saved\":\"Saved as Konda 331\"}"
+      "detail": "{\"saved\":\"Saved as Makanga 886\"}"
+    },
+    {
+      "group": "board",
+      "name": "844x390 after Skip: Play again has focus AND sits fully inside the viewport (panel scrolled to it)",
+      "ok": true,
+      "detail": "{\"top\":242,\"bottom\":302,\"left\":212,\"right\":632,\"vh\":390,\"vw\":844,\"ok\":true}"
+    },
+    {
+      "group": "board",
+      "name": "holding Enter on Skip (repeats land on Play again) does not restart the game",
+      "ok": true,
+      "detail": "{\"screen\":\"over\",\"mode\":\"gameover\"}"
     },
     {
       "group": "board",
@@ -667,9 +703,9 @@
     },
     {
       "group": "board",
-      "name": "a demo (autopilot) run adds no entry and shows no name form",
+      "name": "a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row",
       "ok": true,
-      "detail": "{\"ls\":null,\"form\":false}"
+      "detail": "{\"rank\":0,\"score\":8840,\"d\":{\"ls\":\"[{\\\"name\\\":\\\"Low 1\\\",\\\"score\\\":1,\\\"id\\\":\\\"low1\\\"},{\\\"name\\\":\\\"Low 2\\\",\\\"score\\\":1,\\\"id\\\":\\\"low2\\\"},{\\\"name\\\":\\\"Low 3\\\",\\\"score\\\":1,\\\"id\\\":\\\"low3\\\"},{\\\"name\\\":\\\"Low 4\\\",\\\"score\\\":1,\\\"id\\\":\\\"low4\\\"},{\\\"name\\\":\\\"Low 5\\\",\\\"score\\\":1,\\\"id\\\":\\\"low5\\\"}]\",\"form\":false,\"cur\":0,\"rows\":5,\"tag\":\"Demo over. Your turn, dere!\"}}"
     },
     {
       "group": "board",
@@ -783,7 +819,7 @@
       "group": "phone",
       "name": "matatu is drawn above the control bar",
       "ok": true,
-      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":43,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":138.6,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
+      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":46,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":142.4,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
     },
     {
       "group": "touch",
@@ -807,7 +843,7 @@
       "group": "phone",
       "name": "rotating to landscape re-lays out without errors",
       "ok": true,
-      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":45,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":424.3,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
+      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":52,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":424.3,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
     },
     {
       "group": "small",
@@ -933,7 +969,7 @@
       "group": "popup",
       "name": "320x568 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":122,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -969,7 +1005,7 @@
       "group": "layout",
       "name": "844x390 play: closing the sheet returned to the title and Start began the run",
       "ok": true,
-      "detail": "{\"time\":6.03}"
+      "detail": "{\"time\":6.01}"
     },
     {
       "group": "layout",
@@ -993,7 +1029,7 @@
       "group": "popup",
       "name": "844x390 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":123,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1053,7 +1089,7 @@
       "group": "popup",
       "name": "390x844 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":119,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":120,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1155,7 +1191,7 @@
       "group": "banner",
       "name": "every banner seen during that 1280x720 play sat in the kerb gutter, never over the road",
       "ok": true,
-      "detail": "{\"samples\":80,\"overlapping\":0}"
+      "detail": "{\"samples\":81,\"overlapping\":0}"
     },
     {
       "group": "storage",
@@ -1209,19 +1245,19 @@
       "group": "audio",
       "name": "demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)",
       "ok": true,
-      "detail": "{\"peakRms\":0.4349,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"ready\":1},\"pickups\":10}"
+      "detail": "{\"peakRms\":0.4329,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"ready\":1},\"pickups\":10}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame",
       "ok": true,
-      "detail": "{\"frames\":458,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":460,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: combo (BEBA) and fare popups were visible in the same frame",
       "ok": true,
-      "detail": "{\"frames\":292}"
+      "detail": "{\"frames\":293}"
     },
     {
       "group": "popup",
@@ -1245,13 +1281,13 @@
       "group": "audio",
       "name": "out/gameplay-demo.mp4 has a muxed audio stream that is not silent (ffmpeg volumedetect)",
       "ok": true,
-      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s\",\"meanDb\":-11.7,\"maxDb\":-0.1}"
+      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.36 s\",\"meanDb\":-11.8,\"maxDb\":0}"
     },
     {
       "group": "demo",
       "name": "gameplay recording saved",
       "ok": true,
-      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9684 KB, with audio)"
+      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9570 KB, with audio)"
     },
     {
       "group": "shots",
@@ -1269,7 +1305,7 @@
       "group": "offline",
       "name": "every request made by every page was file:// (no network)",
       "ok": true,
-      "detail": "{\"requests\":418,\"nonFile\":0}"
+      "detail": "{\"requests\":429,\"nonFile\":0}"
     }
   ]
 }

@@ -8,7 +8,7 @@
   var params = MR.params;
   var fixedSeed = (params.seed !== undefined && isFinite(parseInt(params.seed, 10))) ? (parseInt(params.seed, 10) >>> 0) : null;
   var screen = 'title';       /* 'title' | 'game' | 'pause' | 'over' */
-  var acc = 0, last = 0, overAt = 0, overTimer = null, hitStop = 0;
+  var acc = 0, last = 0, overAt = 0, overTimer = null, hitStop = 0, goRepeat = false;
   var hud = {};
 
   var el = {
@@ -95,12 +95,20 @@
     if (!g.boardId || $('nameForm').hidden) return;
     var stored = g.setBoardName(g.boardId, text);
     $('nameForm').hidden = true;
-    if (!stored) { try { $('btnAgain').focus({ preventScroll: true }); } catch (e) { /* ignore */ } return; }
+    /* the form is closing under a finger that may still be down: Play again, Menu and the over keys ignore input for 600 ms */
+    overAt = performance.now();
+    if (!stored) { focusAgain(); return; }
     $('nameSaved').textContent = 'Saved as ' + stored;
     $('nameSaved').hidden = false;
     renderBoard($('overBoard'), g.board(), g.boardId);
     announce('Saved as ' + stored + '. Rank ' + g.boardRank + ' on the Top 5.');
-    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    focusAgain();
+  }
+  /* on short screens the over panel scrolls: let the focus call bring Play again into view */
+  function focusAgain() {
+    var b = $('btnAgain');
+    try { b.focus(); } catch (e) { /* ignore */ }
+    try { if (b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); } catch (e2) { /* ignore */ }
   }
 
   function newSeed() {
@@ -171,7 +179,11 @@
     $('overTag').textContent = g.autopilot ? 'Demo over. Your turn, dere!' :
       (ev.newBest ? 'Umeweza! That is a new record.' : 'Game over. The matatu needs a fundi.');
     show('over');
-    if (rank > 0) { try { $('nameInput').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    if (rank > 0) {
+      el.over.scrollTop = 0;
+      try { $('nameInput').focus(); } catch (e) { /* ignore */ }
+      try { if ($('nameInput').scrollIntoView) $('nameInput').scrollIntoView({ block: 'nearest' }); } catch (e2) { /* ignore */ }
+    }
     announce('Game over. Fare ' + MR.formatKsh(ev.score) + '. Best ' + MR.formatKsh(ev.best) + '.' + (rank > 0 ? ' You made the Top 5, rank ' + rank + '. Type a name or skip.' : ''));
   }
 
@@ -303,6 +315,8 @@
   }
 
   function onKeyDown(e) {
+    /* remember whether Enter or Space is an auto-repeat: a click made by a repeating key is ignored (see goClickOk); Space fires its click on release, so that one still passes */
+    if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') goRepeat = !!e.repeat;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     /* typing in a text box must never trigger a shortcut (m, r, space, Enter). Escape in the name box is Skip. */
     var tag = e.target && e.target.tagName;
@@ -336,11 +350,14 @@
     }
     if (screen === 'over') {
       if (performance.now() - overAt < 600) return;
-      if (k === 'Escape') { toTitle(); e.preventDefault(); return; }
+      if (k === 'Escape') { if (!e.repeat) toTitle(); e.preventDefault(); return; }
       if (!e.repeat && ((!onBtn && isGo) || k === 'r' || k === 'R')) { startGame(false, true); e.preventDefault(); }
     }
   }
+  /* a click made by the keyboard has detail 0; while Enter or Space is auto-repeating it is not a real press */
+  function goClickOk(e) { return !(e.detail === 0 && goRepeat); }
   function onKeyUp(e) {
+    if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') goRepeat = false;
     if (g.mode === 'running' && (e.key === ' ' || e.code === 'Space')) e.preventDefault();
   }
 
@@ -415,8 +432,8 @@
 
     bindClick('btnStart', function () { startGame(false, true); });
     bindClick('btnDemo', function () { startGame(true, true); });
-    bindClick('btnAgain', function () { if (performance.now() - overAt >= 600) startGame(false, true); });
-    bindClick('btnMenu', toTitle);
+    bindClick('btnAgain', function (e) { if (goClickOk(e) && performance.now() - overAt >= 600) startGame(false, true); });
+    bindClick('btnMenu', function (e) { if (goClickOk(e) && performance.now() - overAt >= 600) toTitle(); });
     bindClick('btnPause', pauseGame);
     bindClick('btnResume', resumeGame);
     bindClick('btnQuit', toTitle);
