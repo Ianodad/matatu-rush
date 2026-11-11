@@ -14,6 +14,8 @@ file:///workspace/fable-game/index.html
 
 Sound starts only after you press Start (or any key or tap in a run). Best score is stored in `localStorage` on this device.
 
+**Top 5 board.** Each device keeps its own Top 5 (`localStorage` key `matatuRush.top5`, no backend). A run that makes the board is entered at once under an alias such as `Dere 482`. The game over screen then offers a name box (Save name or Skip, Enter saves, Escape skips; leaving without touching it keeps the alias). The title has a "Top 5" button that opens the list. Demo runs never enter the board.
+
 ## Controls
 
 | Action | Keyboard | Touch / mouse |
@@ -97,12 +99,13 @@ node tests/run-tests.cjs
 
 The script looks for Playwright in this order: `$PLAYWRIGHT_PATH`, a normal `require('playwright')`, `./node_modules/playwright`, then the copy already on this box at `/home/box/claude-kits/vendor/herk-edit-kit/node_modules/playwright`. On another machine: `npm i -D playwright` in this folder, or set `PLAYWRIGHT_PATH`. Set `HEADED=1` to watch. Takes about 5 minutes. Exit code 0 means every check passed.
 
-What it does (138 checks):
+What it does (175 checks):
 
 1. Title from `file://`, no AudioContext before a gesture, source scan for dashes and network use, inline favicon declared. The scan allows exactly one kind of `url(`: a relative link from `css/style.css` to a `.ttf` that exists in `fonts/`. It still rejects `http(s)`, `//cdn`, `@import`, `fetch`, XHR, WebSocket, `<img>`, `<audio>`, `<video>` and any other `url(`. It also checks that no font size in the CSS is below 14 px and that Impact is gone.
 2. Real keyboard: Enter, arrows, A/D, kerb clamping, mute (measured as output RMS: audible, silent when muted, audible again), pause.
 3. A 26 s run steered only by real key presses (seed 7): pickups, combo, score reconciled against the event log, horn nitro, speed ramp, all obstacle types seen. Also: no two floating popups overlap in any sampled frame, the horn status only appears in its gutter slot, the AudioContext stays `running`, and the sound effect counters match the event log (one pickup sound per pickup, one horn, and so on).
 4. Seed 5: drives into a pothole, a boda and a checkpoint with real keys, checks hitbox overlap and hearts, game over screen (text sizes too), restart with Enter and R, best score in localStorage and after reload, corrupt stored value.
+4b. Top 5 board. In Node (real `js/game.js`, fake storage): alias format, ties keep the older entry above, never more than 5, sorted high to low, a score below 5th place gets no entry, demo runs add nothing, no invented entry from an old best, bad JSON and wrong shapes read as empty, `setBoardName` rules, and the seeded RNG is untouched. In the browser: a qualifying run shows the focused name form and already has an alias entry; typing m, r and spaces does not mute, restart or leave the screen; Enter saves (trimmed, 12 chars max) and the name survives a reload in the title sheet; Escape in the box and the Skip button keep the alias; a name like `<img src=x onerror=alert(1)>` stays plain text; a low score on a full board shows no form; the title Top 5 sheet fits 320x568, 844x390, 390x844 and 1280x720 with text at 14 px or more.
 5. Phone 390x844 with touch: start, buttons, road-side taps, horn, touch-only pickups, target sizes, pause, landscape.
 5b. Short screens: at 320x568, 360x640, 844x390, 390x844 and 1280x720 the Start button must be fully on screen with the title un-scrolled; at 320x568 and 844x390 a tap at that position starts the run, and the announcement banner's reported rectangle must not overlap the road below the HUD strip.
 5d. Layout at 320x568, 844x390, 390x844 and 1280x720: title icon row and How to play sheet fully on screen with nothing clipped and no scrolling; every visible text node at 14 px or more on the title, sheet, HUD, combo chip and pause screen; pause and mute rectangles do not touch the right lane or any tarmac; a shop strip of at least half a lane is visible on both sides; popups do not overlap; bundled fonts loaded.
@@ -114,7 +117,7 @@ What it does (138 checks):
 
 The steering "bot" in the tests lives in the test file. It reads `snapshot()` and presses real keys or taps real buttons. It never writes game state.
 
-Outputs in `out/`: `test-report.json`, `console-errors.json`, `screenshots/` (01 to 12, plus title, how-to, play and pause at each of the four layout sizes), `contact-sheet.png`, `gameplay-demo.mp4` (about 22 s, with sound). `out/gameplay.mp4` is the first 20 s of that recording with its audio kept, cut with `ffmpeg -y -i out/gameplay-demo.mp4 -t 20 out/gameplay.mp4`.
+Outputs in `out/`: `test-report.json`, `console-errors.json`, `screenshots/` (01 to 15, plus title, how-to, play and pause at each of the four layout sizes), `contact-sheet.png`, `gameplay-demo.mp4` (about 22 s, with sound). `out/gameplay.mp4` is the first 20 s of that recording with its audio kept, cut with `ffmpeg -y -i out/gameplay-demo.mp4 -t 20 out/gameplay.mp4`.
 
 HTTP check (optional): the favicon is a 16x16 PNG inlined as a `data:` URI in `index.html`, so there is no icon file to ship and a static server is never asked for `/favicon.ico`. To verify, serve this folder with `python3 -m http.server 8766 --bind 127.0.0.1`, then run `node out/executor-qa/server-smoke.cjs` (25 s of real key presses at `/?seed=7`). It exits 0 only with zero console errors and writes `out/executor-qa/server-report.json`, whose `requests` list must not contain `favicon.ico`.
 

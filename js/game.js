@@ -31,6 +31,45 @@
     return (isFinite(v) && v > 0) ? v : 0;
   }
 
+  /* ---------- local Top 5 board (this device only) ---------- */
+  var TOP_KEY = 'matatuRush.top5';
+  var TOP_N = 5;
+  var NAME_MAX = 12;
+  var ALIASES = ['Dere', 'Konda', 'Makanga', 'Rubani'];
+
+  function cleanName(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX).trim();
+  }
+  /* parses defensively: anything that is not an array of valid entries gives [] (invalid entries are dropped) */
+  function readBoard() {
+    var raw = [], out = [], i;
+    try { raw = JSON.parse(MR.store.get(TOP_KEY, '[]')); } catch (e) { return []; }
+    if (!Array.isArray(raw)) return [];
+    for (i = 0; i < raw.length; i++) {
+      var r = raw[i];
+      if (!r || typeof r !== 'object') continue;
+      var name = cleanName(r.name), score = r.score;
+      if (!name || typeof score !== 'number' || !isFinite(score)) continue;
+      score = Math.floor(score);
+      if (score <= 0) continue;
+      var id = (typeof r.id === 'string' || typeof r.id === 'number') ? String(r.id).slice(0, 40) : '';
+      if (!id) id = 'x' + i + '-' + Math.floor(Math.random() * 1e6).toString(36);
+      out.push({ name: name, score: score, id: id, ord: i });
+    }
+    /* score desc; equal scores keep their stored order (older stays above) */
+    out.sort(function (a, b) { return (b.score - a.score) || (a.ord - b.ord); });
+    out = out.slice(0, TOP_N);
+    for (i = 0; i < out.length; i++) delete out[i].ord;
+    return out;
+  }
+  function writeBoard(list) { MR.store.set(TOP_KEY, JSON.stringify(list)); }
+  /* Math.random on purpose: the seeded game RNG must not be touched, so seeded runs stay deterministic */
+  function makeAlias() {
+    return ALIASES[Math.floor(Math.random() * ALIASES.length)] + ' ' + (100 + Math.floor(Math.random() * 900));
+  }
+  function makeBoardId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
   MR.createGame = function () {
     var g = {
       mode: 'title',
@@ -66,6 +105,7 @@
       g.ents = [];
       g.rowIndex = 0; g.nextRowAt = 2; g.safe = 1;
       g.newBest = false;
+      g.boardRank = 0; g.boardId = null;
       g.apCool = 0; g.apHornHold = 0;
       g.stats = {
         pickups: 0, passengers: 0, bestCombo: 0, nearMiss: 0, smashed: 0, laneChanges: 0,
@@ -80,6 +120,21 @@
       g.reset(seed, autopilot);
       g.mode = 'running';
       emit('start', { seed: g.seed, autopilot: g.autopilot });
+    };
+
+    /* copy of the saved Top 5 */
+    g.board = function () { return readBoard(); };
+    /* renames one entry. Trims, collapses spaces, caps at 12 chars; empty keeps the alias. Returns the stored name ('' if the entry is gone). */
+    g.setBoardName = function (id, name) {
+      var list = readBoard();
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) {
+          var n = cleanName(name);
+          if (n) { list[i].name = n; writeBoard(list); }
+          return list[i].name;
+        }
+      }
+      return '';
     };
 
     g.zoneName = function (level) {
@@ -365,7 +420,21 @@
         g.newBest = true;
         MR.store.set(BEST_KEY, String(g.best));
       }
+      g.boardRank = 0; g.boardId = null;
+      if (!g.autopilot && g.score > 0) {
+        var board = readBoard();
+        if (board.length < TOP_N || g.score > board[board.length - 1].score) {
+          var pos = 0;
+          while (pos < board.length && board[pos].score >= g.score) pos++;
+          var entry = { name: makeAlias(), score: g.score, id: makeBoardId() };
+          board.splice(pos, 0, entry);
+          board = board.slice(0, TOP_N);
+          writeBoard(board);
+          g.boardRank = pos + 1; g.boardId = entry.id;
+        }
+      }
       emit('gameover', {
+        rank: g.boardRank,
         score: g.score, best: g.best, newBest: g.newBest, dist: Math.round(g.dist),
         pickups: g.stats.pickups, bestCombo: g.stats.bestCombo
       });
@@ -568,6 +637,7 @@
         version: MR.VERSION, mode: g.mode, seed: g.seed, autopilot: g.autopilot,
         tick: g.tick, time: r2(g.time), dist: r2(g.dist), speed: r2(g.speed), baseSpeed: r2(g.baseSpeed),
         level: g.level, zone: g.zoneName(), score: g.score, best: g.best, newBest: g.newBest,
+        board: readBoard(), boardRank: g.boardRank,
         health: g.health, maxHealth: C.MAX_HEALTH,
         combo: g.combo, comboTimer: r2(g.comboTimer),
         horn: { meter: r2(g.horn), ready: g.horn >= 1 && g.nitro <= 0, nitro: g.nitro > 0, nitroTime: r2(g.nitro) },

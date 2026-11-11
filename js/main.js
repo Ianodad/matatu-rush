@@ -27,7 +27,7 @@
     el.title.hidden = name !== 'title';
     el.pause.hidden = name !== 'pause';
     el.over.hidden = name !== 'over';
-    if (name !== 'title') $('howto').hidden = true;
+    if (name !== 'title') { $('howto').hidden = true; $('board').hidden = true; }
     el.hud.hidden = name === 'title';
     el.controls.hidden = !(name === 'game' || name === 'pause');
     measureHud();
@@ -65,6 +65,43 @@
 
   function openHow() { $('howto').hidden = false; try { $('btnHowClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
   function closeHow() { $('howto').hidden = true; try { $('btnHow').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* ---------- Top 5 board ---------- */
+  /* one renderer for both lists. Names are user input: textContent only, never innerHTML. */
+  function renderBoard(ol, list, hiId) {
+    while (ol.firstChild) ol.removeChild(ol.firstChild);
+    for (var i = 0; i < list.length; i++) {
+      var li = document.createElement('li');
+      if (hiId && list[i].id === hiId) { li.className = 'me'; li.setAttribute('aria-current', 'true'); }
+      var rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = '#' + (i + 1);
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = list[i].name;
+      var sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = MR.formatKsh(list[i].score);
+      li.appendChild(rk); li.appendChild(nm); li.appendChild(sc);
+      ol.appendChild(li);
+    }
+  }
+  function openBoard() {
+    var list = g.board();
+    renderBoard($('boardList'), list, null);
+    $('boardEmpty').hidden = list.length > 0;
+    $('boardList').hidden = list.length === 0;
+    $('board').hidden = false;
+    try { $('btnBoardClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+  function closeBoard() { $('board').hidden = true; try { $('btnBoard').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* Save and Skip both end up here: the run is already on the board under its alias, a name only renames it */
+  function finishName(text) {
+    if (!g.boardId || $('nameForm').hidden) return;
+    var stored = g.setBoardName(g.boardId, text);
+    $('nameForm').hidden = true;
+    if (!stored) { try { $('btnAgain').focus({ preventScroll: true }); } catch (e) { /* ignore */ } return; }
+    $('nameSaved').textContent = 'Saved as ' + stored;
+    $('nameSaved').hidden = false;
+    renderBoard($('overBoard'), g.board(), g.boardId);
+    announce('Saved as ' + stored + '. Rank ' + g.boardRank + ' on the Top 5.');
+    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
 
   function newSeed() {
     if (fixedSeed !== null) return fixedSeed;
@@ -118,10 +155,24 @@
     $('oPax').textContent = String(g.stats.passengers);
     $('oCombo').textContent = 'x' + ev.bestCombo;
     $('newBest').hidden = !ev.newBest;
+    var rank = (!g.autopilot && ev.rank > 0) ? ev.rank : 0;
+    var list = g.board(), alias = '';
+    for (var bi = 0; bi < list.length; bi++) if (list[bi].id === g.boardId) alias = list[bi].name;
+    if (!alias) rank = 0;
+    $('nameSaved').hidden = true;
+    $('nameForm').hidden = rank === 0;
+    if (rank > 0) {
+      $('nameRank').textContent = 'You made the Top 5! Rank #' + rank;
+      $('nameInput').value = '';
+      $('nameInput').placeholder = alias;
+    }
+    renderBoard($('overBoard'), list, rank > 0 ? g.boardId : null);
+    $('overBoardBox').hidden = list.length === 0;
     $('overTag').textContent = g.autopilot ? 'Demo over. Your turn, dere!' :
       (ev.newBest ? 'Umeweza! That is a new record.' : 'Game over. The matatu needs a fundi.');
     show('over');
-    announce('Game over. Fare ' + MR.formatKsh(ev.score) + '. Best ' + MR.formatKsh(ev.best) + '.');
+    if (rank > 0) { try { $('nameInput').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    announce('Game over. Fare ' + MR.formatKsh(ev.score) + '. Best ' + MR.formatKsh(ev.best) + '.' + (rank > 0 ? ' You made the Top 5, rank ' + rank + '. Type a name or skip.' : ''));
   }
 
   /* ---------- game events to juice ---------- */
@@ -253,10 +304,17 @@
 
   function onKeyDown(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    /* typing in a text box must never trigger a shortcut (m, r, space, Enter). Escape in the name box is Skip. */
+    var tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+      if (e.key === 'Escape' && e.target.id === 'nameInput') { finishName(''); e.preventDefault(); }
+      return;
+    }
     var k = e.key, onBtn = e.target && e.target.tagName === 'BUTTON';
     var isGo = (k === 'Enter' || k === ' ' || e.code === 'Space');
     if (k === 'm' || k === 'M') { if (!e.repeat) toggleMute(); return; }
     if (!$('howto').hidden) { if (k === 'Escape') { closeHow(); e.preventDefault(); } return; }
+    if (!$('board').hidden) { if (k === 'Escape') { closeBoard(); e.preventDefault(); } return; }
     if (g.mode === 'running') {
       lateAudio();
       if (k === 'ArrowLeft' || k === 'a' || k === 'A') { if (!e.repeat) g.input('left', 'keyboard'); e.preventDefault(); return; }
@@ -367,6 +425,10 @@
     bindClick('btnMuteHud', toggleMute);
     bindClick('btnHow', openHow);
     bindClick('btnHowClose', closeHow);
+    bindClick('btnBoard', openBoard);
+    bindClick('btnBoardClose', closeBoard);
+    bindClick('btnSkipName', function () { finishName(''); });
+    $('nameForm').addEventListener('submit', function (e) { e.preventDefault(); finishName($('nameInput').value); });
 
     var icons = document.querySelectorAll('canvas[data-icon]');
     function drawIcons() { for (var i = 0; i < icons.length; i++) Art.icon(icons[i], icons[i].getAttribute('data-icon')); }

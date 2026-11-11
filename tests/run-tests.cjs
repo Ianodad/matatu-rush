@@ -132,6 +132,66 @@ async function drive(page, opt) {
   return { evs, s, seenTypes, passed, since };
 }
 
+/* the Top 5 name box takes focus on a qualifying game over; Escape inside it is Skip and moves focus to Play again */
+async function skipNameIfShown(page) {
+  if (await page.isVisible('#nameForm')) { await page.keyboard.press('Escape'); await sleep(60); }
+}
+
+/* ---------- Top 5 board: pure Node harness around js/core.js + js/game.js (no browser) ---------- */
+function boardHarness(initial) {
+  const store = Object.assign({}, initial || {});
+  const win = { location: { search: '' }, localStorage: { getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; } } };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  const g = win.MR.createGame();
+  const evs = [];
+  g.onEvent = (e) => evs.push(JSON.parse(JSON.stringify(e)));
+  const crash = (seed, auto) => { evs.length = 0; g.start(seed, !!auto); while (g.mode === 'running' && g.tick < 400000) g.step(); return evs.find((e) => e.type === 'gameover'); };
+  return { store, g, evs, crash };
+}
+function boardNodeChecks() {
+  const G = 'board';
+  const KEY = 'matatuRush.top5', ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
+  let h = boardHarness();
+  let over = h.crash(3);
+  let b = h.g.board();
+  check(G, 'node: first qualifying run is inserted at once under an alias (matatu-crew word + 3 digits, max 12 chars) with rank 1', !!over && over.rank === 1 && h.g.boardRank === 1 && b.length === 1 && ALIAS.test(b[0].name) && b[0].name.length <= 12 && b[0].score === over.score && over.score > 0 && b[0].id === h.g.boardId && JSON.parse(h.store[KEY]).length === 1, { rank: over && over.rank, board: b });
+  const firstId = b[0].id;
+  over = h.crash(3);
+  b = h.g.board();
+  check(G, 'node: equal scores keep the older entry above (tie goes below)', over.rank === 2 && b.length === 2 && b[0].id === firstId && b[1].id === h.g.boardId && b[0].score === b[1].score);
+  const sn = h.g.snapshot();
+  check(G, 'node: snapshot carries a copy of the board and the run rank; board() returns copies', sn.boardRank === 2 && sn.board.length === 2 && (() => { const c = h.g.board(); c[0].name = 'HACK'; sn.board[0].name = 'HACK'; return h.g.board()[0].name !== 'HACK'; })());
+  for (let sd = 1; sd <= 9; sd++) h.crash(sd);
+  b = h.g.board();
+  check(G, 'node: after many runs the board never exceeds 5 entries and stays sorted by score, high to low', b.length === 5 && b.every((e, i) => i === 0 || b[i - 1].score >= e.score) && JSON.parse(h.store[KEY]).length === 5, b.map((e) => e.score));
+  /* a run that cannot beat the 5th place must not enter */
+  h = boardHarness({ [KEY]: JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'P' + n, score: 999999999 - n, id: 'p' + n }))) });
+  const beforeHigh = h.store[KEY];
+  over = h.crash(4);
+  check(G, 'node: a score below the 5th place gets no entry, rank 0, board untouched', over.rank === 0 && h.g.boardRank === 0 && h.g.boardId === null && h.store[KEY] === beforeHigh && h.g.board().length === 5, { rank: over.rank });
+  h = boardHarness();
+  over = h.crash(3, true);
+  check(G, 'node: an autopilot demo run never adds an entry', over.rank === 0 && h.g.board().length === 0 && h.store[KEY] === undefined, { rank: over.rank });
+  h = boardHarness({ 'matatuRush.best': '5000' });
+  check(G, 'node: migration: a stored best with an empty board does not invent an entry and best stays as is', h.g.board().length === 0 && h.g.best === 5000 && h.store[KEY] === undefined);
+  const hz = (raw) => boardHarness({ [KEY]: raw }).g.board();
+  const messy = hz(JSON.stringify([1, 'x', null, { name: 5, score: 10 }, { name: '  Bob  ', score: 10.7, id: 'a' }, { name: 'A very long name indeed', score: 20, id: 'b' }, { name: 'Z', score: -1 }, { name: 'Q', score: 'NaN' }, { name: '   ', score: 99 }]));
+  check(G, 'node: bad JSON and wrong shapes give an empty board; bad entries are dropped; names trimmed to 12; scores whole numbers above 0', hz('not json').length === 0 && hz('{"a":1}').length === 0 && hz('null').length === 0 && hz('"str"').length === 0 && messy.length === 2 && messy[0].name === 'A very long' && messy[1].name === 'Bob' && messy[1].score === 10, messy);
+  h = boardHarness();
+  h.crash(3);
+  const id = h.g.boardId, alias = h.g.board()[0].name;
+  const r1 = h.g.setBoardName(id, '   Mr    Fast   Driver Long  ');
+  const r2 = h.g.setBoardName(id, '    ');
+  const r3 = h.g.setBoardName('nope', 'X');
+  check(G, 'node: setBoardName trims, collapses spaces, caps at 12; empty keeps the stored name; unknown id returns an empty string', r1 === 'Mr Fast Driv' && r1.length <= 12 && r2 === 'Mr Fast Driv' && r3 === '' && JSON.parse(h.store[KEY])[0].name === 'Mr Fast Driv' && alias !== r1, { r1, r2, r3 });
+  const a = boardHarness(), c = boardHarness({ [KEY]: JSON.stringify([{ name: 'Old', score: 1, id: 'o1' }]) });
+  const strip = (e) => JSON.stringify(e.filter((x) => x.type !== 'gameover'));
+  a.crash(3); c.crash(3);
+  check(G, 'node: the board does not touch the seeded game RNG: same seed gives the same non-final events whether the board is empty or not', strip(a.evs) === strip(c.evs) && a.evs.length > 5 && c.g.boardRank === 1 && a.g.boardRank === 1);
+}
+
 const keySteer = (page) => (dir) => page.keyboard.press(dir < 0 ? 'ArrowLeft' : 'ArrowRight');
 
 function validHitGeometry(ev) {
@@ -591,7 +651,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     let badGeom = 0, badHealth = 0, badGrace = 0, shotOver = false, bestSoFar = 0, restartOk = true, overUiOk = true, bestOk = true;
     for (let r = 0; r < 5 && (want.size > 0 || r < 2); r++) {
       if (r === 0) await page.keyboard.press('Enter');
-      else { await sleep(750); await page.keyboard.press(r % 2 ? 'Enter' : 'r'); }
+      else { await sleep(750); await skipNameIfShown(page); await page.keyboard.press(r % 2 ? 'Enter' : 'r'); }
       const st = await waitFor(page, (x) => x.mode === 'running', 3000, 'run ' + r);
       if (r > 0 && !(st.health === 3 && st.score < 30 && st.time < 2 && st.combo === 0 && st.seed === 5)) restartOk = false;
       let health = 3, lastHitT = -9;
@@ -643,6 +703,172 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.waitForFunction(() => !!window.MatatuRush);
     check('storage', 'corrupt stored best is ignored safely', (await snap(page)).best === 0);
     await ctx.close();
+  }
+
+  /* ===== 4b. Top 5 board: name entry, keyboard safety, persistence, sheet layout ===== */
+  console.log('\n4b. Top 5 board (data checks in Node, then the real screens in the browser)');
+  boardNodeChecks();
+  {
+    const G = 'board', KEY = 'matatuRush.top5';
+    const ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
+    const ctx = await browser.newContext(desktop);
+    const page = await ctx.newPage(); watch(page, 'board');
+    let dialogs = 0;
+    page.on('dialog', (d) => { dialogs++; d.dismiss().catch(() => {}); });
+    const seedBoard = async (list) => {
+      await page.evaluate(([k, v]) => { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }, [KEY, list === null ? null : JSON.stringify(list)]);
+      await page.reload();
+      await page.waitForFunction(() => !!window.MatatuRush);
+    };
+    const fivePlus = (score) => [1, 2, 3, 4, 5].map((n) => ({ name: 'Seed ' + n, score: score - n, id: 'seed' + n }));
+    const toOver = async () => {
+      await page.keyboard.press('Enter');
+      await waitFor(page, (x) => x.mode === 'running', 3000, 'board run');
+      const out = await drive(page, { ms: 90000, mode: 'seek', want: new Set(['pothole', 'boda', 'askari']), steer: keySteer(page) });
+      await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+      await sleep(80);
+      return out;
+    };
+    const overUi = () => page.evaluate(() => {
+      const f = document.getElementById('nameForm'), act = document.activeElement;
+      return {
+        form: !f.hidden, focus: act ? act.id : '', saved: document.getElementById('nameSaved').hidden ? '' : document.getElementById('nameSaved').textContent,
+        rows: Array.from(document.querySelectorAll('#overBoard li')).map((li) => li.textContent), cur: Array.from(document.querySelectorAll('#overBoard li[aria-current="true"]')).map((li) => li.querySelector('.nm').textContent),
+        rankLine: document.getElementById('nameRank').textContent, placeholder: document.getElementById('nameInput').placeholder, overShown: !document.getElementById('over').hidden
+      };
+    });
+    const stored = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || '[]'), KEY);
+
+    await page.goto(URL + '?seed=5');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await seedBoard(null);
+
+    /* --- run 1: empty board, so the run qualifies. Keyboard safety, Save by Enter, reload, title sheet --- */
+    await toOver();
+    let s = await snap(page), u = await overUi();
+    check(G, 'qualifying run: name form shown with the Top 5 line, input focused, an alias entry is already on the board and in storage',
+      u.form && u.focus === 'nameInput' && s.boardRank >= 1 && s.board.length >= 1 && ALIAS.test(s.board[s.boardRank - 1].name) && s.board[s.boardRank - 1].score === s.score && /^You made the Top 5! Rank #1$/.test(u.rankLine) && u.placeholder === s.board[0].name && (await stored()).length === s.board.length, { rank: s.boardRank, board: s.board, focus: u.focus, line: u.rankLine });
+    check(G, 'game over list highlights this run with aria-current and the alias', u.cur.length === 1 && u.cur[0] === s.board[0].name && u.rows.length === 1, u);
+    const mutedBefore = s.audio.muted;
+    await page.keyboard.type('  m r m r  ');
+    await sleep(120);
+    s = await snap(page);
+    const typed = await page.inputValue('#nameInput');
+    check(G, 'typing m, r and spaces in the name box does not mute, restart or leave the game over screen', typed === '  m r m r  ' && s.audio.muted === mutedBefore && s.mode === 'gameover' && s.screen === 'over' && (await page.isVisible('#nameForm')), { typed, muted: s.audio.muted, mode: s.mode, screen: s.screen });
+    await page.keyboard.press('Enter');
+    await sleep(150);
+    s = await snap(page); u = await overUi();
+    const st = await stored();
+    check(G, 'Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board',
+      s.screen === 'over' && s.mode === 'gameover' && !u.form && u.saved === 'Saved as m r m r' && u.focus === 'btnAgain' && st[0].name === 'm r m r' && st[0].name.length <= 12 && u.rows.length === 1 && /m r m r/.test(u.rows[0]) && /KSh/.test(u.rows[0]) && u.cur[0] === 'm r m r', { u, st });
+    check(G, 'confirmation is announced in the live region', /Saved as m r m r/.test(await page.textContent('#live')));
+    await page.reload();
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await page.click('#btnBoard');
+    await sleep(120);
+    const sheet = await page.evaluate(() => ({ open: !document.getElementById('board').hidden, focus: document.activeElement && document.activeElement.id, rows: Array.from(document.querySelectorAll('#boardList li')).map((li) => li.textContent), empty: !document.getElementById('boardEmpty').hidden, role: document.getElementById('board').getAttribute('role'), modal: document.getElementById('board').getAttribute('aria-modal') }));
+    check(G, 'saved name survives a page reload and shows in the title Top 5 sheet (role dialog, aria-modal, focus on Close)', sheet.open && sheet.rows.length === 1 && /m r m r/.test(sheet.rows[0]) && !sheet.empty && sheet.focus === 'btnBoardClose' && sheet.role === 'dialog' && sheet.modal === 'true', sheet);
+    await page.keyboard.press('Escape');
+    await sleep(100);
+    const closed = await page.evaluate(() => ({ hidden: document.getElementById('board').hidden, focus: document.activeElement && document.activeElement.id }));
+    s = await snap(page);
+    check(G, 'Escape closes the sheet, stays on the title and returns focus to the Top 5 button', closed.hidden && closed.focus === 'btnBoard' && s.screen === 'title', closed);
+
+    /* --- run 2 (320x568): Escape in the input is Skip; alias kept, stays on the over screen --- */
+    await page.setViewportSize({ width: 320, height: 568 });
+    await seedBoard([{ name: 'Old', score: 1, id: 'old1' }]);
+    await fontsReady(page);
+    await toOver();
+    s = await snap(page); u = await overUi();
+    const aliasBefore = s.board[0].name;
+    const lay = await page.evaluate(() => { const r = document.querySelector('#over .panel').getBoundingClientRect(); const i = document.getElementById('nameInput'); return { panelW: Math.round(r.width), left: Math.round(r.left), right: Math.round(r.right), sideways: document.documentElement.scrollWidth > innerWidth, inputFont: parseFloat(getComputedStyle(i).fontSize), inputH: Math.round(i.getBoundingClientRect().height) }; });
+    const of = await fontAudit(page);
+    check(G, '320x568 game over with the form: no sideways scroll, input font at least 16 px, every visible text at least 14 px', u.form && !lay.sideways && lay.inputFont >= 16 && lay.left >= 0 && lay.right <= 320 && of.bad.length === 0, { lay, bad: of.bad });
+    await sleep(200);
+    await page.screenshot({ path: path.join(SHOTS, '13-gameover-top5-320x568.png') });
+    await page.keyboard.type('mm');
+    await page.keyboard.press('Escape');
+    await sleep(120);
+    s = await snap(page); u = await overUi();
+    check(G, 'Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)', s.screen === 'over' && u.overShown && !u.form && s.board.some((e) => e.name === aliasBefore) && u.saved === 'Saved as ' + aliasBefore && u.focus === 'btnAgain' && (await stored()).some((e) => e.name === aliasBefore), { u, aliasBefore });
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    /* --- run 3: full board of low scores. Skip by click keeps the alias; the board stays at 5, sorted --- */
+    await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await toOver();
+    s = await snap(page); u = await overUi();
+    const alias3 = s.board[s.boardRank - 1] && s.board[s.boardRank - 1].name;
+    check(G, 'qualifying run on a full board: form shown, board still exactly 5 and sorted high to low', u.form && s.boardRank === 1 && s.board.length === 5 && s.board.every((e, i) => i === 0 || s.board[i - 1].score >= e.score) && ALIAS.test(alias3), { rank: s.boardRank, scores: s.board.map((e) => e.score) });
+    await page.click('#btnSkipName');
+    await sleep(120);
+    s = await snap(page); u = await overUi();
+    check(G, 'Skip button keeps the alias, hides the form and stays on the game over screen', s.screen === 'over' && !u.form && u.saved === 'Saved as ' + alias3 && u.focus === 'btnAgain' && (await stored()).filter((e) => e.name === alias3).length === 1, { saved: u.saved });
+
+    /* --- run 4: hostile name is rendered as text only --- */
+    await seedBoard([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
+    await toOver();
+    await page.fill('#nameInput', '<img src=x onerror=alert(1)>');
+    await page.click('#btnSaveName');
+    await sleep(200);
+    const x1 = await page.evaluate(() => ({ imgs: document.querySelectorAll('.board img').length, anyImg: document.querySelectorAll('#over img, #board img').length, names: Array.from(document.querySelectorAll('#overBoard .nm')).map((n) => n.textContent) }));
+    await page.reload();
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await page.click('#btnBoard'); await sleep(120);
+    const x2 = await page.evaluate(() => ({ imgs: document.querySelectorAll('.board img').length, names: Array.from(document.querySelectorAll('#boardList .nm')).map((n) => n.textContent) }));
+    check(G, 'a name like <img src=x onerror=alert(1)> is cut to 12 chars and shown as text: no img element in any board, no alert fired', x1.imgs === 0 && x1.anyImg === 0 && x1.names.includes('<img src=x o') && x2.imgs === 0 && x2.names.includes('<img src=x o') && dialogs === 0, { x1, x2, dialogs });
+
+    /* --- run 5: board full of high scores, so this run does not qualify --- */
+    await seedBoard(fivePlus(999999999));
+    const before5 = JSON.stringify(await stored());
+    await toOver();
+    s = await snap(page); u = await overUi();
+    check(G, 'a score below the 5th place shows no form: rank 0, board unchanged, Play again keeps focus', !u.form && s.boardRank === 0 && JSON.stringify(await stored()) === before5 && u.focus === 'btnAgain' && u.cur.length === 0 && u.rows.length === 5, { rank: s.boardRank, focus: u.focus });
+    await page.keyboard.press('Enter');
+    s = await waitFor(page, (x) => x.mode === 'running', 3000, 'restart after no-form over');
+    check(G, 'with no form, Enter on Play again still restarts the run', s.mode === 'running' && s.screen === 'game', { screen: s.screen });
+    await ctx.close();
+  }
+  {
+    /* demo / autopilot runs never add an entry and never show the form */
+    const ctx = await browser.newContext(desktop);
+    const page = await ctx.newPage(); watch(page, 'board-demo');
+    await page.goto(URL + '?seed=42&autopilot=1&autostart=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await waitFor(page, (x) => x.tick >= 600, 20000, 'demo ticks');
+    const stDemo = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden }));
+    check('board', 'a demo (autopilot) run adds no entry and shows no name form', stDemo.ls === null && !stDemo.form, stDemo);
+    await ctx.close();
+  }
+  {
+    /* Top 5 sheet fits the small layout sizes, text at least 14 px, nothing clipped */
+    /* worst realistic case: twelve wide-ish letters and six-digit fares (KSh 999,999) */
+    const names = ['Mwangi Kamau', 'Makanga 999', 'Wanjiru Mwen', 'Konda 100', 'Rubani Omwa'];
+    const list = names.map((n, i) => ({ name: n, score: 999999 - i, id: 'fit' + i }));
+    const sizes = [[320, 568, true], [844, 390, true], [390, 844, true], [1280, 720, false]];
+    for (const [w, h, touch] of sizes) {
+      const tag = w + 'x' + h;
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: touch ? 2 : 1 });
+      const page = await ctx.newPage(); watch(page, 'board-sheet-' + tag);
+      await page.goto(URL + '?seed=7');
+      await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), JSON.stringify(list));
+      await page.reload();
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await fontsReady(page); await sleep(300);
+      const btn = await page.evaluate(() => { const r = document.getElementById('btnBoard').getBoundingClientRect(); return { inView: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, h: r.height, scroll: document.getElementById('title').scrollTop }; });
+      await page.click('#btnBoard'); await sleep(200);
+      const fit = await page.evaluate(() => {
+        const root = document.getElementById('board'), items = Array.from(root.querySelectorAll('.board li, .board .nm, .board .sc, #btnBoardClose, .h2'));
+        const rect = items.map((el) => { const r = el.getBoundingClientRect(); return { in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 }; });
+        return { n: rect.length, allIn: rect.every((i) => i.in), noneClipped: rect.every((i) => !i.clipped), scrolls: root.scrollHeight > root.clientHeight + 1, sideways: document.documentElement.scrollWidth > innerWidth, rows: root.querySelectorAll('.board li').length };
+      });
+      const tf = await fontAudit(page);
+      check('board', tag + ' title: the Top 5 button is on screen without scrolling and at least 44 px tall', btn.inView && btn.scroll === 0 && btn.h >= 44, btn);
+      check('board', tag + ' Top 5 sheet: five rows, Close and heading fully on screen, nothing clipped, no scrolling', fit.rows === 5 && fit.allIn && fit.noneClipped && !fit.scrolls && !fit.sideways, fit);
+      check('text', tag + ' Top 5 sheet: every visible text is at least 14 px', tf.n > 8 && tf.bad.length === 0, { nodes: tf.n, min: tf.min, bad: tf.bad });
+      if (w === 320 || w === 1280) await page.screenshot({ path: path.join(SHOTS, (w === 320 ? '14' : '15') + '-top5-sheet-' + tag + '.png') });
+      await page.keyboard.press('Escape');
+      await ctx.close();
+    }
   }
 
   /* ===== 5. Touch on a phone viewport ===== */
@@ -753,7 +979,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await page.waitForSelector('#over:not([hidden])', { timeout: 3000 });
     s = await snap(page);
     check('storage', 'full run to game over works, best kept in memory', out.s.mode === 'gameover' && s.best === out.s.score && s.best > 0, { best: s.best });
-    await sleep(700); await page.keyboard.press('Enter');
+    await sleep(700); await skipNameIfShown(page); await page.keyboard.press('Enter');
     s = await waitFor(page, (x) => x.mode === 'running', 2000, 'restart');
     check('storage', 'restart works without storage', s.health === 3 && s.best > 0);
     await ctx.close();
