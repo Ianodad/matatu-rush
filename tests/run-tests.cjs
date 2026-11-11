@@ -193,6 +193,215 @@ function boardNodeChecks() {
   check(G, 'node: the board does not touch the seeded game RNG: same seed gives the same non-final events whether the board is empty or not', strip(a.evs) === strip(c.evs) && a.evs.length > 5 && c.g.boardRank === 1 && a.g.boardRank === 1);
 }
 
+/* ---------- OVERLAP (second power): Node-level simulation checks, no browser ---------- */
+function simHarness() {
+  const win = { location: { search: '' }, localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} } };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  const MR = win.MR, g = MR.createGame(), evs = [];
+  g.onEvent = (e) => evs.push(JSON.parse(JSON.stringify(e)));
+  return { MR, g, evs, C: MR.CONST };
+}
+/* a hand-built road: random rows are switched off and the test places every entity itself */
+function overlapScene(seed) {
+  const h = simHarness(), g = h.g, evs = h.evs;
+  g.start(seed || 5, false);
+  g.nextRowAt = Infinity; g.ents.length = 0;
+  let nid = 9000;
+  const S = Object.assign({}, h, {
+    step(n) { for (let i = 0; i < n && g.mode === 'running'; i++) g.step(); },
+    secs(t) { S.step(Math.round(t / h.C.STEP)); },
+    until(pred, max) { let i = 0; while (!pred() && i++ < (max || 6000) && g.mode === 'running') g.step(); return pred(); },
+    add(e) { e.id = nid++; g.ents.push(e); return e; },
+    stage(lane, d) { return S.add({ type: 'stage', lane, d, pax: 2, taken: false }); },
+    pothole(lane, d) { return S.add({ type: 'pothole', lane, d, shape: 1 }); },
+    askari(lane, d) { return S.add({ type: 'askari', lane, span: 2, d }); },
+    boda(lane, d, v) { return S.add({ type: 'boda', kind: 'cruiser', lane, x: lane, d, v: v || 2.5, signal: 0, signalT: 0, weaveT: 99, spin: 0, vx: 0 }); },
+    repair(lane, d) { return S.add({ type: 'repair', lane, d }); },
+    pickup() { const n = g.stats.pickups; S.stage(g.lane, 2); S.until(() => g.stats.pickups > n, 1500); },
+    charge() { let n = 0; while (g.overlap < 1 && n < 40) { S.pickup(); n++; } return n; },
+    count(type, from) { return evs.slice(from || 0).filter((e) => e.type === type); }
+  });
+  return S;
+}
+/* captured from the UNMODIFIED simulation (before OVERLAP existed): autopilot, 120 s of sim time or game over */
+const AUTOPILOT_BASELINE = {
+  7: { rows: { 1200: [806, 56.1088, 3, 1, 1, 5, 5], 6000: [7877, 352.0523, 3, 2, 2.925, 25, 12], 12000: [23263, 863.0856, 3, 1, 1, 52, 39] }, final: [14400, 26107, 1107.1704749184764, 3, 'running'], events: 214, md5: '8d6925f2976ab0a7dbe04994fe95629e' },
+  42: { rows: { 1200: [2366, 66.0215, 3, 2, 2.175, 7, 7], 6000: [13932, 357.8173, 3, 3, 3, 27, 1], 12000: [34269, 884.7808, 3, 1, 1, 64, 38] }, final: [14400, 40169, 1164.6012535547197, 3, 'running'], events: 266, md5: '65ff6024bb9447b7659d22110a4424d4' }
+};
+function overlapNodeChecks() {
+  const G = 'overlap', crypto = require('crypto');
+  let S = overlapScene(), g = S.g, C = S.C;
+  const hitTotal = () => g.stats.hits.pothole + g.stats.hits.boda + g.stats.hits.askari;
+
+  /* --- meter: starts empty, only pickups fill it --- */
+  const sn0 = g.snapshot().overlap;
+  check(G, 'node: the meter starts EMPTY (the horn starts full) and a run starts with no uses', g.overlap === 0 && g.horn === 1 && sn0.meter === 0 && sn0.ready === false && sn0.active === false && sn0.time === 0 && sn0.uses === 0 && g.stats.overlaps === 0, sn0);
+  S.secs(30);
+  S.pothole(1, 3.0);
+  S.until(() => g.ents[0].d < 1.5, 3000);
+  g.input('left', 'keyboard');
+  S.secs(1.5);
+  check(G, 'node: 30 s of driving and a near miss (RADA bonus) leave the meter at 0: only passenger pickups fill it', g.overlap === 0 && g.stats.nearMiss >= 1 && g.stats.pickups === 0 && S.count('overlapReady').length === 0, { nearMiss: g.stats.nearMiss, meter: g.overlap });
+
+  S = overlapScene(); g = S.g;
+  const marks = [];
+  for (let k = 1; k <= 8; k++) { S.pickup(); marks.push(g.overlap); }
+  const rdy = S.count('overlapReady');
+  check(G, 'node: the first charge takes exactly 8 pickups (0.125 each); overlapReady fires once, on the 8th', marks.every((m, i) => m === (i + 1) * 0.125) && g.stats.pickups === 8 && rdy.length === 1 && g.snapshot().overlap.ready === true, { marks, ready: rdy.length });
+  S.pickup();
+  check(G, 'node: a 9th pickup with a full meter keeps it at 1 and does not announce ready again', g.overlap === 1 && S.count('overlapReady').length === 1);
+
+  /* --- each charge fills 12 percent slower than the one before (compounding) --- */
+  S = overlapScene(); g = S.g;
+  const need = [], per = [], readyFlags = [];
+  for (let use = 0; use < 3; use++) {
+    const before = g.overlap;
+    S.pickup(); per.push(g.overlap - before);
+    need.push(1 + S.charge());
+    readyFlags.push(g.overlap >= 1 && g.snapshot().overlap.ready && g.input('overlap', 'keyboard'));
+    S.secs(C.OVERLAP_TIME + 0.2);
+  }
+  const want1 = 0.125, want2 = 0.125 * 0.88, want3 = 0.125 * 0.88 * 0.88;
+  check(G, 'node: fill per pickup is 0.125 on the first charge, 0.88x of that after 1 use (0.11), 0.88^2 after 2 uses (0.0968)', Math.abs(per[0] - want1) < 1e-12 && Math.abs(per[1] - want2) < 1e-12 && Math.abs(per[2] - want3) < 1e-12 && Math.abs(want2 - 0.11) < 1e-12 && Math.abs(want3 - 0.0968) < 1e-12, per);
+  check(G, 'node: so the pickups needed grow 8, 10, 11 (1 / (0.125 * 0.88^uses), rounded up) and every charge can be fired', need.join(',') === '8,10,11' && readyFlags.every((x) => x === true) && g.overlapUses === 3 && g.stats.overlaps === 3, need);
+
+  /* --- input rules --- */
+  S = overlapScene(); g = S.g;
+  let from = S.evs.length;
+  const r0 = g.input('overlap', 'touch');
+  const emp = S.count('overlapEmpty', from);
+  check(G, 'node: overlap input when not ready does nothing but emit overlapEmpty', r0 === false && emp.length === 1 && emp[0].reason === 'charging' && emp[0].source === 'touch' && S.count('overlap', from).length === 0 && g.overlapTime === 0 && g.overlapUses === 0 && g.stats.overlaps === 0);
+  S.charge();
+  g.input('horn', 'keyboard');
+  const nitroOn = g.nitro > 0, rdyDuringNitro = g.snapshot().overlap.ready;
+  from = S.evs.length;
+  const r1 = g.input('overlap', 'keyboard');
+  const e1 = S.count('overlapEmpty', from);
+  check(G, 'node: overlap cannot start during nitro (meter kept, overlapEmpty says why)', nitroOn && r1 === false && !rdyDuringNitro && e1.length === 1 && e1[0].reason === 'nitro' && g.overlap === 1 && g.overlapUses === 0 && g.overlapTime === 0, e1);
+  S.secs(C.NITRO_TIME + 0.2);
+  check(G, 'node: once nitro has ended the full meter fires', g.nitro === 0 && g.input('overlap', 'keyboard') === true && g.overlapTime > 0 && g.overlap === 0);
+
+  S = overlapScene(); g = S.g;
+  S.charge();
+  g.input('overlap', 'keyboard');
+  const hornBefore = g.horn; from = S.evs.length;
+  const hr = g.input('horn', 'keyboard');
+  const he = S.count('hornEmpty', from), hornAfter = g.horn;
+  check(G, 'node: the horn is refused during overlap and the horn meter is not spent', hr === false && he.length === 1 && he[0].reason === 'overlap' && hornBefore === 1 && hornAfter === 1 && g.nitro === 0 && g.stats.horns === 0 && S.count('horn', from).length === 0);
+  S.secs(C.OVERLAP_TIME + 0.2);
+  check(G, 'node: after the overlap the horn meter is still full and the horn fires', g.horn === 1 && g.input('horn', 'keyboard') === true && g.nitro > 0);
+
+  /* --- during overlap nothing can touch the matatu --- */
+  const gauntlet = (S2) => {
+    const items = { stage: [], repair: [], block: [] };
+    for (const d of [3, 9, 15]) for (let l = 0; l < 4; l++) items.block.push(S2.pothole(l, d + l * 0.05));
+    items.block.push(S2.askari(0, 6), S2.askari(2, 12));
+    items.block.push(S2.boda(0, 4), S2.boda(1, 7), S2.boda(3, 8, 2.0));
+    /* point blank, right on top of the matatu at the moment it leaves the road: the eased exit must not collide or collect */
+    items.block.push(S2.pothole(1, 0.4), S2.pothole(0, 0.6), S2.boda(1, 0.3, 2.5));
+    items.stage.push(S2.stage(1, 5), S2.stage(0, 10), S2.stage(0, 3.5), S2.stage(1, 0.2));
+    items.repair.push(S2.repair(0, 13));
+    return items;
+  };
+  S = overlapScene(); g = S.g;
+  gauntlet(S);
+  S.secs(6);
+  check(G, 'node: control run: the same gauntlet (every lane blocked, askari, bodas) really does hurt a matatu that stays on the road', hitTotal() >= 1 && g.health < C.MAX_HEALTH, { hits: g.stats.hits, health: g.health });
+
+  S = overlapScene(); g = S.g;
+  S.charge();
+  S.secs(0.3);
+  g.lane = 1; g.px = 1;
+  const pick0 = g.stats.pickups, laneChanges0 = g.stats.laneChanges;
+  g.input('overlap', 'keyboard');
+  const combo0 = g.combo, timer0 = g.comboTimer, score0 = g.score, startEv = S.evs.length;
+  const gt = gauntlet(S);
+  const inputsBefore = S.evs.length;
+  const lr = [g.input('left', 'keyboard'), g.input('right', 'keyboard'), g.input('left', 'touch')];
+  S.secs(0.6);
+  const settledPx = g.px;
+  lr.push(g.input('right', 'keyboard'));
+  S.secs(C.OVERLAP_TIME - 0.65);
+  const preEnd = { active: g.overlapTime > 0, health: g.health };
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const evAfter = S.evs.slice(startEv);
+  const bad = evAfter.filter((e) => /^(hit|smash|nearMiss|pickup|repair|comboEnd|gameover|lane|bump)$/.test(e.type));
+  check(G, 'node: during overlap: bodas, potholes, an askari checkpoint and a fully blocked road cost zero health, zero hits, no smash, no near-miss credit, no game over', preEnd.active && g.health === C.MAX_HEALTH && hitTotal() === 0 && bad.length === 0 && g.mode === 'running' && S.count('overlapEnd').length === 1, { bad: bad.slice(0, 4), hits: g.stats.hits, health: g.health });
+  check(G, 'node: during overlap nothing is collected (stage and fundi items stay untaken) and the combo does not change', g.stats.pickups === pick0 && gt.stage.every((s) => !s.taken) && gt.repair.every((s) => !s.taken) && g.combo === combo0 && g.comboTimer === timer0 && g.stats.repairs === 0, { combo: g.combo, combo0, timer: g.comboTimer, timer0 });
+  check(G, 'node: lane inputs are ignored while overlapping (no lane change, no event, no bump), and the matatu parks one lane outside the left edge (px -1)', lr.every((x) => x === false) && g.stats.laneChanges === laneChanges0 && Math.abs(settledPx - (-1)) < 0.001 && evAfter.filter((e) => e.type === 'lane' || e.type === 'bump').length === 0, { lr, settledPx });
+
+  /* --- the end: edge lane, invulnerability, no unfair hit on re-entry --- */
+  S = overlapScene(); g = S.g;
+  S.charge();
+  g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  const tStart = S.count('overlap')[0].t;
+  S.until(() => g.overlapTime < 0.03, 1000);
+  const merge = [S.pothole(0, 1.25), S.askari(0, 2.6), S.boda(0, 3.4), S.pothole(1, 2.2)];
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const endEv = S.count('overlapEnd')[0], invAtEnd = g.invuln, laneAtEnd = g.lane, healthAtEnd = g.health;
+  S.secs(0.9);
+  const hitsIn09 = S.evs.filter((e) => e.type === 'hit');
+  S.secs(2.5);
+  check(G, 'node: overlap lasts OVERLAP_TIME (4.0 s), then the lane becomes the edge lane on that side (left: lane 0) and overlapEnd is emitted', Math.abs((endEv.t - tStart) - C.OVERLAP_TIME) < 0.02 && endEv.lane === 0 && endEv.side === -1 && laneAtEnd === 0 && g.overlapTime === 0 && g.snapshot().overlap.active === false, { dt: endEv.t - tStart, lane: laneAtEnd });
+  check(G, 'node: the merge grants 0.9 s of invulnerability and an obstacle waiting in the re-entry lane cannot hurt (it is waved through), now or later', invAtEnd >= 0.89 && merge.slice(0, 3).some((e) => e.hit === true) && hitsIn09.length === 0 && hitTotal() === 0 && g.health === healthAtEnd && g.mode === 'running', { invAtEnd, hit: merge.map((e) => !!e.hit), hits: hitsIn09.length });
+
+  /* --- fairness: a boda may not cut into the lane the matatu will merge back into --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  const cutter = S.boda(1, 2.5, 2.5); cutter.signal = -1; cutter.signalT = 0.01;
+  S.secs(0.1);
+  check(G, 'node: fairness: a boda that signals into the re-entry lane (lane 0) at close range is held back while the matatu is on the left shoulder', cutter.lane === 1 && cutter.signal === 0, { lane: cutter.lane, signal: cutter.signal });
+
+  /* --- side choice --- */
+  const sides = [];
+  for (let l = 0; l < 4; l++) {
+    S = overlapScene(); g = S.g;
+    g.lane = l; g.px = l; g.overlap = 1; g.overlapReadyFlag = true;
+    g.input('overlap', 'keyboard');
+    const side = g.overlapSide, ev = S.count('overlap')[0];
+    S.secs(0.7);
+    const px = g.px;
+    S.secs(C.OVERLAP_TIME);
+    sides.push({ l, side, evSide: ev.side, px: Math.round(px * 100) / 100, endLane: g.lane });
+  }
+  check(G, 'node: side choice: lanes 0 and 1 go left (px -1, merge into lane 0); lanes 2 and 3 go right (px 4, merge into lane 3)', sides.every((x) => x.side === (x.l <= 1 ? -1 : 1) && x.evSide === x.side && x.px === (x.l <= 1 ? -1 : 4) && x.endLane === (x.l <= 1 ? 0 : 3)), sides);
+
+  /* --- pause and resume --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.input('overlap', 'keyboard');
+  S.secs(1.5);
+  const tl = g.overlapTime, tick = g.tick;
+  g.mode = 'paused'; S.step(2000);
+  const pr = g.input('overlap', 'keyboard');
+  const frozen = g.overlapTime === tl && g.tick === tick && pr === false;
+  g.mode = 'running'; S.secs(1);
+  check(G, 'node: pause freezes the overlap and resume carries on from the same time left', frozen && Math.abs(g.overlapTime - (tl - 1)) < 0.02 && g.overlapUses === 1 && g.snapshot().overlap.active, { tl, now: g.overlapTime });
+
+  /* --- determinism --- */
+  S = overlapScene(); g = S.g;
+  let rngCalls = 0; const orig = g.rng; g.rng = () => { rngCalls++; return orig(); };
+  S.charge(); g.input('overlap', 'keyboard'); g.input('horn', 'keyboard'); S.secs(C.OVERLAP_TIME + 1);
+  check(G, 'node: charging, firing, riding and ending an overlap never touch the seeded rng (0 calls)', rngCalls === 0 && g.overlapUses === 1, { rngCalls });
+
+  for (const seed of [7, 42]) {
+    const h = simHarness(), a = h.g, base = AUTOPILOT_BASELINE[seed];
+    a.start(seed, true);
+    const types = [], rows = {};
+    a.onEvent = (e) => types.push(e.type + '@' + e.tick);
+    while (a.mode === 'running' && a.time < 120) { a.step(); if (a.tick % 600 === 0) rows[a.tick] = [a.score, +a.dist.toFixed(4), a.health, a.lane, +a.px.toFixed(4), a.stats.pickups, a.combo]; }
+    const kept = types.filter((x) => !x.startsWith('overlapReady@'));
+    const md5 = crypto.createHash('md5').update(kept.join(',')).digest('hex');
+    const never = !types.some((x) => /^overlap(@|End|Empty)/.test(x)) && a.stats.overlaps === 0 && a.overlapUses === 0 && a.overlapTime === 0;
+    const sameRows = Object.keys(base.rows).every((k) => JSON.stringify(rows[k]) === JSON.stringify(base.rows[k]));
+    const fin = [a.tick, a.score, a.dist, a.health, a.mode];
+    check(G, 'node: seed ' + seed + ' autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)', never && sameRows && JSON.stringify(fin) === JSON.stringify(base.final) && kept.length === base.events && md5 === base.md5, { never, sameRows, fin, events: kept.length, md5 });
+  }
+}
+
 const keySteer = (page) => (dir) => page.keyboard.press(dir < 0 ? 'ArrowLeft' : 'ArrowRight');
 
 function validHitGeometry(ev) {
@@ -366,6 +575,174 @@ async function layoutChecks(browser) {
       check('text', tag + ' pause: every visible text is at least 14 px', pf.n > 3 && pf.bad.length === 0, { nodes: pf.n, min: pf.min, bad: pf.bad });
       await page.screenshot({ path: path.join(SHOTS, pre + '-' + tag + '-pause.png') });
     } else check('text', tag + ' pause: run ended before the pause check', false, s.mode);
+    await ctx.close();
+  }
+}
+
+/* ---------- OVERLAP: the real screens (keys, taps, button, drawn matatu, popups) ---------- */
+const ovlUi = (page) => page.evaluate(() => {
+  const b = document.getElementById('btnOverlap'), f = document.getElementById('ovlFill').style.transform;
+  return { label: document.getElementById('ovlLbl').textContent, aria: b.getAttribute('aria-label'), ready: b.classList.contains('ready'), active: b.classList.contains('active'), fill: parseFloat((/scaleX\(([\d.]+)\)/.exec(f) || [0, NaN])[1]), live: document.getElementById('live').textContent };
+});
+/* Watches one overlap from "ready" to 1.3 s after it ends. fire() presses the key or taps the button. */
+async function watchOverlap(page, fire, o) {
+  o = o || {};
+  const pa = mkPopupAudit();
+  const out = { prior: o.prior || [], evs: [], samples: [], banner: false, floats: new Set(), readyUi: null, readyState: null, activeUi: [], afterUi: null, afterState: null, probe: null, shot: false };
+  let since = o.since || 0, phase = 'wait', endT = null;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 100000) {
+    const r = await read(page, since);
+    const s = r.s;
+    for (const x of r.e) { out.evs.push(x); since = x.i; }
+    popupAudit(s, pa);
+    for (const f of (s.view.floats || [])) out.floats.add(f.text);
+    if (s.view.banner && s.view.banner.text === 'OVERLAP!') out.banner = true;
+    if (phase === 'wait') {
+      if (s.mode !== 'running') break;
+      if (s.overlap.ready) {
+        out.readyState = s; out.readyUi = await ovlUi(page);
+        await fire();
+        phase = 'active';
+      }
+    } else if (phase === 'active') {
+      if (s.overlap.active && s.overlap.time < 3.3 && s.overlap.time > 0.2) {
+        out.samples.push({ player: s.view.player, road: s.view.road, w: s.view.w, h: s.view.h, side: s.overlap.side, time: s.overlap.time, px: s.player.x });
+        if (out.activeUi.length < 40) out.activeUi.push(await ovlUi(page));
+        if (o.probe && !out.probe) out.probe = await o.probe(s);
+        if (o.shot && !out.shot) { out.shot = true; await page.screenshot({ path: o.shot }); }
+      }
+      const endEv = out.evs.find((e) => e.type === 'overlapEnd');
+      if (endEv) { endT = endEv.t; phase = 'after'; out.afterState = s; out.afterUi = await ovlUi(page); }
+    } else if (s.time >= endT + 1.3 || s.mode !== 'running') { out.final = s; break; }
+    await sleep(25);
+  }
+  out.pa = pa;
+  return out;
+}
+function overlapAssertions(tag, via, out, fireSource) {
+  const G = 'overlap', C = { OVERLAP_TIME: 4.0 };
+  const ov = out.evs.find((e) => e.type === 'overlap'), end = out.evs.find((e) => e.type === 'overlapEnd'), rdy = out.evs.concat(out.prior || []).find((e) => e.type === 'overlapReady');
+  /* by event number, not time: the pickup that filled the meter can share a tick with the activation */
+  const within = (e) => ov && end && e.i > ov.i && e.t <= end.t + 0.9;
+  const sam = out.samples;
+  const inside = (a, b) => a.x >= b.x && a.x + a.w <= b.x + b.w;
+  const outsideRoad = sam.length >= 5 && sam.every((m) => !rectsOverlap(m.player, m.road) && (ov.side < 0 ? m.player.x + m.player.w <= m.road.x + 0.5 : m.player.x >= m.road.x + m.road.w - 0.5));
+  const onScreen = sam.length >= 5 && sam.every((m) => m.player.x >= -0.5 && m.player.x + m.player.w <= m.w + 0.5 && m.player.y >= 0 && m.player.y + m.player.h <= m.h);
+  check(G, tag + ': ' + via + ' fires OVERLAP when the meter is full: one overlap event (source ' + fireSource + ', uses 1, side chosen from the lane), meter back to 0', !!rdy && !!ov && ov.source === fireSource && ov.uses === 1 && (ov.side === -1 || ov.side === 1) && out.readyState.overlap.meter >= 1 && out.evs.filter((e) => e.type === 'overlap').length === 1, { ov, rdy: !!rdy });
+  check(G, tag + ': the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels', !!out.readyUi && out.readyUi.label === 'OVERLAP!' && out.readyUi.aria === 'Overlap ready' && out.readyUi.ready && out.activeUi.length >= 3 && out.activeUi.every((u) => u.label === 'PITA!' && u.aria === 'Overlap active' && u.active && !u.ready) && out.activeUi[0].fill > out.activeUi[out.activeUi.length - 1].fill && !!out.afterUi && out.afterUi.label === 'OVERLAP' && out.afterUi.aria === 'Overlap charging' && !out.afterUi.ready && !out.afterUi.active, { ready: out.readyUi, first: out.activeUi[0], last: out.activeUi[out.activeUi.length - 1], after: out.afterUi });
+  check(G, tag + ': while active the matatu is drawn outside the road rect, on the ' + (ov && ov.side < 0 ? 'left' : 'right') + ' shoulder, fully on screen', outsideRoad && onScreen, { n: sam.length, first: sam[0], side: ov && ov.side });
+  const bad = out.evs.filter((e) => within(e) && /^(hit|smash|nearMiss|pickup|repair|gameover)$/.test(e.type) && (e.type === 'hit' || e.type === 'gameover' || e.i < end.i));
+  check(G, tag + ': from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side', !!end && bad.length === 0 && end.lane === (ov.side < 0 ? 0 : 3) && end.side === ov.side && out.afterState.player.invuln > 0.25, { bad: bad.slice(0, 3), end, invuln: out.afterState && out.afterState.player.invuln });
+  check(G, tag + ': the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu', out.banner && out.floats.has('OVERLAP READY!') && out.pa.frames > 0 && out.pa.overlaps.length === 0 && out.pa.floatOffRoad === 0 && out.pa.slotBad.length === 0, { banner: out.banner, floats: Array.from(out.floats).slice(0, 8), pa: { frames: out.pa.frames, overlaps: out.pa.overlaps.length, off: out.pa.floatOffRoad, slotBad: out.pa.slotBad.length } });
+}
+async function ovlControlsFit(page, tag) {
+  const r = await page.evaluate(() => {
+    const ids = ['btnLeft', 'btnHorn', 'btnOverlap', 'btnRight'];
+    const box = ids.map((id) => { const q = document.getElementById(id).getBoundingClientRect(); return { id, x: q.left, y: q.top, w: q.width, h: q.height }; });
+    const o = document.getElementById('btnOverlap'), l = document.getElementById('ovlLbl');
+    return { box, vw: innerWidth, vh: innerHeight, clipped: o.scrollWidth > o.clientWidth + 1 || l.scrollWidth > l.clientWidth + 1, font: parseFloat(getComputedStyle(l).fontSize) };
+  });
+  const allIn = r.box.every((b) => b.x >= 0 && b.y >= 0 && b.x + b.w <= r.vw && b.y + b.h <= r.vh && b.w >= 44 && b.h >= 44);
+  let apart = true;
+  for (let i = 0; i < r.box.length; i++) for (let j = i + 1; j < r.box.length; j++) if (rectsOverlap(r.box[i], r.box[j])) apart = false;
+  check('overlap', tag + ': the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more', allIn && apart && !r.clipped && r.font >= 14, { box: r.box.map((b) => b.id + ':' + Math.round(b.w) + 'x' + Math.round(b.h)), clipped: r.clipped, font: r.font });
+}
+
+async function overlapBrowserChecks(browser) {
+  const G = 'overlap';
+  const cfg = [
+    /* [w, h, touch, how it is fired, source] */
+    [844, 390, true, 'key S', 'keyboard'],
+    [320, 568, true, 'key ArrowDown', 'keyboard'],
+    [390, 844, true, 'a tap on #btnOverlap', 'touch']
+  ];
+  /* ---- A. real human run on desktop: pick up passengers with the test bot, press the O key ---- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await ctx.newPage(); watch(page, 'overlap-desktop');
+    await page.goto(URL + '?seed=7');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page); await sleep(300);
+    const text = await page.evaluate(() => ({ title: document.getElementById('title').innerText, keys: document.querySelector('#title .keys').innerText }));
+    check(G, 'title controls text explains overlap (O or S) next to horn nitro', /overlap/i.test(text.keys) && /\bO\b/.test(text.keys) && /\bS\b/.test(text.keys) && /horn nitro/i.test(text.title), text.keys);
+    await page.click('#btnHow');
+    const how = await page.evaluate(() => ({ rules: document.querySelector('#howto .rules').innerText, keys: document.querySelector('#howto .keys').innerText }));
+    check(G, 'How to play: one line "fill it with passengers, then ride the shoulder past everything" and the key in the keys block', /Overlap/.test(how.rules) && /fill it with passengers, then ride the shoulder past everything/i.test(how.rules) && /overlap/i.test(how.keys), how);
+    await page.keyboard.press('Escape');
+    await page.click('#btnStart');
+    let s = await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap desktop run');
+    await ovlControlsFit(page, '1280x720');
+    await sleep(150); /* let the HUD paint its first frame */
+    const ui0 = await ovlUi(page);
+    check(G, '1280x720: before any pickup the meter is empty and the button reads OVERLAP with the aria-label "Overlap charging"', s.overlap.meter === 0 && ui0.label === 'OVERLAP' && ui0.aria === 'Overlap charging' && !ui0.ready && !ui0.active && ui0.fill === 0, { overlap: s.overlap, ui0 });
+    /* not ready: O, S and ArrowDown all reach the game and answer overlapEmpty (nothing else happens) */
+    const e0 = (await read(page, 0)).e.length;
+    for (const k of ['o', 'S', 'ArrowDown']) { await page.keyboard.press(k); await sleep(60); }
+    let r = await read(page, e0);
+    const emp = r.e.filter((x) => x.type === 'overlapEmpty');
+    check(G, '1280x720: O, S and ArrowDown while charging each give overlapEmpty (source keyboard) and start nothing', emp.length === 3 && emp.every((x) => x.source === 'keyboard' && x.reason === 'charging') && !r.s.overlap.active && r.e.filter((x) => x.type === 'overlap').length === 0, emp.map((x) => x.reason));
+    /* typing in a text box never fires it */
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmpType'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    const e1 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb1 = (await snap(page)).inputs.keyboard;
+    for (const k of ['o', 'O', 's', 'ArrowDown']) { await page.keyboard.press(k); await sleep(40); }
+    const e2 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb2 = (await snap(page)).inputs.keyboard;
+    await page.evaluate(() => { document.getElementById('tmpType').remove(); });
+    check(G, '1280x720: typing O, S or ArrowDown inside a text box fires nothing (no overlapEmpty, keyboard input count unchanged)', e1 === e2 && kb1 === kb2, { e1, e2, kb1, kb2 });
+    /* pick up passengers with real keys until the meter is full */
+    let readyRun = null, attempts = 0, since = 0;
+    while (!readyRun && attempts < 4) {
+      attempts++;
+      const run = await drive(page, { ms: 80000, mode: 'seek', want: new Set(['stage']), steer: keySteer(page), since, onTick: (q) => (q.overlap.ready ? 'stop' : undefined) });
+      since = run.since;
+      if (run.s.overlap.ready) readyRun = run; else { await sleep(800); await skipNameIfShown(page); await page.keyboard.press('Enter'); await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap retry'); since = 0; }
+    }
+    check(G, '1280x720: a real run fills the meter ONLY through pickups: ready after at least 8 pickups, announced once (live region says "Overlap ready")', !!readyRun && readyRun.s.stats.pickups >= 8 && readyRun.evs.filter((x) => x.type === 'overlapReady').length === 1, { pickups: readyRun && readyRun.s.stats.pickups, attempts });
+    if (readyRun) {
+      const liveNow = (await ovlUi(page)).live;
+      const out = await watchOverlap(page, () => page.keyboard.press('o'), {
+        since, prior: readyRun.evs,
+        shot: path.join(SHOTS, '60-overlap-1280x720.png'),
+        probe: async (q) => {
+          const hb = q.horn.meter, ln = q.player.lane;
+          await page.keyboard.press('Space'); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowRight'); await sleep(60);
+          const rr = await read(page, 0), q2 = rr.s;
+          const mine = rr.e.filter((x) => x.t >= q.time);
+          return { hornEmpty: mine.filter((x) => x.type === 'hornEmpty' && x.reason === 'overlap').length, horn: mine.filter((x) => x.type === 'horn').length, lane: mine.filter((x) => x.type === 'lane' || x.type === 'bump').length, nitro: q2.horn.nitro, meterBefore: hb, meterAfter: q2.horn.meter, laneBefore: ln, laneAfter: q2.player.lane };
+        }
+      });
+      overlapAssertions('1280x720', 'the O key', out, 'keyboard');
+      const pr = out.probe || {};
+      check(G, '1280x720: pressing Space (horn) and the lane keys while overlapping is refused: hornEmpty (reason overlap), no horn event, no nitro, horn meter not spent, no lane change', !!out.probe && pr.hornEmpty >= 1 && pr.horn === 0 && pr.lane === 0 && !pr.nitro && pr.meterAfter >= pr.meterBefore - 0.001 && pr.laneAfter === pr.laneBefore, pr);
+      const fin = out.final || (await snap(page));
+      check(G, '1280x720: sound: one overlap sfx and the ready chime were scheduled; the horn nitro sfx was never used for it', fin.audio.fired.overlap === 1 && fin.audio.fired.overlapReady >= 1 && (fin.audio.fired.horn || 0) === 0, fin.audio.fired);
+      check(G, '1280x720: the live region announced "Overlap ready" when it filled (read right after the fill)', /Overlap ready/.test(liveNow), liveNow);
+    }
+    await ctx.close();
+  }
+  /* ---- B. small and touch viewports: demo (autopilot) collects the passengers, the test fires it ---- */
+  for (const [w, h, touch, how, src] of cfg) {
+    const tag = w + 'x' + h;
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: touch ? 2 : 1 });
+    const page = await ctx.newPage(); watch(page, 'overlap-' + tag);
+    await page.goto(URL + '?seed=7&autostart=1&autopilot=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
+    await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap demo ' + tag);
+    await sleep(300);
+    await ovlControlsFit(page, tag);
+    const tapBtn = async () => { const b = await page.locator('#btnOverlap').boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+    const fire = how.indexOf('tap') >= 0 ? tapBtn : (how === 'key S' ? () => page.keyboard.press('S') : () => page.keyboard.press('ArrowDown'));
+    /* one early press while charging */
+    const sEarly = await snap(page);
+    const e0 = (await read(page, 0)).e.length;
+    if (sEarly.overlap.meter < 1) {
+      await fire(); await sleep(80);
+      const rr = await read(page, e0), ui = await ovlUi(page);
+      check(G, tag + ': ' + how + ' while charging gives overlapEmpty (' + src + ') and the button stays "OVERLAP / Overlap charging"', rr.e.filter((x) => x.type === 'overlapEmpty' && x.source === src).length === 1 && !rr.s.overlap.active && ui.label === 'OVERLAP' && ui.aria === 'Overlap charging', { events: rr.e.map((x) => x.type + ':' + (x.source || '')).slice(-6), ui });
+    }
+    const out = await watchOverlap(page, fire, { since: 0, shot: (w === 320 || w === 844) ? path.join(SHOTS, '61-overlap-' + tag + '.png') : null });
+    overlapAssertions(tag, how, out, src);
     await ctx.close();
   }
 }
@@ -709,6 +1086,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   /* ===== 4b. Top 5 board: name entry, keyboard safety, persistence, sheet layout ===== */
   console.log('\n4b. Top 5 board (data checks in Node, then the real screens in the browser)');
   boardNodeChecks();
+  console.log('\n4c. OVERLAP power: simulation checks in Node');
+  overlapNodeChecks();
   {
     const G = 'board', KEY = 'matatuRush.top5';
     const ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
@@ -990,6 +1369,10 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   /* ===== 5d. Round 3 layout: text sizes, how-to sheet, pause/mute placement, shop strip ===== */
   console.log('\n5d. Layout at 320x568, 844x390, 390x844 and 1280x720');
   await layoutChecks(browser);
+
+  /* ===== 5e. OVERLAP: keys, taps, button states, the matatu on the shoulder ===== */
+  console.log('\n5e. OVERLAP power in the browser (real keys and taps)');
+  await overlapBrowserChecks(browser);
 
   /* ===== 5c. Near-miss and repair with real keys ===== */
   console.log('\n5c. Near-miss bonus and fundi repair, driven by real keys');

@@ -16,12 +16,15 @@ Sound starts only after you press Start (or any key or tap in a run). Best score
 
 **Top 5 board.** Each device keeps its own Top 5 (`localStorage` key `matatuRush.top5`, no backend). A run that makes the board is entered at once under an alias such as `Dere 482`. The game over screen then offers a name box (Save name or Skip, Enter saves, Escape skips; leaving without touching it keeps the alias). The title has a "Top 5" button that opens the list. Demo runs never enter the board.
 
+**Overlap.** A second power, separate from the horn. "Overlapping" is Nairobi matatu slang for leaving the road and driving along the shoulder to get past traffic. The OVERLAP meter starts empty and is charged only by passenger pickups: the first charge takes 8 pickups (0.125 each) and every later charge fills 12 percent slower than the one before (0.11 per pickup, then 0.0968, and so on). When it is full, press O, S or Down, or tap the OVERLAP button: for 4 seconds the matatu rides the shoulder on the side it was already on (from lane 0 or 1 it goes left, from lane 2 or 3 it goes right). On the shoulder nothing can hurt it and nothing can be collected (no bodas, potholes or checkpoints, no near-miss credit, no stage pickups, no fundi items); lane and horn inputs are ignored, the combo clock holds, and the matatu blinks and its bar turns red for the last 0.8 s. It then merges into the edge lane on that side with 0.9 s of grace. It cannot start during horn nitro. The demo autopilot never uses it, so seeded demos and `tests/sim-balance.cjs` behave exactly as before.
+
 ## Controls
 
 | Action | Keyboard | Touch / mouse |
 | --- | --- | --- |
 | Switch lane | Left / Right arrows, or A / D | Tap the left or right half of the road, or the arrow buttons |
 | Horn nitro (meter must be full) | Space, H, Up or W | HORN button |
+| Overlap (meter must be full, charged by pickups) | O, S or Down | OVERLAP button |
 | Pause / resume | P or Esc | Pause button (top right) |
 | Mute | M | Speaker button, or "Sound" on the title and pause screens |
 | Start / play again | Enter or Space (R also restarts) | TWENDE button |
@@ -31,6 +34,7 @@ Sound starts only after you press Start (or any key or tap in a run). Best score
 
 - **Stages** (green bays with waiting passengers): drive through to collect fare. Each pickup within 5.5 s of the last raises the combo. Fare is KSh 50 x combo (capped at x9), doubled during nitro.
 - **Horn nitro**: the meter starts full, then fills from fares (about three pickups), near misses and slowly over time. Hooting gives 2.6 s of 1.65x speed, scatters bodas and smashes through anything.
+- **Overlap**: charged only by passenger pickups (8 for the first charge, 12 percent slower each time after). Fires a 4 s ride along the shoulder that ignores every hazard and collects nothing; not available during horn nitro.
 - **Potholes** and **boda bodas** cost one heart. A boda with a blinking indicator is about to change lane; bodas never cut into your lane at close range.
 - **Kanjo checkpoint**: a boom across two lanes. One heart and a fine of up to KSh 100.
 - **Rada!** Swerving out of a lane just before an obstacle passes pays KSh 25.
@@ -80,7 +84,8 @@ Difficulty is identical in every mode. Seeding only fixes the random sequence.
 
 ```js
 MatatuRush.snapshot()   // deep copy: mode, seed, tick, dist, speed, score, best, health, combo,
-                        // horn, player, entities, stats, input counts by source, audio, view
+                        // horn, overlap {meter, ready, active, time, side, uses}, player, entities,
+                        // stats, input counts by source, audio, view
                         // view: road, rightLane, player and shop strip rectangles, the banner box,
                         //       floats (live popup rectangles) and slot (horn status tag)
                         // audio: state, level (output RMS), steps and fired (sfx counts by name)
@@ -106,9 +111,11 @@ What it does (181 checks):
 3. A 26 s run steered only by real key presses (seed 7): pickups, combo, score reconciled against the event log, horn nitro, speed ramp, all obstacle types seen. Also: no two floating popups overlap in any sampled frame, the horn status only appears in its gutter slot, the AudioContext stays `running`, and the sound effect counters match the event log (one pickup sound per pickup, one horn, and so on).
 4. Seed 5: drives into a pothole, a boda and a checkpoint with real keys, checks hitbox overlap and hearts, game over screen (text sizes too), restart with Enter and R, best score in localStorage and after reload, corrupt stored value.
 4b. Top 5 board. In Node (real `js/game.js`, fake storage): alias format, ties keep the older entry above, never more than 5, sorted high to low, a score below 5th place gets no entry, demo runs add nothing, no invented entry from an old best, bad JSON and wrong shapes read as empty, `setBoardName` rules, and the seeded RNG is untouched. In the browser: a qualifying run shows the focused name form and already has an alias entry; typing m, r and spaces does not mute, restart or leave the screen; Enter saves (trimmed, 12 chars max) and the name survives a reload in the title sheet; Escape in the box and the Skip button keep the alias; holding Enter or Escape after saving or skipping (auto-repeat) never restarts or leaves the screen; at 844x390 the input and, after Skip, Play again are fully in view; a real demo game over (autopilot seed 101) shows no form and leaves the board untouched; a name like `<img src=x onerror=alert(1)>` stays plain text; a low score on a full board shows no form; the title Top 5 sheet fits 320x568, 844x390, 390x844 and 1280x720 with text at 14 px or more.
+4c. OVERLAP in Node (real `js/game.js`, a hand-built road): the meter starts empty and near misses and time never fill it; the first charge is exactly 8 pickups and later ones need 10 and 11 (fill 0.125, 0.11, 0.0968 per pickup); not ready gives `overlapEmpty` only; no start during nitro; the horn is refused during overlap without spending its meter; a road blocked in every lane plus an askari and bodas (and point-blank hazards at the moment of leaving) costs nothing, while the same road hurts a matatu that stays on the tarmac; nothing is collected and the combo clock holds; lane inputs are ignored; lasts 4.0 s, merges into the edge lane with at least 0.89 s of grace and an obstacle waiting there cannot hurt; left side for lanes 0 and 1, right side for 2 and 3; pause and resume keep it; a boda is held back from the re-entry lane; the seeded RNG is never called; autopilot seeds 7 and 42 never use it and match score, distance, health, lane and event trace captured before the feature existed.
 5. Phone 390x844 with touch: start, buttons, road-side taps, horn, touch-only pickups, target sizes, pause, landscape.
 5b. Short screens: at 320x568, 360x640, 844x390, 390x844 and 1280x720 the Start button must be fully on screen with the title un-scrolled; at 320x568 and 844x390 a tap at that position starts the run, and the announcement banner's reported rectangle must not overlap the road below the HUD strip.
 5d. Layout at 320x568, 844x390, 390x844 and 1280x720: title icon row and How to play sheet fully on screen with nothing clipped and no scrolling; every visible text node at 14 px or more on the title, sheet, HUD, combo chip and pause screen; pause and mute rectangles do not touch the right lane or any tarmac; a shop strip of at least half a lane is visible on both sides; popups do not overlap; bundled fonts loaded.
+5e. OVERLAP in the browser: title and How to play text; the four control buttons fit (on screen, 44 px, no overlap, label not clipped) at 1280x720, 844x390, 320x568 and 390x844; at 1280x720 a real key-driven run fills the meter from pickups, O / S / ArrowDown answer `overlapEmpty` while charging, typing in a text box fires nothing, O fires it when full, Space and the lane keys are refused during it; at 844x390 (S), 320x568 (ArrowDown) and 390x844 (a tap on the button) a demo run is fired by the test; the button goes charging, ready, active (draining) and back with matching labels and aria-labels; the matatu is drawn outside the road rectangle and fully on screen; no hit, smash, near-miss or pickup during it; the banner and ready popup appear and no popup overlap regressions.
 5c. Seed 21, real keys: a last-moment swerve past a pothole must emit `nearMiss` (no hit on that hazard, bonus paid); after taking damage, driving into the fundi spanner must emit `repair` and restore exactly one heart. Banner placement is sampled throughout.
 6. localStorage throwing on access: boot, full run, restart.
 7. Seeded autopilot demo (seed 42, autostart, no gesture) twice in the browser plus a pure Node replay of `js/game.js`: all three event logs must be identical, and no AudioContext may exist.

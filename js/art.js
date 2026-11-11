@@ -438,5 +438,17 @@
       c.strokeStyle = '#ffe14a'; c.lineWidth = 3; c.lineCap = 'round';
       c.beginPath(); c.arc(8, 0, 9, -0.8, 0.8); c.stroke(); c.beginPath(); c.arc(8, 0, 16, -0.8, 0.8); c.stroke();
     }
+    else if (type === 'overlap') {
+      /* a matatu on the shoulder beside the road, with a dust trail */
+      c.fillStyle = '#2a2f58'; rr(c, -26, -26, 52, 52, 10); c.fill();
+      c.fillStyle = '#12152a'; c.fillRect(-2, -26, 28, 52);
+      c.fillStyle = '#cda814'; c.fillRect(-5, -26, 3, 52);
+      c.fillStyle = 'rgba(180,160,120,0.55)';
+      circ(c, -15, 20, 3); c.fill(); circ(c, -11, 24, 2.2); c.fill(); circ(c, -19, 25, 2.2); c.fill();
+      Art.drawGlow(c, '#b6ff3c', -15, 0, 30, 44, 0.55);
+      c.fillStyle = '#b6ff3c'; rr(c, -21, -14, 12, 28, 4); c.fill();
+      c.fillStyle = '#07070f'; c.fillRect(-19, -10, 8, 6);
+      c.fillStyle = '#ffe14a'; c.fillRect(-19, 9, 3, 2); c.fillRect(-14, 9, 3, 2);
+    }
   };
 })();

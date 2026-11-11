@@ -16,7 +16,8 @@
     title: $('title'), pause: $('pause'), over: $('over'),
     score: $('score'), best: $('best'), zone: $('zone'), speed: $('speed'), hearts: $('hearts'),
     combo: $('combo'), comboX: $('comboX'), comboBar: $('comboBar'), demoTag: $('demoTag'),
-    horn: $('btnHorn'), hornFill: $('hornFill'), hornLbl: $('hornLbl'), live: $('live')
+    horn: $('btnHorn'), hornFill: $('hornFill'), hornLbl: $('hornLbl'),
+    ovl: $('btnOverlap'), ovlFill: $('ovlFill'), ovlLbl: $('ovlLbl'), live: $('live')
   };
 
   function announce(msg) { el.live.textContent = msg; }
@@ -236,6 +237,7 @@
         announce('Horn nitro');
         break;
       case 'hornEmpty':
+        if (ev.reason === 'overlap') break; /* refused on the shoulder: nothing to say, the meter is untouched */
         A.sfx.hornShort();
         R.status('HORN CHARGING', '#aab4e0');
         break;
@@ -243,6 +245,29 @@
       case 'hornReady':
         A.sfx.ready();
         R.status('HORN READY!', Art.PAL.yellow);
+        break;
+      case 'overlap':
+        A.sfx.overlap();
+        R.shake(FEEL.small); R.punch(-0.08);
+        R.ring(g.px, 0, Art.PAL.lime);
+        R.burst(g.px, 0, 'rgba(200,175,120,0.55)', 14, 2.2, 'smoke');
+        R.banner('OVERLAP!', Art.PAL.lime, 'SHOULDER RIDE');
+        announce('Overlap. Riding the shoulder for ' + C.OVERLAP_TIME + ' seconds.');
+        break;
+      case 'overlapEnd':
+        R.ring(ev.lane, 0, Art.PAL.lime);
+        R.text('RUDI BARABARANI', ev.lane, 1.5, Art.PAL.lime, 0.3);
+        announce('Back on the road.');
+        break;
+      case 'overlapEmpty':
+        if (ev.reason === 'active') break;
+        A.sfx.hornShort();
+        R.status(ev.reason === 'nitro' ? 'AFTER NITRO' : 'OVERLAP CHARGING', '#aab4e0');
+        break;
+      case 'overlapReady':
+        A.sfx.overlapReady();
+        R.text('OVERLAP READY!', g.px, 1.8, Art.PAL.lime, 0.3);
+        announce('Overlap ready');
         break;
       case 'zone':
         A.intensity = ev.level;
@@ -306,6 +331,18 @@
       el.hornLbl.textContent = nit ? 'NITRO!' : (ready ? 'HOOT!' : 'HORN');
       el.horn.setAttribute('aria-label', nit ? 'Horn nitro active' : (ready ? 'Horn nitro ready' : 'Horn nitro charging'));
     }
+    /* OVERLAP button: charging / ready / active (draining) / full but waiting for nitro to end */
+    var ovA = g.overlapTime > 0, ovR = g.overlap >= 1 && !ovA && !nit;
+    var ovFill = ovA ? g.overlapTime / C.OVERLAP_TIME : g.overlap;
+    el.ovlFill.style.transform = 'scaleX(' + MR.clamp(ovFill, 0, 1).toFixed(3) + ')';
+    var ost = ovA ? 'active' : (ovR ? 'ready' : (g.overlap >= 1 ? 'wait' : 'charge'));
+    if (hud.ovlState !== ost) {
+      hud.ovlState = ost;
+      el.ovl.classList.toggle('ready', ovR);
+      el.ovl.classList.toggle('active', ovA);
+      el.ovlLbl.textContent = ovA ? 'PITA!' : (ovR ? 'OVERLAP!' : 'OVERLAP');
+      el.ovl.setAttribute('aria-label', ovA ? 'Overlap active' : (ovR ? 'Overlap ready' : (ost === 'wait' ? 'Overlap full, ready when nitro ends' : 'Overlap charging')));
+    }
   }
 
   /* ---------- input ---------- */
@@ -335,6 +372,9 @@
       if (k === 'ArrowRight' || k === 'd' || k === 'D') { if (!e.repeat) g.input('right', 'keyboard'); e.preventDefault(); return; }
       if (k === ' ' || e.code === 'Space' || k === 'h' || k === 'H' || k === 'ArrowUp' || k === 'w' || k === 'W') {
         if (!e.repeat) g.input('horn', 'keyboard'); e.preventDefault(); return;
+      }
+      if (k === 'o' || k === 'O' || k === 's' || k === 'S' || k === 'ArrowDown') {
+        if (!e.repeat) g.input('overlap', 'keyboard'); e.preventDefault(); return;
       }
       if (k === 'Escape' && g.autopilot) { toTitle(); e.preventDefault(); return; }
       if (k === 'p' || k === 'P' || k === 'Escape') { pauseGame(); e.preventDefault(); }
@@ -429,6 +469,7 @@
     bindControl($('btnLeft'), 'left');
     bindControl($('btnRight'), 'right');
     bindControl($('btnHorn'), 'horn');
+    bindControl($('btnOverlap'), 'overlap');
 
     bindClick('btnStart', function () { startGame(false, true); });
     bindClick('btnDemo', function () { startGame(true, true); });

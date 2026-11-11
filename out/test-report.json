@@ -1,14 +1,14 @@
 {
-  "generated": "2026-11-11T17:18:22.673Z",
+  "generated": "2026-11-11T18:48:45.449Z",
   "browser": "system Google Chrome",
   "url": "file:///Users/adera/My Work/projects/matatu-rush/index.html",
-  "passed": 181,
+  "passed": 240,
   "failed": 0,
-  "total": 181,
+  "total": 240,
   "notes": {
     "run": {
-      "simSeconds": 26.49,
-      "dist": 168.11,
+      "simSeconds": 26.47,
+      "dist": 168,
       "score": 3228,
       "pickups": 14,
       "bestCombo": 9,
@@ -25,13 +25,13 @@
       "dodged": 17
     },
     "popupsKeyboardRun": {
-      "frames": 605,
+      "frames": 601,
       "maxFloats": 5,
-      "comboAndFareFrames": 362,
-      "hornReadyWithPickupFrames": 46,
+      "comboAndFareFrames": 358,
+      "hornReadyWithPickupFrames": 45,
       "slotCopy": {
         "HORN CHARGING": 63,
-        "HORN READY!": 64
+        "HORN READY!": 63
       }
     },
     "audioRun": {
@@ -41,7 +41,7 @@
       ],
       "musicOn": true,
       "sequencerSteps": 185,
-      "peakRms": 0.4203,
+      "peakRms": 0.4218,
       "sfxFired": {
         "start": 1,
         "lane": 22,
@@ -49,6 +49,7 @@
         "horn": 1,
         "hornShort": 1,
         "smash": 1,
+        "overlapReady": 1,
         "ready": 1,
         "zone": 1
       }
@@ -81,7 +82,7 @@
       "hits": [
         {
           "kind": "pothole",
-          "px": 0,
+          "px": 0.08,
           "entX": 0,
           "d": 0.89,
           "health": 2,
@@ -89,7 +90,7 @@
         },
         {
           "kind": "boda",
-          "px": 1.82,
+          "px": 1.67,
           "entX": 1.76,
           "d": 1.12,
           "health": 1,
@@ -97,7 +98,7 @@
         },
         {
           "kind": "askari",
-          "px": 1.15,
+          "px": 1,
           "entX": 0.5,
           "d": 0.79,
           "health": 0,
@@ -105,7 +106,7 @@
         },
         {
           "kind": "pothole",
-          "px": 0.08,
+          "px": 0,
           "entX": 0,
           "d": 0.89,
           "health": 2,
@@ -170,7 +171,7 @@
         "repairs": 1
       },
       "bannerBad": 0,
-      "bannerSeen": 81,
+      "bannerSeen": 80,
       "runs": 1,
       "hits": 1,
       "nearScore": {
@@ -180,7 +181,7 @@
       }
     },
     "demo": {
-      "events": 41,
+      "events": 42,
       "pickups": 13,
       "hits": 0
     },
@@ -194,31 +195,32 @@
         "running"
       ],
       "sequencerSteps": 148,
-      "peakRms": 0.4329,
+      "peakRms": 0.426,
       "sfxFired": {
         "start": 1,
         "lane": 17,
         "pickup": 10,
         "horn": 1,
+        "overlapReady": 1,
         "ready": 1
       },
       "popups": {
-        "frames": 460,
+        "frames": 461,
         "maxFloats": 4,
-        "comboAndFareFrames": 293,
-        "hornReadyWithPickupFrames": 44,
-        "slotFrames": 63,
+        "comboAndFareFrames": 296,
+        "hornReadyWithPickupFrames": 45,
+        "slotFrames": 64,
         "slotCopy": {
-          "HORN READY!": 63
+          "HORN READY!": 64
         }
       }
     },
     "videoAudio": {
-      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.36 s",
-      "meanDb": -11.8,
+      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s",
+      "meanDb": -11.7,
       "maxDb": 0
     },
-    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9570 KB, with audio)"
+    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9709 KB, with audio)"
   },
   "results": [
     {
@@ -249,7 +251,7 @@
       "group": "a11y",
       "name": "every button has an accessible name",
       "ok": true,
-      "detail": "19 buttons"
+      "detail": "20 buttons"
     },
     {
       "group": "a11y",
@@ -321,7 +323,7 @@
       "group": "audio",
       "name": "synth music actually reaches the output (analyser RMS > 0)",
       "ok": true,
-      "detail": "{\"peakRms\":0.3997}"
+      "detail": "{\"peakRms\":0.3992}"
     },
     {
       "group": "audio",
@@ -339,7 +341,7 @@
       "group": "audio",
       "name": "mute button unmutes: sound returns",
       "ok": true,
-      "detail": "{\"rms\":0.3935}"
+      "detail": "{\"rms\":0.398}"
     },
     {
       "group": "pause",
@@ -357,7 +359,7 @@
       "group": "run",
       "name": "survived an automated 20 to 30 s input run with real keys",
       "ok": true,
-      "detail": "{\"simSeconds\":26.49,\"mode\":\"running\",\"health\":3}"
+      "detail": "{\"simSeconds\":26.47,\"mode\":\"running\",\"health\":3}"
     },
     {
       "group": "run",
@@ -435,25 +437,25 @@
       "group": "popup",
       "name": "keyboard run: no two live floating popups (or the horn slot) ever overlap; combo and fare seen together",
       "ok": true,
-      "detail": "{\"frames\":605,\"comboAndFare\":362,\"maxFloats\":5,\"overlaps\":[]}"
+      "detail": "{\"frames\":601,\"comboAndFare\":358,\"maxFloats\":5,\"overlaps\":[]}"
     },
     {
       "group": "popup",
       "name": "keyboard run: horn status only ever appears in its gutter slot (off the road, clear of the matatu), never in the float stack",
       "ok": true,
-      "detail": "{\"slotFrames\":127,\"copy\":{\"HORN CHARGING\":63,\"HORN READY!\":64},\"bad\":[]}"
+      "detail": "{\"slotFrames\":126,\"copy\":{\"HORN CHARGING\":63,\"HORN READY!\":63},\"bad\":[]}"
     },
     {
       "group": "audio",
       "name": "during the run the context stays running, music is sequencing and the output is audible",
       "ok": true,
-      "detail": "{\"state\":\"running\",\"steps\":185,\"peakRms\":0.4203}"
+      "detail": "{\"state\":\"running\",\"steps\":185,\"peakRms\":0.4218}"
     },
     {
       "group": "audio",
       "name": "sound effects were triggered by real game events: one pickup sfx per pickup, horn, lane and start",
       "ok": true,
-      "detail": "{\"start\":1,\"lane\":22,\"pickup\":14,\"horn\":1,\"hornShort\":1,\"smash\":1,\"ready\":1,\"zone\":1}"
+      "detail": "{\"start\":1,\"lane\":22,\"pickup\":14,\"horn\":1,\"hornShort\":1,\"smash\":1,\"overlapReady\":1,\"ready\":1,\"zone\":1}"
     },
     {
       "group": "collision",
@@ -525,7 +527,7 @@
       "group": "board",
       "name": "node: first qualifying run is inserted at once under an alias (matatu-crew word + 3 digits, max 12 chars) with rank 1",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Makanga 514\",\"score\":444,\"id\":\"mwcdp96wch3ndu\"}]}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Konda 128\",\"score\":444,\"id\":\"mwcgvlg063q8n7\"}]}"
     },
     {
       "group": "board",
@@ -582,16 +584,154 @@
       "detail": ""
     },
     {
+      "group": "overlap",
+      "name": "node: the meter starts EMPTY (the horn starts full) and a run starts with no uses",
+      "ok": true,
+      "detail": "{\"meter\":0,\"ready\":false,\"active\":false,\"time\":0,\"side\":0,\"uses\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: 30 s of driving and a near miss (RADA bonus) leave the meter at 0: only passenger pickups fill it",
+      "ok": true,
+      "detail": "{\"nearMiss\":1,\"meter\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: the first charge takes exactly 8 pickups (0.125 each); overlapReady fires once, on the 8th",
+      "ok": true,
+      "detail": "{\"marks\":[0.125,0.25,0.375,0.5,0.625,0.75,0.875,1],\"ready\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: a 9th pickup with a full meter keeps it at 1 and does not announce ready again",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "overlap",
+      "name": "node: fill per pickup is 0.125 on the first charge, 0.88x of that after 1 use (0.11), 0.88^2 after 2 uses (0.0968)",
+      "ok": true,
+      "detail": "[0.125,0.11,0.0968]"
+    },
+    {
+      "group": "overlap",
+      "name": "node: so the pickups needed grow 8, 10, 11 (1 / (0.125 * 0.88^uses), rounded up) and every charge can be fired",
+      "ok": true,
+      "detail": "[8,10,11]"
+    },
+    {
+      "group": "overlap",
+      "name": "node: overlap input when not ready does nothing but emit overlapEmpty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "overlap",
+      "name": "node: overlap cannot start during nitro (meter kept, overlapEmpty says why)",
+      "ok": true,
+      "detail": "[{\"i\":13,\"tick\":145,\"t\":1.208,\"type\":\"overlapEmpty\",\"source\":\"keyboard\",\"meter\":1,\"reason\":\"nitro\"}]"
+    },
+    {
+      "group": "overlap",
+      "name": "node: once nitro has ended the full meter fires",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "overlap",
+      "name": "node: the horn is refused during overlap and the horn meter is not spent",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "overlap",
+      "name": "node: after the overlap the horn meter is still full and the horn fires",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "overlap",
+      "name": "node: control run: the same gauntlet (every lane blocked, askari, bodas) really does hurt a matatu that stays on the road",
+      "ok": true,
+      "detail": "{\"hits\":{\"pothole\":2,\"boda\":0,\"askari\":0},\"health\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: during overlap: bodas, potholes, an askari checkpoint and a fully blocked road cost zero health, zero hits, no smash, no near-miss credit, no game over",
+      "ok": true,
+      "detail": "{\"bad\":[],\"hits\":{\"pothole\":0,\"boda\":0,\"askari\":0},\"health\":3}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: during overlap nothing is collected (stage and fundi items stay untaken) and the combo does not change",
+      "ok": true,
+      "detail": "{\"combo\":8,\"combo0\":8,\"timer\":5.199999999999985,\"timer0\":5.199999999999985}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: lane inputs are ignored while overlapping (no lane change, no event, no bump), and the matatu parks one lane outside the left edge (px -1)",
+      "ok": true,
+      "detail": "{\"lr\":[false,false,false,false],\"settledPx\":-1}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: overlap lasts OVERLAP_TIME (4.0 s), then the lane becomes the edge lane on that side (left: lane 0) and overlapEnd is emitted",
+      "ok": true,
+      "detail": "{\"dt\":4.0089999999999995,\"lane\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: the merge grants 0.9 s of invulnerability and an obstacle waiting in the re-entry lane cannot hurt (it is waved through), now or later",
+      "ok": true,
+      "detail": "{\"invAtEnd\":0.9,\"hit\":[true,true,true,false],\"hits\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: fairness: a boda that signals into the re-entry lane (lane 0) at close range is held back while the matatu is on the left shoulder",
+      "ok": true,
+      "detail": "{\"lane\":1,\"signal\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: side choice: lanes 0 and 1 go left (px -1, merge into lane 0); lanes 2 and 3 go right (px 4, merge into lane 3)",
+      "ok": true,
+      "detail": "[{\"l\":0,\"side\":-1,\"evSide\":-1,\"px\":-1,\"endLane\":0},{\"l\":1,\"side\":-1,\"evSide\":-1,\"px\":-1,\"endLane\":0},{\"l\":2,\"side\":1,\"evSide\":1,\"px\":4,\"endLane\":3},{\"l\":3,\"side\":1,\"evSide\":1,\"px\":4,\"endLane\":3}]"
+    },
+    {
+      "group": "overlap",
+      "name": "node: pause freezes the overlap and resume carries on from the same time left",
+      "ok": true,
+      "detail": "{\"tl\":2.5000000000000053,\"now\":1.5000000000000089}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: charging, firing, riding and ending an overlap never touch the seeded rng (0 calls)",
+      "ok": true,
+      "detail": "{\"rngCalls\":0}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: seed 7 autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)",
+      "ok": true,
+      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[14400,26107,1107.1704749184764,3,\"running\"],\"events\":214,\"md5\":\"8d6925f2976ab0a7dbe04994fe95629e\"}"
+    },
+    {
+      "group": "overlap",
+      "name": "node: seed 42 autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)",
+      "ok": true,
+      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[14400,40169,1164.6012535547197,3,\"running\"],\"events\":266,\"md5\":\"65ff6024bb9447b7659d22110a4424d4\"}"
+    },
+    {
       "group": "board",
       "name": "qualifying run: name form shown with the Top 5 line, input focused, an alias entry is already on the board and in storage",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Makanga 538\",\"score\":304,\"id\":\"mwcdpgzynyxtde\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Konda 293\",\"score\":304,\"id\":\"mwcgvtckbaepnu\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
     },
     {
       "group": "board",
       "name": "game over list highlights this run with aria-current and the alias",
       "ok": true,
-      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Makanga 538KSh 304\"],\"cur\":[\"Makanga 538\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Makanga 538\",\"overShown\":true}"
+      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Konda 293KSh 304\"],\"cur\":[\"Konda 293\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 293\",\"overShown\":true}"
     },
     {
       "group": "board",
@@ -603,7 +743,7 @@
       "group": "board",
       "name": "Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 304\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Makanga 538\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":304,\"id\":\"mwcdpgzynyxtde\"}]}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 304\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 293\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":304,\"id\":\"mwcgvtckbaepnu\"}]}"
     },
     {
       "group": "board",
@@ -639,7 +779,7 @@
       "group": "board",
       "name": "Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Rubani 265\",\"rows\":[\"#1Rubani 265KSh 304\",\"#2OldKSh 1\"],\"cur\":[\"Rubani 265\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Rubani 265\",\"overShown\":true},\"aliasBefore\":\"Rubani 265\"}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Konda 572\",\"rows\":[\"#1Konda 572KSh 304\",\"#2OldKSh 1\"],\"cur\":[\"Konda 572\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 572\",\"overShown\":true},\"aliasBefore\":\"Konda 572\"}"
     },
     {
       "group": "board",
@@ -669,7 +809,7 @@
       "group": "board",
       "name": "Skip button (by Enter) keeps the alias, hides the form and stays on the game over screen",
       "ok": true,
-      "detail": "{\"saved\":\"Saved as Makanga 886\"}"
+      "detail": "{\"saved\":\"Saved as Rubani 881\"}"
     },
     {
       "group": "board",
@@ -777,7 +917,7 @@
       "group": "text",
       "name": "1280x720 Top 5 sheet: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":50,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":54,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "phone",
@@ -789,7 +929,7 @@
       "group": "touch",
       "name": "tapping TWENDE starts the run and unlocks audio",
       "ok": true,
-      "detail": "{\"created\":true,\"state\":\"running\",\"muted\":false,\"musicOn\":true,\"level\":0.0266,\"bpm\":104,\"steps\":1,\"fired\":{\"start\":1}}"
+      "detail": "{\"created\":true,\"state\":\"running\",\"muted\":false,\"musicOn\":true,\"level\":0.0273,\"bpm\":104,\"steps\":1,\"fired\":{\"start\":1}}"
     },
     {
       "group": "touch",
@@ -807,7 +947,7 @@
       "group": "phone",
       "name": "touch targets are on screen and at least 44 px",
       "ok": true,
-      "detail": "{\"left\":{\"w\":83,\"h\":76,\"in\":true},\"horn\":{\"w\":181,\"h\":76,\"in\":true},\"right\":{\"w\":83,\"h\":76,\"in\":true},\"pause\":{\"w\":44,\"h\":44,\"in\":true}}"
+      "detail": "{\"left\":{\"w\":56,\"h\":76,\"in\":true},\"horn\":{\"w\":122,\"h\":76,\"in\":true},\"right\":{\"w\":56,\"h\":76,\"in\":true},\"pause\":{\"w\":44,\"h\":44,\"in\":true}}"
     },
     {
       "group": "phone",
@@ -819,7 +959,7 @@
       "group": "phone",
       "name": "matatu is drawn above the control bar",
       "ok": true,
-      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":46,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":142.4,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
+      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":47,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":146.3,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
     },
     {
       "group": "touch",
@@ -843,7 +983,7 @@
       "group": "phone",
       "name": "rotating to landscape re-lays out without errors",
       "ok": true,
-      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":52,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":424.3,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
+      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":51,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":424.3,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
     },
     {
       "group": "small",
@@ -933,13 +1073,13 @@
       "group": "layout",
       "name": "320x568 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
       "ok": true,
-      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+      "detail": "{\"n\":15,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
     },
     {
       "group": "text",
       "name": "320x568 How to play sheet: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":33,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":35,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -963,19 +1103,19 @@
       "group": "text",
       "name": "320x568 play: every visible HUD and control text is at least 14 px (combo chip included)",
       "ok": true,
-      "detail": "{\"hud\":{\"nodes\":7,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+      "detail": "{\"hud\":{\"nodes\":8,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
     },
     {
       "group": "popup",
       "name": "320x568 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":123,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
       "name": "320x568 pause: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":13,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":14,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -993,13 +1133,13 @@
       "group": "layout",
       "name": "844x390 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
       "ok": true,
-      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+      "detail": "{\"n\":15,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
     },
     {
       "group": "text",
       "name": "844x390 How to play sheet: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":33,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":35,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -1023,19 +1163,19 @@
       "group": "text",
       "name": "844x390 play: every visible HUD and control text is at least 14 px (combo chip included)",
       "ok": true,
-      "detail": "{\"hud\":{\"nodes\":8,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+      "detail": "{\"hud\":{\"nodes\":9,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
     },
     {
       "group": "popup",
       "name": "844x390 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":122,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
       "name": "844x390 pause: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":14,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":15,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -1053,13 +1193,13 @@
       "group": "layout",
       "name": "390x844 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
       "ok": true,
-      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+      "detail": "{\"n\":15,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
     },
     {
       "group": "text",
       "name": "390x844 How to play sheet: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":34,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":36,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -1083,19 +1223,19 @@
       "group": "text",
       "name": "390x844 play: every visible HUD and control text is at least 14 px (combo chip included)",
       "ok": true,
-      "detail": "{\"hud\":{\"nodes\":7,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+      "detail": "{\"hud\":{\"nodes\":8,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
     },
     {
       "group": "popup",
       "name": "390x844 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":120,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
       "name": "390x844 pause: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":13,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":14,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "fonts",
@@ -1113,19 +1253,19 @@
       "group": "text",
       "name": "1280x720 title: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":33,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":37,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
       "name": "1280x720 How to play sheet: all five cards, controls and Close on screen, nothing clipped, no scrolling",
       "ok": true,
-      "detail": "{\"n\":13,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
+      "detail": "{\"n\":15,\"allIn\":true,\"noneClipped\":true,\"scrolls\":false,\"sideways\":false}"
     },
     {
       "group": "text",
       "name": "1280x720 How to play sheet: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":58,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":68,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "layout",
@@ -1149,19 +1289,235 @@
       "group": "text",
       "name": "1280x720 play: every visible HUD and control text is at least 14 px (combo chip included)",
       "ok": true,
-      "detail": "{\"hud\":{\"nodes\":11,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
+      "detail": "{\"hud\":{\"nodes\":13,\"min\":14,\"bad\":[]},\"combo\":{\"min\":14,\"bad\":[]}}"
     },
     {
       "group": "popup",
       "name": "1280x720 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":122,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":123,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
       "name": "1280x720 pause: every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":17,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":19,\"min\":14,\"bad\":[]}"
+    },
+    {
+      "group": "overlap",
+      "name": "title controls text explains overlap (O or S) next to horn nitro",
+      "ok": true,
+      "detail": "←→ or AD switch lane\n\nSpace horn nitro\n\nO or S overlap\n\nP pause M mute\n\nTouch: tap the left or right side of the road, or use the on-screen buttons."
+    },
+    {
+      "group": "overlap",
+      "name": "How to play: one line \"fill it with passengers, then ride the shoulder past everything\" and the key in the keys block",
+      "ok": true,
+      "detail": "{\"rules\":\"Stage\\nPick up fares. Chain a combo.\\nHorn nitro\\nMeter full? Hoot and smash.\\nOverlap\\nFill it with passengers, then ride the shoulder past everything.\\nBoda boda\\nDodge. Blinker means a swerve.\\nPothole\\nDodge. A hit costs a heart.\\nKanjo checkpoint\\nTwo lanes. A heart and a fine.\",\"keys\":\"←→ or AD switch lane\\n\\nSpace horn nitro\\n\\nO or S overlap\\n\\nP pause M mute\\n\\nTouch: tap a side of the road, or use the buttons.\"}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more",
+      "ok": true,
+      "detail": "{\"box\":[\"btnLeft:96x64\",\"btnHorn:230x64\",\"btnOverlap:190x64\",\"btnRight:96x64\"],\"clipped\":false,\"font\":24}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: before any pickup the meter is empty and the button reads OVERLAP with the aria-label \"Overlap charging\"",
+      "ok": true,
+      "detail": "{\"overlap\":{\"meter\":0,\"ready\":false,\"active\":false,\"time\":0,\"side\":0,\"uses\":0},\"ui0\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Game started. TOM MBOYA ST\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: O, S and ArrowDown while charging each give overlapEmpty (source keyboard) and start nothing",
+      "ok": true,
+      "detail": "[\"charging\",\"charging\",\"charging\"]"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: typing O, S or ArrowDown inside a text box fires nothing (no overlapEmpty, keyboard input count unchanged)",
+      "ok": true,
+      "detail": "{\"e1\":3,\"e2\":3,\"kb1\":3,\"kb2\":3}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: a real run fills the meter ONLY through pickups: ready after at least 8 pickups, announced once (live region says \"Overlap ready\")",
+      "ok": true,
+      "detail": "{\"pickups\":8,\"attempts\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: the O key fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
+      "ok": true,
+      "detail": "{\"ov\":{\"i\":28,\"tick\":1795,\"t\":14.958,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":2},\"rdy\":true}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
+      "ok": true,
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.508,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: while active the matatu is drawn outside the road rect, on the right shoulder, fully on screen",
+      "ok": true,
+      "detail": "{\"n\":108,\"first\":{\"player\":{\"x\":811.6,\"y\":475,\"w\":75.3,\"h\":146.5},\"road\":{\"x\":472.6,\"y\":0,\"w\":334.9,\"h\":720},\"w\":1280,\"h\":720,\"side\":1,\"time\":3.28,\"px\":4},\"side\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side",
+      "ok": true,
+      "detail": "{\"bad\":[],\"end\":{\"i\":30,\"tick\":2276,\"t\":18.967,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
+      "ok": true,
+      "detail": "{\"banner\":true,\"floats\":[\"POLE! BODA\",\"OVERLAP READY!\",\"+KSh 50\",\"BEBA!\",\"RUDI BARABARANI\",\"+KSh 100\",\"BEBA! x2\"],\"pa\":{\"frames\":79,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: pressing Space (horn) and the lane keys while overlapping is refused: hornEmpty (reason overlap), no horn event, no nitro, horn meter not spent, no lane change",
+      "ok": true,
+      "detail": "{\"hornEmpty\":1,\"horn\":0,\"lane\":0,\"nitro\":false,\"meterBefore\":1,\"meterAfter\":1,\"laneBefore\":2,\"laneAfter\":2}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: sound: one overlap sfx and the ready chime were scheduled; the horn nitro sfx was never used for it",
+      "ok": true,
+      "detail": "{\"start\":1,\"hornShort\":3,\"lane\":13,\"pickup\":9,\"hit\":1,\"overlapReady\":1,\"overlap\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "1280x720: the live region announced \"Overlap ready\" when it filled (read right after the fill)",
+      "ok": true,
+      "detail": "Overlap ready"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more",
+      "ok": true,
+      "detail": "{\"box\":[\"btnLeft:84x56\",\"btnHorn:200x56\",\"btnOverlap:200x56\",\"btnRight:84x56\"],\"clipped\":false,\"font\":24}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: key S while charging gives overlapEmpty (keyboard) and the button stays \"OVERLAP / Overlap charging\"",
+      "ok": true,
+      "detail": "{\"events\":[\"overlapEmpty:keyboard\"],\"ui\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Game started. TOM MBOYA ST\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: key S fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
+      "ok": true,
+      "detail": "{\"ov\":{\"i\":30,\"tick\":2036,\"t\":16.967,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":-1,\"uses\":1,\"lane\":1},\"rdy\":true}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
+      "ok": true,
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.817,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.517,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: while active the matatu is drawn outside the road rect, on the left shoulder, fully on screen",
+      "ok": true,
+      "detail": "{\"n\":109,\"first\":{\"player\":{\"x\":288.2,\"y\":225,\"w\":40.8,\"h\":79.4},\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"w\":844,\"h\":390,\"side\":-1,\"time\":3.27,\"px\":-1},\"side\":-1}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side",
+      "ok": true,
+      "detail": "{\"bad\":[],\"end\":{\"i\":31,\"tick\":2517,\"t\":20.975,\"type\":\"overlapEnd\",\"side\":-1,\"lane\":0,\"uses\":1},\"invuln\":0.89}"
+    },
+    {
+      "group": "overlap",
+      "name": "844x390: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
+      "ok": true,
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":413,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more",
+      "ok": true,
+      "detail": "{\"box\":[\"btnLeft:56x76\",\"btnHorn:87x76\",\"btnOverlap:87x76\",\"btnRight:56x76\"],\"clipped\":false,\"font\":18}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: key ArrowDown while charging gives overlapEmpty (keyboard) and the button stays \"OVERLAP / Overlap charging\"",
+      "ok": true,
+      "detail": "{\"events\":[\"overlapEmpty:keyboard\"],\"ui\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Game started. TOM MBOYA ST\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: key ArrowDown fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
+      "ok": true,
+      "detail": "{\"ov\":{\"i\":28,\"tick\":2035,\"t\":16.958,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":2},\"rdy\":true}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
+      "ok": true,
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.517,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: while active the matatu is drawn outside the road rect, on the right shoulder, fully on screen",
+      "ok": true,
+      "detail": "{\"n\":109,\"first\":{\"player\":{\"x\":246.3,\"y\":389.1,\"w\":37.9,\"h\":73.7},\"road\":{\"x\":75.8,\"y\":0,\"w\":168.4,\"h\":568},\"w\":320,\"h\":568,\"side\":1,\"time\":3.28,\"px\":4},\"side\":1}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side",
+      "ok": true,
+      "detail": "{\"bad\":[],\"end\":{\"i\":30,\"tick\":2516,\"t\":20.967,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
+    },
+    {
+      "group": "overlap",
+      "name": "320x568: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
+      "ok": true,
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":413,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: the four controls (left, horn, overlap, right) are on screen, at least 44 px, side by side without overlap; the OVERLAP label is not clipped and is 14 px or more",
+      "ok": true,
+      "detail": "{\"box\":[\"btnLeft:56x76\",\"btnHorn:122x76\",\"btnOverlap:122x76\",\"btnRight:56x76\"],\"clipped\":false,\"font\":18}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: a tap on #btnOverlap while charging gives overlapEmpty (touch) and the button stays \"OVERLAP / Overlap charging\"",
+      "ok": true,
+      "detail": "{\"events\":[\"overlapEmpty:touch\"],\"ui\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Game started. TOM MBOYA ST\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: a tap on #btnOverlap fires OVERLAP when the meter is full: one overlap event (source touch, uses 1, side chosen from the lane), meter back to 0",
+      "ok": true,
+      "detail": "{\"ov\":{\"i\":30,\"tick\":2039,\"t\":16.992,\"type\":\"overlap\",\"source\":\"touch\",\"side\":-1,\"uses\":1,\"lane\":1},\"rdy\":true}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
+      "ok": true,
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.558,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: while active the matatu is drawn outside the road rect, on the left shoulder, fully on screen",
+      "ok": true,
+      "detail": "{\"n\":115,\"first\":{\"player\":{\"x\":43.6,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"w\":390,\"h\":844,\"side\":-1,\"time\":3.28,\"px\":-1},\"side\":-1}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side",
+      "ok": true,
+      "detail": "{\"bad\":[],\"end\":{\"i\":31,\"tick\":2520,\"t\":21,\"type\":\"overlapEnd\",\"side\":-1,\"lane\":0,\"uses\":1},\"invuln\":0.89}"
+    },
+    {
+      "group": "overlap",
+      "name": "390x844: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
+      "ok": true,
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":418,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
     },
     {
       "group": "nearmiss",
@@ -1191,7 +1547,7 @@
       "group": "banner",
       "name": "every banner seen during that 1280x720 play sat in the kerb gutter, never over the road",
       "ok": true,
-      "detail": "{\"samples\":81,\"overlapping\":0}"
+      "detail": "{\"samples\":80,\"overlapping\":0}"
     },
     {
       "group": "storage",
@@ -1227,13 +1583,13 @@
       "group": "determinism",
       "name": "same seed gives an identical event log in two browser runs",
       "ok": true,
-      "detail": "{\"events\":41}"
+      "detail": "{\"events\":42}"
     },
     {
       "group": "determinism",
       "name": "browser event log equals a pure Node replay of js/game.js (events are real simulation output)",
       "ok": true,
-      "detail": "{\"browser\":41,\"node\":41}"
+      "detail": "{\"browser\":42,\"node\":42}"
     },
     {
       "group": "audio",
@@ -1245,55 +1601,55 @@
       "group": "audio",
       "name": "demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)",
       "ok": true,
-      "detail": "{\"peakRms\":0.4329,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"ready\":1},\"pickups\":10}"
+      "detail": "{\"peakRms\":0.426,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"overlapReady\":1,\"ready\":1},\"pickups\":10}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame",
       "ok": true,
-      "detail": "{\"frames\":460,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":461,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: combo (BEBA) and fare popups were visible in the same frame",
       "ok": true,
-      "detail": "{\"frames\":293}"
+      "detail": "{\"frames\":296}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: HORN READY was visible at the same time as pickup text",
       "ok": true,
-      "detail": "{\"frames\":44}"
+      "detail": "{\"frames\":45}"
     },
     {
       "group": "popup",
       "name": "seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack",
       "ok": true,
-      "detail": "{\"slotFrames\":63,\"copy\":{\"HORN READY!\":63},\"bad\":[]}"
+      "detail": "{\"slotFrames\":64,\"copy\":{\"HORN READY!\":64},\"bad\":[]}"
     },
     {
       "group": "text",
       "name": "demo HUD (short demo tag included): every visible text is at least 14 px",
       "ok": true,
-      "detail": "{\"nodes\":10,\"min\":14,\"bad\":[]}"
+      "detail": "{\"nodes\":12,\"min\":14,\"bad\":[]}"
     },
     {
       "group": "audio",
       "name": "out/gameplay-demo.mp4 has a muxed audio stream that is not silent (ffmpeg volumedetect)",
       "ok": true,
-      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.36 s\",\"meanDb\":-11.8,\"maxDb\":0}"
+      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s\",\"meanDb\":-11.7,\"maxDb\":0}"
     },
     {
       "group": "demo",
       "name": "gameplay recording saved",
       "ok": true,
-      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9570 KB, with audio)"
+      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9709 KB, with audio)"
     },
     {
       "group": "shots",
       "name": "required screenshots and contact sheet exist",
       "ok": true,
-      "detail": "[\"01-title-desktop.png\",\"02-gameplay-desktop.png\",\"03-pickup-combo-desktop.png\",\"04-horn-nitro-desktop.png\",\"05-gameover-desktop.png\",\"06-title-phone.png\",\"07-gameplay-phone.png\",\"08-title-320x568.png\",\"09-title-844x390.png\",\"10-play-320x568.png\",\"11-play-844x390.png\",\"12-popups-fare-combo-hornready-desktop.png\",\"13-gameover-top5-320x568.png\",\"14-top5-sheet-320x568.png\",\"15-top5-sheet-1280x720.png\",\"20-320x568-howto.png\",\"20-320x568-pause.png\",\"20-320x568-play.png\",\"20-320x568-title.png\",\"30-844x390-howto.png\",\"30-844x390-pause.png\",\"30-844x390-play.png\",\"30-844x390-title.png\",\"40-390x844-howto.png\",\"40-390x844-pause.png\",\"40-390x844-play.png\",\"40-390x844-title.png\",\"50-1280x720-howto.png\",\"50-1280x720-pause.png\",\"50-1280x720-play.png\",\"50-1280x720-title.png\"]"
+      "detail": "[\"01-title-desktop.png\",\"02-gameplay-desktop.png\",\"03-pickup-combo-desktop.png\",\"04-horn-nitro-desktop.png\",\"05-gameover-desktop.png\",\"06-title-phone.png\",\"07-gameplay-phone.png\",\"08-title-320x568.png\",\"09-title-844x390.png\",\"10-play-320x568.png\",\"11-play-844x390.png\",\"12-popups-fare-combo-hornready-desktop.png\",\"13-gameover-top5-320x568.png\",\"14-top5-sheet-320x568.png\",\"15-top5-sheet-1280x720.png\",\"20-320x568-howto.png\",\"20-320x568-pause.png\",\"20-320x568-play.png\",\"20-320x568-title.png\",\"30-844x390-howto.png\",\"30-844x390-pause.png\",\"30-844x390-play.png\",\"30-844x390-title.png\",\"40-390x844-howto.png\",\"40-390x844-pause.png\",\"40-390x844-play.png\",\"40-390x844-title.png\",\"50-1280x720-howto.png\",\"50-1280x720-pause.png\",\"50-1280x720-play.png\",\"50-1280x720-title.png\",\"60-overlap-1280x720.png\",\"61-overlap-320x568.png\",\"61-overlap-844x390.png\"]"
     },
     {
       "group": "console",
@@ -1305,7 +1661,7 @@
       "group": "offline",
       "name": "every request made by every page was file:// (no network)",
       "ok": true,
-      "detail": "{\"requests\":429,\"nonFile\":0}"
+      "detail": "{\"requests\":473,\"nonFile\":0}"
     }
   ]
 }
