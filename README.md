@@ -104,7 +104,7 @@ node tests/run-tests.cjs
 
 The script looks for Playwright in this order: `$PLAYWRIGHT_PATH`, a normal `require('playwright')`, `./node_modules/playwright`, then the copy already on this box at `/home/box/claude-kits/vendor/herk-edit-kit/node_modules/playwright`. On another machine: `npm i -D playwright` in this folder, or set `PLAYWRIGHT_PATH`. Set `HEADED=1` to watch. Takes about 5 minutes. Exit code 0 means every check passed.
 
-What it does (181 checks):
+What it does (242 checks):
 
 1. Title from `file://`, no AudioContext before a gesture, source scan for dashes and network use, inline favicon declared. The scan allows exactly one kind of `url(`: a relative link from `css/style.css` to a `.ttf` that exists in `fonts/`. It still rejects `http(s)`, `//cdn`, `@import`, `fetch`, XHR, WebSocket, `<img>`, `<audio>`, `<video>` and any other `url(`. It also checks that no font size in the CSS is below 14 px and that Impact is gone.
 2. Real keyboard: Enter, arrows, A/D, kerb clamping, mute (measured as output RMS: audible, silent when muted, audible again), pause.

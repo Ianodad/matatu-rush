@@ -346,7 +346,21 @@ function overlapNodeChecks() {
   const hitsIn09 = S.evs.filter((e) => e.type === 'hit');
   S.secs(2.5);
   check(G, 'node: overlap lasts OVERLAP_TIME (4.0 s), then the lane becomes the edge lane on that side (left: lane 0) and overlapEnd is emitted', Math.abs((endEv.t - tStart) - C.OVERLAP_TIME) < 0.02 && endEv.lane === 0 && endEv.side === -1 && laneAtEnd === 0 && g.overlapTime === 0 && g.snapshot().overlap.active === false, { dt: endEv.t - tStart, lane: laneAtEnd });
-  check(G, 'node: the merge grants 0.9 s of invulnerability and an obstacle waiting in the re-entry lane cannot hurt (it is waved through), now or later', invAtEnd >= 0.89 && merge.slice(0, 3).some((e) => e.hit === true) && hitsIn09.length === 0 && hitTotal() === 0 && g.health === healthAtEnd && g.mode === 'running', { invAtEnd, hit: merge.map((e) => !!e.hit), hits: hitsIn09.length });
+  check(G, 'node: the merge grants 0.9 s of invulnerability and obstacles waiting in the re-entry lane cannot hurt (no hit, no health lost, now or later)', invAtEnd >= 0.89 && merge.slice(0, 3).some((e) => e.hit === true) && hitsIn09.length === 0 && hitTotal() === 0 && g.health === healthAtEnd && g.mode === 'running', { invAtEnd, hit: merge.map((e) => !!e.hit), hits: hitsIn09.length });
+
+  /* --- no near-miss credit for obstacles ghosted past on the shoulder, even with a lane change right after the merge --- */
+  S = overlapScene(); g = S.g;
+  S.charge(); g.lane = 1; g.px = 1;
+  g.input('overlap', 'keyboard');
+  S.until(() => g.overlapTime > 0 && g.overlapTime < 0.15, 1000);
+  const ghost = { pothole: S.pothole(0, 0.2), askari: S.askari(0, 0.5), boda: S.boda(0, 0.9, 2.5) };
+  S.until(() => S.count('overlapEnd').length > 0, 400);
+  const ghostNm0 = g.stats.nearMiss, ghostScore0 = g.score, ghostHorn0 = g.horn, ghostEv0 = S.evs.length;
+  g.input('right', 'keyboard');
+  S.secs(1.5);
+  const ghostIds = [ghost.pothole.id, ghost.askari.id, ghost.boda.id];
+  const ghostNm = S.evs.slice(ghostEv0).filter((e) => e.type === 'nearMiss' && ghostIds.indexOf(e.id) >= 0);
+  check(G, 'node: obstacles passed on the shoulder (pothole, askari, boda) earn no near-miss after the merge, even with a lane change right after: no event, no stat, no horn bonus', ghostNm.length === 0 && g.stats.nearMiss === ghostNm0 && hitTotal() === 0 && g.horn <= ghostHorn0, { ghostNm, nearMiss: g.stats.nearMiss, ghostNm0, score: g.score, ghostScore0, horn: g.horn, ghostHorn0 });
 
   /* --- fairness: a boda may not cut into the lane the matatu will merge back into --- */
   S = overlapScene(); g = S.g;
@@ -633,7 +647,7 @@ function overlapAssertions(tag, via, out, fireSource) {
   check(G, tag + ': the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels', !!out.readyUi && out.readyUi.label === 'OVERLAP!' && out.readyUi.aria === 'Overlap ready' && out.readyUi.ready && out.activeUi.length >= 3 && out.activeUi.every((u) => u.label === 'PITA!' && u.aria === 'Overlap active' && u.active && !u.ready) && out.activeUi[0].fill > out.activeUi[out.activeUi.length - 1].fill && !!out.afterUi && out.afterUi.label === 'OVERLAP' && out.afterUi.aria === 'Overlap charging' && !out.afterUi.ready && !out.afterUi.active, { ready: out.readyUi, first: out.activeUi[0], last: out.activeUi[out.activeUi.length - 1], after: out.afterUi });
   check(G, tag + ': while active the matatu is drawn outside the road rect, on the ' + (ov && ov.side < 0 ? 'left' : 'right') + ' shoulder, fully on screen', outsideRoad && onScreen, { n: sam.length, first: sam[0], side: ov && ov.side });
   const bad = out.evs.filter((e) => within(e) && /^(hit|smash|nearMiss|pickup|repair|gameover)$/.test(e.type) && (e.type === 'hit' || e.type === 'gameover' || e.i < end.i));
-  check(G, tag + ': from OVERLAP to 0.9 s after the merge: no hit, no smash, no near-miss, no pickup, no repair; merge lands in the edge lane on that side', !!end && bad.length === 0 && end.lane === (ov.side < 0 ? 0 : 3) && end.side === ov.side && out.afterState.player.invuln > 0.25, { bad: bad.slice(0, 3), end, invuln: out.afterState && out.afterState.player.invuln });
+  check(G, tag + ': from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side', !!end && bad.length === 0 && end.lane === (ov.side < 0 ? 0 : 3) && end.side === ov.side && out.afterState.player.invuln > 0.25, { bad: bad.slice(0, 3), end, invuln: out.afterState && out.afterState.player.invuln });
   check(G, tag + ': the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu', out.banner && out.floats.has('OVERLAP READY!') && out.pa.frames > 0 && out.pa.overlaps.length === 0 && out.pa.floatOffRoad === 0 && out.pa.slotBad.length === 0, { banner: out.banner, floats: Array.from(out.floats).slice(0, 8), pa: { frames: out.pa.frames, overlaps: out.pa.overlaps.length, off: out.pa.floatOffRoad, slotBad: out.pa.slotBad.length } });
 }
 async function ovlControlsFit(page, tag) {
@@ -743,6 +757,24 @@ async function overlapBrowserChecks(browser) {
     }
     const out = await watchOverlap(page, fire, { since: 0, shot: (w === 320 || w === 844) ? path.join(SHOTS, '61-overlap-' + tag + '.png') : null });
     overlapAssertions(tag, how, out, src);
+    await ctx.close();
+  }
+  /* ---- C. 280 px wide: the longest label (the ready one, OVERLAP!) must sit inside the button ---- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 280, height: 653 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+    const page = await ctx.newPage(); watch(page, 'overlap-280x653');
+    await page.goto(URL + '?seed=7&autostart=1&autopilot=1');
+    await page.waitForFunction(() => !!window.MatatuRush);
+    await fontsReady(page);
+    await waitFor(page, (x) => x.mode === 'running', 3000, 'overlap demo 280x653');
+    const r = await page.evaluate(() => {
+      const o = document.getElementById('btnOverlap'), l = document.getElementById('ovlLbl');
+      l.textContent = 'OVERLAP!'; /* measured in the same turn, before the game rewrites it */
+      const b = o.getBoundingClientRect(), t = l.getBoundingClientRect(), cs = getComputedStyle(l);
+      const bw = o.clientLeft;
+      return { btn: [b.left, b.right], label: [t.left, t.right], border: bw, font: parseFloat(cs.fontSize), vw: innerWidth };
+    });
+    check(G, '280x653: the ready label (OVERLAP!) is not clipped by the overlap button and is 14 px or more', r.vw === 280 && r.label[0] >= r.btn[0] + r.border - 0.01 && r.label[1] <= r.btn[1] - r.border + 0.01 && r.font >= 14, r);
     await ctx.close();
   }
 }

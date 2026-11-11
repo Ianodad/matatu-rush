@@ -657,6 +657,9 @@
               emit('nearMiss', { kind: e.type, id: e.id, lane: e.lane, playerLane: g.lane });
             }
           }
+        } else if (onShoulder && !e.nm && e.d < (lenOf(e) + C.P_LEN) / 2) {
+          /* level with or past the matatu while it rides the shoulder: never near-miss eligible after the merge */
+          e.nm = true;
         }
       }
 

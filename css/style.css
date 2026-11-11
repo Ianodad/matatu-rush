@@ -272,6 +272,10 @@ kbd {
   .lbl { letter-spacing: 0.14em; }
   .sub { letter-spacing: 0.02em; }
 }
+@media (max-width: 300px) {
+  /* the OVERLAP! ready label is 67 px at 18 px; the button has 63 px inside its border, so shrink it a little (still >= 14 px) */
+  .ovl .hl { font-size: 16px; letter-spacing: 0; }
+}
 /* narrow gutter: the combo chip sits in the left road-side strip, one column */
 #hud.narrow .combo { left: max(4px, env(safe-area-inset-left)); grid-template-columns: auto; justify-items: center; row-gap: 2px; padding: 5px 6px 6px; transform: rotate(-3deg); }
 #hud.narrow .cl { letter-spacing: 0.06em; }
