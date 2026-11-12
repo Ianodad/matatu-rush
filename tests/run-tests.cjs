@@ -903,8 +903,11 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await ctx.close();
   }
   {
-    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
+    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/online.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
     const bad = [], net = [], fontUrls = [], impact = [];
+    /* js/online.js is the ONLY file allowed to touch the network: XMLHttpRequest, and exactly these three https origins */
+    const ONLINE_HOSTS = ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://firestore.googleapis.com'];
+    const onlineUrls = [];
     for (const f of files) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
       if (/[\u2014\u2013]/.test(src)) bad.push(f);
@@ -912,6 +915,13 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
       let scan = src;
       if (f === 'css/style.css') {
         scan = src.replace(/url\("\.\.\/fonts\/([A-Za-z0-9-]+\.ttf)"\)/g, (m, name) => { fontUrls.push(name); return 'LOCALFONT'; });
+      }
+      if (f === 'js/online.js') {
+        /* relaxed for this file only: every absolute URL must be exactly one of the three hosts, and XHR / fetch( are allowed.
+           WebSocket, //cdn, @import, <img>, <audio>, <video> and url( are still rejected here like everywhere else. */
+        const urls = scan.match(/https?:\/\/[^\s'"`)]*/gi) || [];
+        for (const u of urls) { onlineUrls.push(u); if (ONLINE_HOSTS.indexOf(u) === -1) net.push(f + ' (url ' + u + ')'); }
+        scan = scan.replace(/https?:\/\/[^\s'"`)]*/gi, 'ALLOWEDHOST').replace(/fetch\(|XMLHttpRequest/g, 'ALLOWEDXHR');
       }
       if (/https?:\/\/|\/\/cdn|@import|fetch\(|XMLHttpRequest|WebSocket|<img|<audio|<video|url\(/i.test(scan)) net.push(f);
       if (/\bImpact\b|Haettenschweiler/.test(src)) impact.push(f);
@@ -926,7 +936,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('static', 'no font size below 14 px anywhere in css/style.css', small.length === 0, small);
     {
     check('static', 'no em or en dashes anywhere in shipped source (covers all on-screen text)', bad.length === 0, bad);
-    check('static', 'no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed)', net.length === 0, net);
+    check('static', 'no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed; js/online.js alone may use XHR and the three Google hosts)', net.length === 0, net);
+    check('static', 'js/online.js names exactly the three Google hosts (identitytoolkit, securetoken, firestore) and no other absolute URL', onlineUrls.length === 3 && ONLINE_HOSTS.every((h) => onlineUrls.indexOf(h) !== -1), onlineUrls);
     check('static', 'inline data: favicon is declared, so http serving never requests /favicon.ico', /<link rel="icon"[^>]*href="data:image\/png;base64,[A-Za-z0-9+\/=]+"/.test(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')));
     }
   }
