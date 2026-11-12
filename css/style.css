@@ -340,3 +340,9 @@ kbd {
 .nameform .boardnote { margin: 0 0 6px; }
 .boardbox .boardnote { margin: 4px 0 6px; text-align: left; }
 #board #boardLoading { margin: 8px auto 14px; }
+@media (max-height: 520px) {
+  #board .panel.small { padding: 12px 16px 10px; }
+  #board .h2 { margin-bottom: 6px; }
+  #board .boardnote { margin: 2px 0 8px; }
+  #board .boardnote.warn { margin: 0 0 6px; }
+}

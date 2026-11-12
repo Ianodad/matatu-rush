@@ -2,7 +2,9 @@
 
 A neon-night Nairobi lane-weaving arcade runner. Drive a graffiti matatu up a wet four-lane road, beba passengers at stages for fare, dodge boda bodas, potholes and kanjo (askari) checkpoints, and hoot for nitro.
 
-Fully offline: static HTML, CSS and classic scripts. No build step, no dependencies, no network, no image or audio files. All art is procedural Canvas, all sound is WebAudio synthesis. The only bundled assets are two open-licence font families in `fonts/` (see Fonts below).
+Static HTML, CSS and classic scripts. No build step, no dependencies, no image or audio files. All art is procedural Canvas, all sound is WebAudio synthesis. The only bundled assets are two open-licence font families in `fonts/` (see Fonts below).
+
+**Network use, exactly.** Opened from `file://` the game is fully offline: it makes no network request at all. Served over `http(s)` AND with a Firebase project filled in (see Shared Top 5 board below), it talks to exactly three Google hosts, `identitytoolkit.googleapis.com`, `securetoken.googleapis.com` and `firestore.googleapis.com`, only to read and post the shared Top 5. Until a project is configured (`CFG` in `js/online.js` is empty, as shipped) it is offline everywhere. There are no analytics, no SDK and no other host.
 
 ## Play
 
@@ -14,9 +16,40 @@ file:///workspace/fable-game/index.html
 
 Sound starts only after you press Start (or any key or tap in a run). Best score is stored in `localStorage` on this device.
 
-**Top 5 board.** Each device keeps its own Top 5 (`localStorage` key `matatuRush.top5`, no backend). A run that makes the board is entered at once under an alias such as `Dere 482`. The game over screen then offers a name box (Save name or Skip, Enter saves, Escape skips; leaving without touching it keeps the alias). The title has a "Top 5" button that opens the list. Demo runs never enter the board.
+**Top 5 board.** Each device keeps its own Top 5 (`localStorage` key `matatuRush.top5`); with a configured Firebase project the board is also shared across players (see Shared Top 5 board). A run that makes the board is entered at once under an alias such as `Dere 482`. The game over screen then offers a name box (Save name or Skip, Enter saves, Escape skips; leaving without touching it keeps the alias). The title has a "Top 5" button that opens the list. Demo runs never enter the board.
 
 **Overlap.** A second power, separate from the horn. "Overlapping" is Nairobi matatu slang for leaving the road and driving along the shoulder to get past traffic. The OVERLAP meter starts empty and is charged only by passenger pickups: the first charge takes 8 pickups (0.125 each) and every later charge fills 12 percent slower than the one before (0.11 per pickup, then 0.0968, and so on). When it is full, press O, S or Down, or tap the OVERLAP button: for 4 seconds the matatu rides the shoulder on the side it was already on (from lane 0 or 1 it goes left, from lane 2 or 3 it goes right). On the shoulder nothing can hurt it and nothing can be collected (no bodas, potholes or checkpoints, no near-miss credit, no stage pickups, no fundi items); lane and horn inputs are ignored, the combo clock holds, and the matatu blinks and its bar turns red for the last 0.8 s. It then merges into the edge lane on that side with 0.9 s of grace. It cannot start during horn nitro. The demo autopilot never uses it, so seeded demos and `tests/sim-balance.cjs` behave exactly as before.
+
+## Shared Top 5 board (optional)
+
+Off by default. When it is on, the "Top 5" sheet and the game over list show the best score of each of the top five devices ("Top 5, all players"), and a run that makes this device's Top 5 and beats this device's best is posted. The local per-device board stays as the fallback: if the shared board cannot be read the game shows this device's list with the note "Offline. Showing this device only." Under `file://` nothing changes and no note is shown.
+
+**What is stored and sent** (one Firestore document per device, `scores/{anonymous id}`): the display name (1 to 12 characters; the alias or the typed name), the score (a whole number), and the server time of the write. The anonymous id comes from Firebase Anonymous Auth (a random id kept in this browser's `localStorage`, key `matatuRush.auth`; no account, no email, no cookie). No other personal data is sent. Names and scores on the board are public, and the game says so on the Top 5 sheet and on the name box. A typed name that is not 1 to 12 ASCII letters, digits, space, dot, underscore or hyphen, or that contains a word on the blocklist, is replaced by the alias (for example `Dere 482`). Local keys used: `matatuRush.auth`, `matatuRush.pending` (one score waiting to be sent), `matatuRush.onlineBest` (last score the server accepted), `matatuRush.lastSend` (time of the last send, for the 10 s rate limit).
+
+**Behaviour.** At game over a qualifying run is queued under its alias. Save, Skip or Escape on the name box renames the pending record and sends it; it is also sent at page load, when a run starts (fire and forget) and when you return to the menu, so a player who never touches the box is still posted under the alias. No request is ever made while a run is active (an answer that arrives mid-run is held until the run ends). A network failure keeps the record and nothing retries in a loop; a rejection from the server rules (HTTP 400 or 403) drops it. Sends are spaced at least 11 s apart because the server allows one write per device per 10 s.
+
+**Configure** (needs a Firebase project, Firestore in native mode and Anonymous sign-in enabled):
+
+1. In `js/online.js` fill in `var CFG = { projectId: '', apiKey: '' };` with your project id and web API key (the key is public by design; restrict it to your site's referrer and to the Identity Toolkit and Firestore APIs in Google Cloud).
+2. In `.firebaserc` replace `matatu-rush-PLACEHOLDER` with the project id.
+3. Deploy the rules only: `firebase deploy --only firestore:rules` (`firebase.json` has no hosting section; the site itself is served by GitHub Pages or any static host).
+4. Add the site's host to the authorized domains of Firebase Authentication if you use a custom domain.
+
+**Server rules** (`firestore.rules`, deny by default): only `scores` is reachable; `get` is public and `list` only with `limit <= 10`; create and update only by the owner of the document (`request.auth.uid == docId`); the document has exactly `name`, `score`, `ts`; `score` is an integer from 1 to 5,000,000; `name` matches `^[A-Za-z0-9][A-Za-z0-9 ._-]{0,11}$` and its lower-case form contains no blocklisted stem; `ts` must equal the server time; an update may never lower the score and must come more than 10 s after the previous write; no deletes. The blocklist exists twice (in `js/online.js` and in the rules) and a test fails if the two differ.
+
+**What it cannot stop.** The server cannot replay a run, so a determined person can post any score up to the cap with a clean name; anonymous ids are free, so one person can create many entries and fill the five places; the blocklist is a speed bump (spaced letters, digits for letters and look-alike words get through); the web API key is public. Moderate the board from the Firebase console (delete a document) if needed, set a Google Cloud budget alert, and consider Firebase App Check if abuse appears.
+
+**Test the rules** (local emulators only; never touches a real project). The tooling is installed outside this repo, in a scratch folder (here `$SCRATCH`), never in the project:
+
+```
+mkdir -p $SCRATCH && cd $SCRATCH && npm init -y
+npm i firebase-tools@14 @firebase/rules-unit-testing firebase
+export NODE_PATH=$SCRATCH/node_modules
+./node_modules/.bin/firebase emulators:exec --config /path/to/matatu-rush/firebase.json \
+  --only firestore,auth --project demo-matatu "node /path/to/matatu-rush/tests/rules-test.cjs"
+```
+
+It needs Java 17 or newer (firebase-tools 14 runs on Java 17; version 15 asks for Java 21) and free ports 8081 (Firestore) and 9099 (Auth), as set in `firebase.json`. `tests/rules-test.cjs` is not part of `tests/run-tests.cjs`. It runs the rule cases (allow and deny, including every blocklist word in lower, upper, mixed case and embedded) and then drives the real `js/online.js` against the emulators: sign up, send, read back with `top`, refresh token, rate-limit wait, rejection. Exit code 0 means everything passed.
 
 ## Controls
 
@@ -50,11 +83,16 @@ css/style.css       layout and typography (@font-face for the bundled fonts, rel
 fonts/              Barlow Condensed Black Italic and Rajdhani (.ttf) with their OFL licence texts
 js/core.js          namespace, seeded RNG, safe localStorage wrapper, URL params
 js/game.js          deterministic 120 Hz simulation, spawner, collisions, autopilot, snapshot
+js/online.js        shared Top 5 over the Firebase REST API (off until CFG is filled in; the only file that uses the network)
 js/audio.js         WebAudio synth: dembow drums, bass, lead, all sound effects
 js/art.js           procedural art: matatu, bodas, stage, pothole, checkpoint, icons
 js/render.js        canvas renderer, scenery, particles, screen shake
 js/main.js          input, main loop, HUD updates, read-only test API
 tests/run-tests.cjs Playwright end to end suite
+tests/rules-test.cjs   Firestore rules + real online client against the local emulators (separate script)
+firestore.rules     server rules for the shared board (deploy with firebase deploy --only firestore:rules)
+firebase.json       rules and emulator ports only (no hosting)
+.firebaserc         placeholder project id
 tests/sim-balance.cjs  Node-only fairness / balance probe (no browser)
 out/                test evidence (screenshots, reports, recording)
 ```
@@ -102,11 +140,11 @@ Requirements: Node 18+, Playwright (any recent version), Google Chrome or Playwr
 node tests/run-tests.cjs
 ```
 
-The script looks for Playwright in this order: `$PLAYWRIGHT_PATH`, a normal `require('playwright')`, `./node_modules/playwright`, then the copy already on this box at `/home/box/claude-kits/vendor/herk-edit-kit/node_modules/playwright`. On another machine: `npm i -D playwright` in this folder, or set `PLAYWRIGHT_PATH`. Set `HEADED=1` to watch. Takes about 5 minutes. Exit code 0 means every check passed.
+The script looks for Playwright in this order: `$PLAYWRIGHT_PATH`, a normal `require('playwright')`, `./node_modules/playwright`, then the copy already on this box at `/home/box/claude-kits/vendor/herk-edit-kit/node_modules/playwright`. On another machine: `npm i -D playwright` in this folder, or set `PLAYWRIGHT_PATH`. Set `HEADED=1` to watch. Takes about 9 minutes. Exit code 0 means every check passed.
 
-What it does (242 checks):
+What it does (295 checks: 242 original, 1 added static check for the three hosts, 52 in the new `online` group):
 
-1. Title from `file://`, no AudioContext before a gesture, source scan for dashes and network use, inline favicon declared. The scan allows exactly one kind of `url(`: a relative link from `css/style.css` to a `.ttf` that exists in `fonts/`. It still rejects `http(s)`, `//cdn`, `@import`, `fetch`, XHR, WebSocket, `<img>`, `<audio>`, `<video>` and any other `url(`. It also checks that no font size in the CSS is below 14 px and that Impact is gone.
+1. Title from `file://`, no AudioContext before a gesture, source scan for dashes and network use, inline favicon declared. The scan allows exactly one kind of `url(`: a relative link from `css/style.css` to a `.ttf` that exists in `fonts/`. It still rejects `http(s)`, `//cdn`, `@import`, `fetch`, XHR, WebSocket, `<img>`, `<audio>`, `<video>` and any other `url(` in every file except `js/online.js`. That one file is allowed XHR and `fetch(`, but every absolute URL in it must be exactly one of the three Google origins (`https://identitytoolkit.googleapis.com`, `https://securetoken.googleapis.com`, `https://firestore.googleapis.com`) and all three must appear; WebSocket, `//cdn`, `@import`, media tags and `url(` stay rejected there too, and the dash check covers it. It also checks that no font size in the CSS is below 14 px and that Impact is gone.
 2. Real keyboard: Enter, arrows, A/D, kerb clamping, mute (measured as output RMS: audible, silent when muted, audible again), pause.
 3. A 26 s run steered only by real key presses (seed 7): pickups, combo, score reconciled against the event log, horn nitro, speed ramp, all obstacle types seen. Also: no two floating popups overlap in any sampled frame, the horn status only appears in its gutter slot, the AudioContext stays `running`, and the sound effect counters match the event log (one pickup sound per pickup, one horn, and so on).
 4. Seed 5: drives into a pothole, a boda and a checkpoint with real keys, checks hitbox overlap and hearts, game over screen (text sizes too), restart with Enter and R, best score in localStorage and after reload, corrupt stored value.
@@ -120,6 +158,7 @@ What it does (242 checks):
 6. localStorage throwing on access: boot, full run, restart.
 7. Seeded autopilot demo (seed 42, autostart, no gesture) twice in the browser plus a pure Node replay of `js/game.js`: all three event logs must be identical, and no AudioContext may exist.
 7b. Seed 7 demo started by a real click on "Watch demo": popup audit (combo and fare visible together, HORN READY visible with pickup text, no overlaps, slot off the road and clear of the matatu), audio audit, and the recording. The picture is a CDP screencast. The sound is the game's own WebAudio output: a test-side init script also feeds whatever is connected to the destination into a MediaRecorder. System ffmpeg muxes both, and `volumedetect` must show the audio stream is not silent.
+7c. Online shared board (group `online`; the existing groups still run from `file://`, and the final network report still requires every request of every other page to be `file://`). In Node (real `js/online.js`): the blocklist equals the one in `firestore.rules`, same score cap, same name pattern, the name test, the `enabled()` gate (false under `file://`, with an empty config, or on a non-http page), zero XHR under `file://`, the pending-record rules (one record, higher score kept, only above `onlineBest`, rename), corrupt storage. In the browser, pages are served from a tiny local Node http server on 127.0.0.1 with `window.MR_ONLINE_TEST` injected and all three Google hosts answered by `page.route` mocks (no real network; any other host is refused and counted): a fully configured `file://` page makes no request; `top` request shape and parsing of a realistic `runQuery` answer, malformed rows dropped; an `<img onerror>` name shown as text; Loading, error (HTTP 500) and empty states; highlight of the player's own row and the "Your best" line; the sheet at 320x568 and 844x390; sign-up once and token reuse; the commit body (typed name, integer score, `REQUEST_TIME` transform, no mask); game over queues, Save, Skip, Play again and Menu send as described; a blocklisted or non-ASCII name sends the alias; pending survives a reload with the network down and is sent at the next boot; refresh-token use and re-sign-up after an invalid token; a 403 drops the record; a second flush inside 11 s is delayed; no request is ever made while the mode is `running`.
 8. Contact sheet, console and network report.
 
 The steering "bot" in the tests lives in the test file. It reads `snapshot()` and presses real keys or taps real buttons. It never writes game state.
