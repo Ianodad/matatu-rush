@@ -1,33 +1,33 @@
 {
-  "generated": "2026-11-11T19:08:40.996Z",
+  "generated": "2026-11-15T10:15:01.628Z",
   "browser": "system Google Chrome",
   "url": "file:///Users/adera/My Work/projects/matatu-rush/index.html",
-  "passed": 242,
+  "passed": 323,
   "failed": 0,
-  "total": 242,
+  "total": 323,
   "notes": {
     "run": {
       "simSeconds": 26.49,
-      "dist": 168.11,
-      "score": 3228,
-      "pickups": 14,
-      "bestCombo": 9,
+      "dist": 178.02,
+      "score": 3928,
+      "pickups": 15,
+      "bestCombo": 10,
       "hits": {
         "pothole": 0,
         "boda": 0,
         "askari": 0
       },
       "nearMiss": 0,
-      "smashed": 1,
+      "smashed": 0,
       "speedStart": 5.5,
-      "speedEnd": 6.51,
-      "keyboardInputs": 24,
-      "dodged": 17
+      "speedEnd": 7.28,
+      "keyboardInputs": 26,
+      "dodged": 21
     },
     "popupsKeyboardRun": {
-      "frames": 601,
-      "maxFloats": 5,
-      "comboAndFareFrames": 361,
+      "frames": 588,
+      "maxFloats": 6,
+      "comboAndFareFrames": 420,
       "hornReadyWithPickupFrames": 47,
       "slotCopy": {
         "HORN CHARGING": 62,
@@ -40,15 +40,14 @@
         "running"
       ],
       "musicOn": true,
-      "sequencerSteps": 185,
-      "peakRms": 0.4168,
+      "sequencerSteps": 186,
+      "peakRms": 0.4197,
       "sfxFired": {
         "start": 1,
-        "lane": 22,
-        "pickup": 14,
+        "lane": 24,
+        "pickup": 15,
         "horn": 1,
         "hornShort": 1,
-        "smash": 1,
         "overlapReady": 1,
         "ready": 1,
         "zone": 1
@@ -58,8 +57,8 @@
       "runs": [
         {
           "run": 1,
-          "score": 295,
-          "simSeconds": 16.64,
+          "score": 346,
+          "simSeconds": 16.27,
           "hits": {
             "pothole": 1,
             "boda": 1,
@@ -69,8 +68,8 @@
         },
         {
           "run": 2,
-          "score": 304,
-          "simSeconds": 9.74,
+          "score": 205,
+          "simSeconds": 9.68,
           "hits": {
             "pothole": 3,
             "boda": 0,
@@ -90,23 +89,23 @@
         },
         {
           "kind": "boda",
-          "px": 1.9,
-          "entX": 1.76,
-          "d": 1.12,
+          "px": 1,
+          "entX": 1,
+          "d": 1.13,
           "health": 1,
           "fine": 0
         },
         {
           "kind": "askari",
-          "px": 1.08,
+          "px": 0.08,
           "entX": 0.5,
-          "d": 0.79,
+          "d": 0.8,
           "health": 0,
           "fine": 100
         },
         {
           "kind": "pothole",
-          "px": 0.08,
+          "px": 0,
           "entX": 0,
           "d": 0.89,
           "health": 2,
@@ -122,9 +121,9 @@
         },
         {
           "kind": "pothole",
-          "px": 1.5,
+          "px": 1.48,
           "entX": 1,
-          "d": 0.88,
+          "d": 0.39,
           "health": 0,
           "fine": 0
         }
@@ -133,7 +132,7 @@
     "phone": {
       "simSeconds": 12.37,
       "pickups": 5,
-      "touchInputs": 14,
+      "touchInputs": 16,
       "hits": {
         "pothole": 0,
         "boda": 0,
@@ -143,8 +142,8 @@
     "nearMissRepair": {
       "near": {
         "i": 8,
-        "tick": 565,
-        "t": 4.708,
+        "tick": 561,
+        "t": 4.675,
         "type": "nearMiss",
         "kind": "pothole",
         "id": 3,
@@ -154,8 +153,8 @@
       "nearHit": false,
       "repair": {
         "i": 15,
-        "tick": 1169,
-        "t": 9.742,
+        "tick": 1152,
+        "t": 9.6,
         "type": "repair",
         "lane": 0,
         "health": 3
@@ -181,34 +180,34 @@
       }
     },
     "demo": {
-      "events": 42,
-      "pickups": 13,
+      "events": 41,
+      "pickups": 14,
       "hits": 0
     },
     "demoAudio": {
-      "seed": 7,
+      "seed": 4,
       "simSeconds": 21.21,
-      "pickups": 10,
+      "pickups": 13,
       "hornReadyEvents": 1,
       "audioState": "running",
       "statesSeen": [
         "running"
       ],
       "sequencerSteps": 148,
-      "peakRms": 0.4306,
+      "peakRms": 0.417,
       "sfxFired": {
         "start": 1,
-        "lane": 17,
-        "pickup": 10,
+        "pickup": 13,
+        "lane": 16,
         "horn": 1,
         "overlapReady": 1,
         "ready": 1
       },
       "popups": {
-        "frames": 457,
+        "frames": 562,
         "maxFloats": 4,
-        "comboAndFareFrames": 293,
-        "hornReadyWithPickupFrames": 43,
+        "comboAndFareFrames": 397,
+        "hornReadyWithPickupFrames": 44,
         "slotFrames": 62,
         "slotCopy": {
           "HORN READY!": 62
@@ -216,11 +215,11 @@
       }
     },
     "videoAudio": {
-      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s",
+      "note": "WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.33 s",
       "meanDb": -11.7,
-      "maxDb": 0
+      "maxDb": -0.1
     },
-    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9630 KB, with audio)"
+    "video": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 10182 KB, with audio)"
   },
   "results": [
     {
@@ -279,9 +278,15 @@
     },
     {
       "group": "static",
-      "name": "no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed)",
+      "name": "no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed; js/online.js alone may use XHR and the three Google hosts)",
       "ok": true,
       "detail": "[]"
+    },
+    {
+      "group": "static",
+      "name": "js/online.js names exactly the three Google hosts (identitytoolkit, securetoken, firestore) and no other absolute URL",
+      "ok": true,
+      "detail": "[\"https://identitytoolkit.googleapis.com\",\"https://securetoken.googleapis.com\",\"https://firestore.googleapis.com\"]"
     },
     {
       "group": "static",
@@ -323,7 +328,7 @@
       "group": "audio",
       "name": "synth music actually reaches the output (analyser RMS > 0)",
       "ok": true,
-      "detail": "{\"peakRms\":0.399}"
+      "detail": "{\"peakRms\":0.3989}"
     },
     {
       "group": "audio",
@@ -341,13 +346,13 @@
       "group": "audio",
       "name": "mute button unmutes: sound returns",
       "ok": true,
-      "detail": "{\"rms\":0.3952}"
+      "detail": "{\"rms\":0.3997}"
     },
     {
       "group": "pause",
       "name": "P pauses: simulation tick frozen, pause screen shown",
       "ok": true,
-      "detail": "{\"tick\":553}"
+      "detail": "{\"tick\":552}"
     },
     {
       "group": "pause",
@@ -365,37 +370,37 @@
       "group": "run",
       "name": "all steering came from keyboard events, none from autopilot",
       "ok": true,
-      "detail": "{\"keyboard\":24,\"touch\":0,\"mouse\":0,\"autopilot\":0}"
+      "detail": "{\"keyboard\":26,\"touch\":0,\"mouse\":0,\"autopilot\":0}"
     },
     {
       "group": "pickup",
       "name": "real passenger pickups happened (>= 3)",
       "ok": true,
-      "detail": "{\"pickups\":14,\"passengers\":47}"
+      "detail": "{\"pickups\":15,\"passengers\":50}"
     },
     {
       "group": "pickup",
       "name": "every pickup had the matatu physically inside the stage bay",
       "ok": true,
-      "detail": "{\"worstLateral\":0.6000000000000001,\"worstAhead\":1.25,\"limits\":\"lateral < 0.62, ahead < 1.25 (values rounded to 0.01)\"}"
+      "detail": "{\"worstLateral\":0.55,\"worstAhead\":1.25,\"limits\":\"lateral < 0.62, ahead < 1.25 (values rounded to 0.01)\"}"
     },
     {
       "group": "combo",
       "name": "combo chain built and fares scale with it (fare = 50 x combo, x2 in nitro)",
       "ok": true,
-      "detail": "{\"bestCombo\":9,\"fares\":[50,100,150,200,250,100,100,150]}"
+      "detail": "{\"bestCombo\":10,\"fares\":[50,100,150,200,250,100,200,300]}"
     },
     {
       "group": "run",
       "name": "score equals the sum of logged events (distance + fares + bonuses - fines)",
       "ok": true,
-      "detail": "{\"score\":3228,\"fromEvents\":3228}"
+      "detail": "{\"score\":3928,\"fromEvents\":3928}"
     },
     {
       "group": "progress",
       "name": "speed escalates during the run",
       "ok": true,
-      "detail": "{\"start\":5.5,\"end\":6.51}"
+      "detail": "{\"start\":5.5,\"end\":7.28}"
     },
     {
       "group": "obstacles",
@@ -407,13 +412,13 @@
       "group": "fairness",
       "name": "obstacles passed in other lanes did no damage",
       "ok": true,
-      "detail": "{\"dodged\":17,\"hits\":0,\"health\":3}"
+      "detail": "{\"dodged\":21,\"hits\":0,\"health\":3}"
     },
     {
       "group": "horn",
       "name": "Space fires horn nitro from the keyboard when the meter is full",
       "ok": true,
-      "detail": "{\"i\":16,\"tick\":1441,\"t\":12.008,\"type\":\"horn\",\"source\":\"keyboard\",\"scattered\":1,\"lane\":0}"
+      "detail": "{\"i\":15,\"tick\":1441,\"t\":12.008,\"type\":\"horn\",\"source\":\"keyboard\",\"scattered\":1,\"lane\":1}"
     },
     {
       "group": "horn",
@@ -437,7 +442,7 @@
       "group": "popup",
       "name": "keyboard run: no two live floating popups (or the horn slot) ever overlap; combo and fare seen together",
       "ok": true,
-      "detail": "{\"frames\":601,\"comboAndFare\":361,\"maxFloats\":5,\"overlaps\":[]}"
+      "detail": "{\"frames\":588,\"comboAndFare\":420,\"maxFloats\":6,\"overlaps\":[]}"
     },
     {
       "group": "popup",
@@ -449,13 +454,13 @@
       "group": "audio",
       "name": "during the run the context stays running, music is sequencing and the output is audible",
       "ok": true,
-      "detail": "{\"state\":\"running\",\"steps\":185,\"peakRms\":0.4168}"
+      "detail": "{\"state\":\"running\",\"steps\":186,\"peakRms\":0.4197}"
     },
     {
       "group": "audio",
       "name": "sound effects were triggered by real game events: one pickup sfx per pickup, horn, lane and start",
       "ok": true,
-      "detail": "{\"start\":1,\"lane\":22,\"pickup\":14,\"horn\":1,\"hornShort\":1,\"smash\":1,\"overlapReady\":1,\"ready\":1,\"zone\":1}"
+      "detail": "{\"start\":1,\"lane\":24,\"pickup\":15,\"horn\":1,\"hornShort\":1,\"overlapReady\":1,\"ready\":1,\"zone\":1}"
     },
     {
       "group": "collision",
@@ -491,7 +496,7 @@
       "group": "gameover",
       "name": "health reaching zero ends the run and shows the game over screen with the right numbers",
       "ok": true,
-      "detail": "[{\"run\":1,\"score\":295,\"simSeconds\":16.64,\"hits\":{\"pothole\":1,\"boda\":1,\"askari\":1},\"mode\":\"gameover\"},{\"run\":2,\"score\":304,\"simSeconds\":9.74,\"hits\":{\"pothole\":3,\"boda\":0,\"askari\":0},\"mode\":\"gameover\"}]"
+      "detail": "[{\"run\":1,\"score\":346,\"simSeconds\":16.27,\"hits\":{\"pothole\":1,\"boda\":1,\"askari\":1},\"mode\":\"gameover\"},{\"run\":2,\"score\":205,\"simSeconds\":9.68,\"hits\":{\"pothole\":3,\"boda\":0,\"askari\":0},\"mode\":\"gameover\"}]"
     },
     {
       "group": "text",
@@ -509,13 +514,13 @@
       "group": "persist",
       "name": "best score is the max across runs, flagged as new best only when beaten, written to localStorage",
       "ok": true,
-      "detail": "{\"best\":304}"
+      "detail": "{\"best\":346}"
     },
     {
       "group": "persist",
       "name": "best score survives a page reload and shows on the title",
       "ok": true,
-      "detail": "Best fare: KSh 304"
+      "detail": "Best fare: KSh 346"
     },
     {
       "group": "storage",
@@ -527,7 +532,7 @@
       "group": "board",
       "name": "node: first qualifying run is inserted at once under an alias (matatu-crew word + 3 digits, max 12 chars) with rank 1",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Dere 307\",\"score\":444,\"id\":\"mwchl7r98m4q53\"}]}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Rubani 434\",\"score\":443,\"id\":\"mwho96dhybhoex\"}]}"
     },
     {
       "group": "board",
@@ -545,7 +550,7 @@
       "group": "board",
       "name": "node: after many runs the board never exceeds 5 entries and stays sorted by score, high to low",
       "ok": true,
-      "detail": "[504,444,444,444,411]"
+      "detail": "[505,443,443,443,411]"
     },
     {
       "group": "board",
@@ -719,25 +724,25 @@
       "group": "overlap",
       "name": "node: seed 7 autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)",
       "ok": true,
-      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[14400,26107,1107.1704749184764,3,\"running\"],\"events\":214,\"md5\":\"8d6925f2976ab0a7dbe04994fe95629e\"}"
+      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[14400,23948,1418.4237618765258,2,\"running\"],\"events\":226,\"md5\":\"167d65b39127f2e07409af4f7c8bdcbc\"}"
     },
     {
       "group": "overlap",
       "name": "node: seed 42 autopilot never uses overlap, and its score / distance / health / lane trace and event sequence are identical to the run captured BEFORE overlap existed (overlapReady notices aside)",
       "ok": true,
-      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[14400,40169,1164.6012535547197,3,\"running\"],\"events\":266,\"md5\":\"65ff6024bb9447b7659d22110a4424d4\"}"
+      "detail": "{\"never\":true,\"sameRows\":true,\"fin\":[12270,35677,1202.8711460128172,0,\"gameover\"],\"events\":251,\"md5\":\"5445cd2394c9ff9ab174b4503f1b2851\"}"
     },
     {
       "group": "board",
       "name": "qualifying run: name form shown with the Top 5 line, input focused, an alias entry is already on the board and in storage",
       "ok": true,
-      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Konda 630\",\"score\":304,\"id\":\"mwchlfogtg95uq\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
+      "detail": "{\"rank\":1,\"board\":[{\"name\":\"Rubani 894\",\"score\":205,\"id\":\"mwho9e8q11dwvv\"}],\"focus\":\"nameInput\",\"line\":\"You made the Top 5! Rank #1\"}"
     },
     {
       "group": "board",
       "name": "game over list highlights this run with aria-current and the alias",
       "ok": true,
-      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Konda 630KSh 304\"],\"cur\":[\"Konda 630\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 630\",\"overShown\":true}"
+      "detail": "{\"form\":true,\"focus\":\"nameInput\",\"saved\":\"\",\"rows\":[\"#1Rubani 894KSh 205\"],\"cur\":[\"Rubani 894\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Rubani 894\",\"overShown\":true}"
     },
     {
       "group": "board",
@@ -749,7 +754,7 @@
       "group": "board",
       "name": "Enter in the box saves (not restart): name stored trimmed and at most 12 chars, form gone, confirmation shown, focus on Play again, listed in the board",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 304\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 630\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":304,\"id\":\"mwchlfogtg95uq\"}]}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as m r m r\",\"rows\":[\"#1m r m rKSh 205\"],\"cur\":[\"m r m r\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Rubani 894\",\"overShown\":true},\"st\":[{\"name\":\"m r m r\",\"score\":205,\"id\":\"mwho9e8q11dwvv\"}]}"
     },
     {
       "group": "board",
@@ -767,7 +772,7 @@
       "group": "board",
       "name": "saved name survives a page reload and shows in the title Top 5 sheet (role dialog, aria-modal, focus on Close)",
       "ok": true,
-      "detail": "{\"open\":true,\"focus\":\"btnBoardClose\",\"rows\":[\"#1m r m rKSh 304\"],\"empty\":false,\"role\":\"dialog\",\"modal\":\"true\"}"
+      "detail": "{\"open\":true,\"focus\":\"btnBoardClose\",\"rows\":[\"#1m r m rKSh 205\"],\"empty\":false,\"role\":\"dialog\",\"modal\":\"true\"}"
     },
     {
       "group": "board",
@@ -785,7 +790,7 @@
       "group": "board",
       "name": "Escape in the name box acts like Skip: alias kept, form hidden, still on the game over screen (no jump to the title)",
       "ok": true,
-      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Dere 603\",\"rows\":[\"#1Dere 603KSh 304\",\"#2OldKSh 1\"],\"cur\":[\"Dere 603\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Dere 603\",\"overShown\":true},\"aliasBefore\":\"Dere 603\"}"
+      "detail": "{\"u\":{\"form\":false,\"focus\":\"btnAgain\",\"saved\":\"Saved as Konda 265\",\"rows\":[\"#1Konda 265KSh 205\",\"#2OldKSh 1\"],\"cur\":[\"Konda 265\"],\"rankLine\":\"You made the Top 5! Rank #1\",\"placeholder\":\"Konda 265\",\"overShown\":true},\"aliasBefore\":\"Konda 265\"}"
     },
     {
       "group": "board",
@@ -809,13 +814,13 @@
       "group": "board",
       "name": "qualifying run on a full board: form shown, board still exactly 5 and sorted high to low",
       "ok": true,
-      "detail": "{\"rank\":1,\"scores\":[304,1,1,1,1]}"
+      "detail": "{\"rank\":1,\"scores\":[205,1,1,1,1]}"
     },
     {
       "group": "board",
       "name": "Skip button (by Enter) keeps the alias, hides the form and stays on the game over screen",
       "ok": true,
-      "detail": "{\"saved\":\"Saved as Rubani 156\"}"
+      "detail": "{\"saved\":\"Saved as Rubani 349\"}"
     },
     {
       "group": "board",
@@ -849,9 +854,9 @@
     },
     {
       "group": "board",
-      "name": "a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row",
+      "name": "a real demo game over (autopilot seed 121, about 59 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row",
       "ok": true,
-      "detail": "{\"rank\":0,\"score\":8840,\"d\":{\"ls\":\"[{\\\"name\\\":\\\"Low 1\\\",\\\"score\\\":1,\\\"id\\\":\\\"low1\\\"},{\\\"name\\\":\\\"Low 2\\\",\\\"score\\\":1,\\\"id\\\":\\\"low2\\\"},{\\\"name\\\":\\\"Low 3\\\",\\\"score\\\":1,\\\"id\\\":\\\"low3\\\"},{\\\"name\\\":\\\"Low 4\\\",\\\"score\\\":1,\\\"id\\\":\\\"low4\\\"},{\\\"name\\\":\\\"Low 5\\\",\\\"score\\\":1,\\\"id\\\":\\\"low5\\\"}]\",\"form\":false,\"cur\":0,\"rows\":5,\"tag\":\"Demo over. Your turn, dere!\"}}"
+      "detail": "{\"rank\":0,\"score\":14788,\"d\":{\"ls\":\"[{\\\"name\\\":\\\"Low 1\\\",\\\"score\\\":1,\\\"id\\\":\\\"low1\\\"},{\\\"name\\\":\\\"Low 2\\\",\\\"score\\\":1,\\\"id\\\":\\\"low2\\\"},{\\\"name\\\":\\\"Low 3\\\",\\\"score\\\":1,\\\"id\\\":\\\"low3\\\"},{\\\"name\\\":\\\"Low 4\\\",\\\"score\\\":1,\\\"id\\\":\\\"low4\\\"},{\\\"name\\\":\\\"Low 5\\\",\\\"score\\\":1,\\\"id\\\":\\\"low5\\\"}]\",\"form\":false,\"cur\":0,\"rows\":5,\"tag\":\"Demo over. Your turn, dere!\"}}"
     },
     {
       "group": "board",
@@ -965,19 +970,19 @@
       "group": "phone",
       "name": "matatu is drawn above the control bar",
       "ok": true,
-      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":47,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":138.6,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
+      "detail": "{\"w\":390,\"h\":844,\"unit\":51.32,\"roadX\":92,\"roadW\":205,\"playerY\":652,\"dpr\":2,\"hudBottom\":79,\"banner\":{\"text\":\"TWENDE!\",\"zone\":\"hud\",\"x\":116,\"y\":79,\"w\":160,\"h\":17},\"shake\":0,\"particles\":48,\"floats\":[],\"slot\":null,\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"rightLane\":{\"x\":246.3,\"y\":0,\"w\":51.3,\"h\":844},\"player\":{\"x\":146.3,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"shopStrip\":35.9,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":35.9,\"h\":844},{\"x\":354.1,\"y\":0,\"w\":35.9,\"h\":844}]}"
     },
     {
       "group": "touch",
       "name": "tapping HORN fires nitro (source touch)",
       "ok": true,
-      "detail": "{\"i\":14,\"tick\":725,\"t\":6.042,\"type\":\"horn\",\"source\":\"touch\",\"scattered\":1,\"lane\":2}"
+      "detail": "{\"i\":14,\"tick\":723,\"t\":6.025,\"type\":\"horn\",\"source\":\"touch\",\"scattered\":1,\"lane\":2}"
     },
     {
       "group": "touch",
       "name": "touch-only play collects fares",
       "ok": true,
-      "detail": "{\"pickups\":5,\"inputs\":{\"keyboard\":0,\"touch\":14,\"mouse\":0,\"autopilot\":0},\"viaTouchRun\":5}"
+      "detail": "{\"pickups\":5,\"inputs\":{\"keyboard\":0,\"touch\":16,\"mouse\":0,\"autopilot\":0},\"viaTouchRun\":5}"
     },
     {
       "group": "touch",
@@ -989,7 +994,7 @@
       "group": "phone",
       "name": "rotating to landscape re-lays out without errors",
       "ok": true,
-      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":61,\"floats\":[{\"text\":\"+KSh 50\",\"x\":335.2,\"y\":561.4,\"w\":64.3,\"h\":20.2},{\"text\":\"BEBA!\",\"x\":334.5,\"y\":532.9,\"w\":39.7,\"h\":15.8}],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":333.6,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
+      "detail": "{\"w\":844,\"h\":390,\"unit\":45.35,\"roadX\":331,\"roadW\":181,\"playerY\":265,\"dpr\":2,\"hudBottom\":98,\"banner\":null,\"shake\":0,\"particles\":54,\"floats\":[],\"slot\":null,\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"rightLane\":{\"x\":467.3,\"y\":0,\"w\":45.3,\"h\":390},\"player\":{\"x\":424.3,\"y\":225,\"w\":40.8,\"h\":79.4},\"shopStrip\":281.4,\"shopsDrawn\":true,\"shops\":[{\"x\":0,\"y\":0,\"w\":281.4,\"h\":390},{\"x\":562.6,\"y\":0,\"w\":281.4,\"h\":390}]}"
     },
     {
       "group": "small",
@@ -1091,7 +1096,7 @@
       "group": "layout",
       "name": "320x568 play: closing the sheet returned to the title and Start began the run",
       "ok": true,
-      "detail": "{\"time\":6.01}"
+      "detail": "{\"time\":6.03}"
     },
     {
       "group": "layout",
@@ -1115,7 +1120,7 @@
       "group": "popup",
       "name": "320x568 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":126,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1151,7 +1156,7 @@
       "group": "layout",
       "name": "844x390 play: closing the sheet returned to the title and Start began the run",
       "ok": true,
-      "detail": "{\"time\":6.01}"
+      "detail": "{\"time\":6.03}"
     },
     {
       "group": "layout",
@@ -1175,7 +1180,7 @@
       "group": "popup",
       "name": "844x390 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":121,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":124,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1211,7 +1216,7 @@
       "group": "layout",
       "name": "390x844 play: closing the sheet returned to the title and Start began the run",
       "ok": true,
-      "detail": "{\"time\":6.01}"
+      "detail": "{\"time\":6.03}"
     },
     {
       "group": "layout",
@@ -1235,7 +1240,7 @@
       "group": "popup",
       "name": "390x844 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":120,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":122,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1277,7 +1282,7 @@
       "group": "layout",
       "name": "1280x720 play: closing the sheet returned to the title and Start began the run",
       "ok": true,
-      "detail": "{\"time\":6.01}"
+      "detail": "{\"time\":6.03}"
     },
     {
       "group": "layout",
@@ -1301,7 +1306,7 @@
       "group": "popup",
       "name": "1280x720 play: no two live floating popups overlap and all stay within the road width",
       "ok": true,
-      "detail": "{\"frames\":119,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":124,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "text",
@@ -1355,13 +1360,13 @@
       "group": "overlap",
       "name": "1280x720: the O key fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
       "ok": true,
-      "detail": "{\"ov\":{\"i\":28,\"tick\":1795,\"t\":14.958,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":2},\"rdy\":true}"
+      "detail": "{\"ov\":{\"i\":28,\"tick\":1773,\"t\":14.775,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":2},\"rdy\":true}"
     },
     {
       "group": "overlap",
       "name": "1280x720: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
       "ok": true,
-      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.504,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.508,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
     },
     {
       "group": "overlap",
@@ -1373,13 +1378,13 @@
       "group": "overlap",
       "name": "1280x720: from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side",
       "ok": true,
-      "detail": "{\"bad\":[],\"end\":{\"i\":30,\"tick\":2276,\"t\":18.967,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.88}"
+      "detail": "{\"bad\":[],\"end\":{\"i\":30,\"tick\":2254,\"t\":18.783,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.88}"
     },
     {
       "group": "overlap",
       "name": "1280x720: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
       "ok": true,
-      "detail": "{\"banner\":true,\"floats\":[\"POLE! BODA\",\"OVERLAP READY!\",\"+KSh 50\",\"BEBA!\",\"RUDI BARABARANI\",\"+KSh 100\",\"BEBA! x2\"],\"pa\":{\"frames\":81,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+      "detail": "{\"banner\":true,\"floats\":[\"POLE! BODA\",\"OVERLAP READY!\",\"+KSh 50\",\"BEBA!\",\"RUDI BARABARANI\",\"+KSh 100\",\"BEBA! x2\"],\"pa\":{\"frames\":82,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
     },
     {
       "group": "overlap",
@@ -1415,31 +1420,31 @@
       "group": "overlap",
       "name": "844x390: key S fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
       "ok": true,
-      "detail": "{\"ov\":{\"i\":28,\"tick\":2035,\"t\":16.958,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":2},\"rdy\":true}"
+      "detail": "{\"ov\":{\"i\":25,\"tick\":1941,\"t\":16.175,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":3},\"rdy\":true}"
     },
     {
       "group": "overlap",
       "name": "844x390: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
       "ok": true,
-      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.817,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.517,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.821,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.517,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
     },
     {
       "group": "overlap",
       "name": "844x390: while active the matatu is drawn outside the road rect, on the right shoulder, fully on screen",
       "ok": true,
-      "detail": "{\"n\":109,\"first\":{\"player\":{\"x\":515,\"y\":225,\"w\":40.8,\"h\":79.4},\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"w\":844,\"h\":390,\"side\":1,\"time\":3.27,\"px\":4},\"side\":1}"
+      "detail": "{\"n\":109,\"first\":{\"player\":{\"x\":515,\"y\":225,\"w\":40.8,\"h\":79.4},\"road\":{\"x\":331.3,\"y\":0,\"w\":181.4,\"h\":390},\"w\":844,\"h\":390,\"side\":1,\"time\":3.28,\"px\":4},\"side\":1}"
     },
     {
       "group": "overlap",
       "name": "844x390: from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side",
       "ok": true,
-      "detail": "{\"bad\":[],\"end\":{\"i\":30,\"tick\":2516,\"t\":20.967,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
+      "detail": "{\"bad\":[],\"end\":{\"i\":26,\"tick\":2422,\"t\":20.183,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
     },
     {
       "group": "overlap",
       "name": "844x390: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
       "ok": true,
-      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":413,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":370,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
     },
     {
       "group": "overlap",
@@ -1457,31 +1462,31 @@
       "group": "overlap",
       "name": "320x568: key ArrowDown fires OVERLAP when the meter is full: one overlap event (source keyboard, uses 1, side chosen from the lane), meter back to 0",
       "ok": true,
-      "detail": "{\"ov\":{\"i\":30,\"tick\":2036,\"t\":16.967,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":-1,\"uses\":1,\"lane\":1},\"rdy\":true}"
+      "detail": "{\"ov\":{\"i\":25,\"tick\":1941,\"t\":16.175,\"type\":\"overlap\",\"source\":\"keyboard\",\"side\":1,\"uses\":1,\"lane\":3},\"rdy\":true}"
     },
     {
       "group": "overlap",
       "name": "320x568: the button shows charging, then ready (OVERLAP!, ready pulse), then active (PITA!, bar draining), then charging again, with matching aria-labels",
       "ok": true,
-      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.817,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.521,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
+      "detail": "{\"ready\":{\"label\":\"OVERLAP!\",\"aria\":\"Overlap ready\",\"ready\":true,\"active\":false,\"fill\":1,\"live\":\"Overlap ready\"},\"first\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.817,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"last\":{\"label\":\"PITA!\",\"aria\":\"Overlap active\",\"ready\":false,\"active\":true,\"fill\":0.525,\"live\":\"Overlap. Riding the shoulder for 4 seconds.\"},\"after\":{\"label\":\"OVERLAP\",\"aria\":\"Overlap charging\",\"ready\":false,\"active\":false,\"fill\":0,\"live\":\"Back on the road.\"}}"
     },
     {
       "group": "overlap",
-      "name": "320x568: while active the matatu is drawn outside the road rect, on the left shoulder, fully on screen",
+      "name": "320x568: while active the matatu is drawn outside the road rect, on the right shoulder, fully on screen",
       "ok": true,
-      "detail": "{\"n\":110,\"first\":{\"player\":{\"x\":35.8,\"y\":389.1,\"w\":37.9,\"h\":73.7},\"road\":{\"x\":75.8,\"y\":0,\"w\":168.4,\"h\":568},\"w\":320,\"h\":568,\"side\":-1,\"time\":3.27,\"px\":-1},\"side\":-1}"
+      "detail": "{\"n\":110,\"first\":{\"player\":{\"x\":246.3,\"y\":389.1,\"w\":37.9,\"h\":73.7},\"road\":{\"x\":75.8,\"y\":0,\"w\":168.4,\"h\":568},\"w\":320,\"h\":568,\"side\":1,\"time\":3.27,\"px\":4},\"side\":1}"
     },
     {
       "group": "overlap",
       "name": "320x568: from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side",
       "ok": true,
-      "detail": "{\"bad\":[],\"end\":{\"i\":31,\"tick\":2517,\"t\":20.975,\"type\":\"overlapEnd\",\"side\":-1,\"lane\":0,\"uses\":1},\"invuln\":0.88}"
+      "detail": "{\"bad\":[],\"end\":{\"i\":26,\"tick\":2422,\"t\":20.183,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
     },
     {
       "group": "overlap",
       "name": "320x568: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
       "ok": true,
-      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":414,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":374,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
     },
     {
       "group": "overlap",
@@ -1499,7 +1504,7 @@
       "group": "overlap",
       "name": "390x844: a tap on #btnOverlap fires OVERLAP when the meter is full: one overlap event (source touch, uses 1, side chosen from the lane), meter back to 0",
       "ok": true,
-      "detail": "{\"ov\":{\"i\":30,\"tick\":2041,\"t\":17.008,\"type\":\"overlap\",\"source\":\"touch\",\"side\":-1,\"uses\":1,\"lane\":1},\"rdy\":true}"
+      "detail": "{\"ov\":{\"i\":25,\"tick\":1945,\"t\":16.208,\"type\":\"overlap\",\"source\":\"touch\",\"side\":1,\"uses\":1,\"lane\":3},\"rdy\":true}"
     },
     {
       "group": "overlap",
@@ -1509,21 +1514,21 @@
     },
     {
       "group": "overlap",
-      "name": "390x844: while active the matatu is drawn outside the road rect, on the left shoulder, fully on screen",
+      "name": "390x844: while active the matatu is drawn outside the road rect, on the right shoulder, fully on screen",
       "ok": true,
-      "detail": "{\"n\":116,\"first\":{\"player\":{\"x\":43.6,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"w\":390,\"h\":844,\"side\":-1,\"time\":3.28,\"px\":-1},\"side\":-1}"
+      "detail": "{\"n\":115,\"first\":{\"player\":{\"x\":300.2,\"y\":606.8,\"w\":46.2,\"h\":89.8},\"road\":{\"x\":92.4,\"y\":0,\"w\":205.3,\"h\":844},\"w\":390,\"h\":844,\"side\":1,\"time\":3.28,\"px\":4},\"side\":1}"
     },
     {
       "group": "overlap",
       "name": "390x844: from OVERLAP to the merge: no smash, near-miss, pickup or repair; no hit or game over until 0.9 s after the merge; merge lands in the edge lane on that side",
       "ok": true,
-      "detail": "{\"bad\":[],\"end\":{\"i\":31,\"tick\":2522,\"t\":21.017,\"type\":\"overlapEnd\",\"side\":-1,\"lane\":0,\"uses\":1},\"invuln\":0.88}"
+      "detail": "{\"bad\":[],\"end\":{\"i\":26,\"tick\":2426,\"t\":20.217,\"type\":\"overlapEnd\",\"side\":1,\"lane\":3,\"uses\":1},\"invuln\":0.89}"
     },
     {
       "group": "overlap",
       "name": "390x844: the activation banner (OVERLAP!) and the ready popup appeared; popups: none overlap, all stay within the road width, slot clear of road and matatu",
       "ok": true,
-      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":420,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
+      "detail": "{\"banner\":true,\"floats\":[\"+KSh 50\",\"BEBA!\",\"+KSh 100\",\"BEBA! x2\",\"+KSh 150\",\"+KSh 200\",\"BEBA! x4\",\"+KSh 250\"],\"pa\":{\"frames\":376,\"overlaps\":0,\"off\":0,\"slotBad\":0}}"
     },
     {
       "group": "overlap",
@@ -1535,7 +1540,7 @@
       "group": "nearmiss",
       "name": "a last moment swerve past a hazard emits nearMiss, with no hit on that hazard",
       "ok": true,
-      "detail": "{\"i\":8,\"tick\":565,\"t\":4.708,\"type\":\"nearMiss\",\"kind\":\"pothole\",\"id\":3,\"lane\":1,\"playerLane\":2}"
+      "detail": "{\"i\":8,\"tick\":561,\"t\":4.675,\"type\":\"nearMiss\",\"kind\":\"pothole\",\"id\":3,\"lane\":1,\"playerLane\":2}"
     },
     {
       "group": "nearmiss",
@@ -1553,7 +1558,7 @@
       "group": "repair",
       "name": "repair needed the matatu in that lane and pays KSh 25",
       "ok": true,
-      "detail": "{\"i\":15,\"tick\":1169,\"t\":9.742,\"type\":\"repair\",\"lane\":0,\"health\":3}"
+      "detail": "{\"i\":15,\"tick\":1152,\"t\":9.6,\"type\":\"repair\",\"lane\":0,\"health\":3}"
     },
     {
       "group": "banner",
@@ -1571,7 +1576,7 @@
       "group": "storage",
       "name": "full run to game over works, best kept in memory",
       "ok": true,
-      "detail": "{\"best\":304}"
+      "detail": "{\"best\":205}"
     },
     {
       "group": "storage",
@@ -1583,7 +1588,7 @@
       "group": "demo",
       "name": "autopilot plays through the same input path (source autopilot) and scores",
       "ok": true,
-      "detail": "{\"keyboard\":0,\"touch\":0,\"mouse\":0,\"autopilot\":25}"
+      "detail": "{\"keyboard\":0,\"touch\":0,\"mouse\":0,\"autopilot\":24}"
     },
     {
       "group": "audio",
@@ -1595,13 +1600,13 @@
       "group": "determinism",
       "name": "same seed gives an identical event log in two browser runs",
       "ok": true,
-      "detail": "{\"events\":42}"
+      "detail": "{\"events\":41}"
     },
     {
       "group": "determinism",
       "name": "browser event log equals a pure Node replay of js/game.js (events are real simulation output)",
       "ok": true,
-      "detail": "{\"browser\":42,\"node\":42}"
+      "detail": "{\"browser\":41,\"node\":41}"
     },
     {
       "group": "audio",
@@ -1613,29 +1618,29 @@
       "group": "audio",
       "name": "demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)",
       "ok": true,
-      "detail": "{\"peakRms\":0.4306,\"fired\":{\"start\":1,\"lane\":17,\"pickup\":10,\"horn\":1,\"overlapReady\":1,\"ready\":1},\"pickups\":10}"
+      "detail": "{\"peakRms\":0.417,\"fired\":{\"start\":1,\"pickup\":13,\"lane\":16,\"horn\":1,\"overlapReady\":1,\"ready\":1},\"pickups\":13}"
     },
     {
       "group": "popup",
-      "name": "seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame",
+      "name": "seed 4 demo: no two live floating popups (or the horn slot) overlap in any sampled frame",
       "ok": true,
-      "detail": "{\"frames\":457,\"maxFloats\":4,\"overlaps\":[]}"
+      "detail": "{\"frames\":562,\"maxFloats\":4,\"overlaps\":[]}"
     },
     {
       "group": "popup",
-      "name": "seed 7 demo: combo (BEBA) and fare popups were visible in the same frame",
+      "name": "seed 4 demo: combo (BEBA) and fare popups were visible in the same frame",
       "ok": true,
-      "detail": "{\"frames\":293}"
+      "detail": "{\"frames\":397}"
     },
     {
       "group": "popup",
-      "name": "seed 7 demo: HORN READY was visible at the same time as pickup text",
+      "name": "seed 4 demo: HORN READY was visible at the same time as pickup text",
       "ok": true,
-      "detail": "{\"frames\":43}"
+      "detail": "{\"frames\":44}"
     },
     {
       "group": "popup",
-      "name": "seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack",
+      "name": "seed 4 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack",
       "ok": true,
       "detail": "{\"slotFrames\":62,\"copy\":{\"HORN READY!\":62},\"bad\":[]}"
     },
@@ -1649,13 +1654,493 @@
       "group": "audio",
       "name": "out/gameplay-demo.mp4 has a muxed audio stream that is not silent (ffmpeg volumedetect)",
       "ok": true,
-      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.34 s\",\"meanDb\":-11.7,\"maxDb\":0}"
+      "detail": "{\"note\":\"WebAudio destination recorded with MediaRecorder (opus, 334 KB), offset 0.33 s\",\"meanDb\":-11.7,\"maxDb\":-0.1}"
     },
     {
       "group": "demo",
       "name": "gameplay recording saved",
       "ok": true,
-      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 9630 KB, with audio)"
+      "detail": "out/gameplay-demo.mp4 (657 frames, 21.9 s, 10182 KB, with audio)"
+    },
+    {
+      "group": "online",
+      "name": "node: the blocklist in js/online.js is identical (same words, same order) to the one in firestore.rules",
+      "ok": true,
+      "detail": "{\"client\":39,\"rules\":39,\"onlyClient\":[],\"onlyRules\":[]}"
+    },
+    {
+      "group": "online",
+      "name": "node: the suffix list (s, es, er, ing) in js/online.js is identical to the one in firestore.rules, and the rules match whole tokens: (^|.*[^a-z])(words)(suffixes)?([^a-z].*|$)",
+      "ok": true,
+      "detail": "{\"client\":[\"s\",\"es\",\"er\",\"ing\"],\"rules\":[\"s\",\"es\",\"er\",\"ing\"]}"
+    },
+    {
+      "group": "online",
+      "name": "node: SCORE_MAX in js/online.js equals the cap in firestore.rules (5,000,000)",
+      "ok": true,
+      "detail": "{\"rules\":5000000,\"client\":5000000}"
+    },
+    {
+      "group": "online",
+      "name": "node: the name pattern in firestore.rules is the one the client uses (1 to 12 chars, ASCII letters, digits, space . _ -)",
+      "ok": true,
+      "detail": "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,11}$"
+    },
+    {
+      "group": "online",
+      "name": "node: client name test: aliases and plain names pass; empty, 13 chars, leading space or hyphen, accents, HTML, quotes and blocklisted words (any case, embedded) fail",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "node: whole-token blocklist: Kumar, Kumari, Shitote, Shitanda, Himalaya, Mbooni, Kunyanga, Malayan, Scunthorpe and Pissarides are ALLOWED",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "group": "online",
+      "name": "node: every blocklist word is DENIED alone, in upper case, with digits around it (6word9), as a separate token (a word, word.x, x_word, 1-word) and with s, es, er, ing",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "group": "online",
+      "name": "node: enabled() is false under file:// even with a full config, false with an empty config, true only for http: or https: with projectId and apiKey",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "node: under file:// top, flush, submit and queue make zero XHR calls and store nothing",
+      "ok": true,
+      "detail": "{\"xhr\":0,\"q\":false,\"keys\":[]}"
+    },
+    {
+      "group": "online",
+      "name": "node: queue keeps ONE pending record and the higher score (a lower or equal one is ignored, a higher one replaces it)",
+      "ok": true,
+      "detail": "{\"name\":\"Rubani 333\",\"alias\":\"Rubani 333\",\"score\":900}"
+    },
+    {
+      "group": "online",
+      "name": "node: rename updates the pending name only (empty or missing record: no change)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "node: only a score above onlineBest is queued; 0, negative, NaN, text and above-cap scores never are",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "node: corrupt stored pending, auth and onlineBest read as empty and do not throw",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "sim: two tabs on shared storage: B (900) flushed right after A (500) sent waits for the window (nothing at 0 s or 5 s), then sends exactly once; the server holds 900, B's pending record is gone, nothing is lost",
+      "ok": true,
+      "detail": "{\"q\":true,\"early\":0,\"mid\":0,\"n\":1,\"server\":{\"score\":900,\"name\":\"Tab B\",\"ts\":1700000011050,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"pend\":null}"
+    },
+    {
+      "group": "online",
+      "name": "sim: a \"too soon\" 403 KEEPS the pending record (900), counts attempts = 1 and does not touch onlineBest",
+      "ok": true,
+      "detail": "{\"r1\":[[\"retry\",null]],\"kept\":{\"name\":\"Tab B\",\"alias\":\"Tab B\",\"score\":900,\"attempts\":1},\"server\":{\"score\":500,\"name\":\"Tab A\",\"ts\":1700000000000,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0}}"
+    },
+    {
+      "group": "online",
+      "name": "sim: the retry waits 11 s after the answer (nothing at +6 s), then first re-reads the server copy (one GET) and sends once; the 900 lands and the record is cleared",
+      "ok": true,
+      "detail": "{\"quiet\":1,\"gets\":1,\"n\":2,\"server\":{\"score\":900,\"name\":\"Tab B\",\"ts\":1700000014100,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"pend\":null}"
+    },
+    {
+      "group": "online",
+      "name": "sim: slow answer: a follow-up 11.1 s after the request left (8.1 s after the answer) is NOT sent; it goes out 11 s after the answer and the server accepts it (no 403)",
+      "ok": true,
+      "detail": "{\"t0\":1,\"t1\":1,\"n\":2,\"server\":{\"score\":900,\"name\":\"Slow\",\"ts\":1700000014050,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0}}"
+    },
+    {
+      "group": "online",
+      "name": "sim: a 403 that never goes away: attempts 1, 2, 3 are 11 s or more apart (nothing at +10 s), the record is dropped after the third, and nothing more is sent ever after",
+      "ok": true,
+      "detail": "{\"n\":[1,1,2,2,3],\"p1\":{\"name\":\"Nope\",\"alias\":\"Nope\",\"score\":700,\"attempts\":1},\"p3\":{\"name\":\"Nope\",\"alias\":\"Nope\",\"score\":700,\"attempts\":2},\"p5\":null,\"at\":[0,11100,22200]}"
+    },
+    {
+      "group": "online",
+      "name": "sim: 429 keeps the record with attempts 1; 400 drops it at once with no retry; a 500 keeps it with no retry loop",
+      "ok": true,
+      "detail": "{\"k429\":{\"name\":\"Busy\",\"alias\":\"Busy\",\"score\":700,\"attempts\":1},\"r\":[[\"rejected\",null]],\"c\":1}"
+    },
+    {
+      "group": "online",
+      "name": "sim: after a 403 the retry re-reads the server copy: same score and same name clears the record without sending (onlineBest resynced); same score but another name is a rename and is sent",
+      "ok": true,
+      "detail": "{\"a\":[1,0,null],\"b\":[1,1,{\"score\":900,\"name\":\"Same\",\"ts\":1700000000000,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0}]}"
+    },
+    {
+      "group": "online",
+      "name": "sim: a record cleared by another tab while this tab waited is not sent (the pending record is re-read after the wait); queue keeps the higher score",
+      "ok": true,
+      "detail": "{\"sent\":1,\"pend\":{\"name\":\"Third\",\"alias\":\"Third\",\"score\":300}}"
+    },
+    {
+      "group": "online",
+      "name": "sim: before sending the client checks what the rules check: a score below onlineBest is dropped unsent, a blocklisted name falls back to the alias, a bad name with a bad alias is dropped unsent",
+      "ok": true,
+      "detail": "{\"lowOk\":true,\"aliasSent\":true,\"n\":1,\"r1\":[[\"stale\",null]],\"r3\":[[\"badname\",null]]}"
+    },
+    {
+      "group": "online",
+      "name": "sim: the send time is stored in shared storage (matatuRush.lastSend) from the injected clock, stamped at the request and again at the answer",
+      "ok": true,
+      "detail": "{\"sent\":1700000000000,\"now\":1700000000000}"
+    },
+    {
+      "group": "online",
+      "name": "sim: clock a year ahead for a send, then corrected: the stored time is repaired, the next flush sends after exactly one window (nothing at 10.9 s, sent by 11.1 s), is not stuck busy, and the flush after it works too",
+      "ok": true,
+      "detail": "{\"first\":1,\"storedAhead\":true,\"r2\":[[null,{\"sent\":true,\"name\":\"Ahead\",\"score\":200}]],\"rep\":true,\"early\":1,\"sent\":2,\"ok2\":true,\"r3\":[[null,{\"sent\":true,\"name\":\"Ahead\",\"score\":300}]],\"n\":3,\"server\":{\"score\":300,\"name\":\"Ahead\",\"ts\":1700000034100,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"timers\":0}"
+    },
+    {
+      "group": "online",
+      "name": "sim: clock set back a year in the middle of a wait: the wait is NOT repeated, the request goes out when the one window is over (11.1 s after the flush started), the pending record is cleared and no timer is left running",
+      "ok": true,
+      "detail": "{\"j0\":1,\"j1\":2,\"server\":{\"score\":200,\"name\":\"Jump\",\"ts\":1700000011050,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"pend\":null,\"timers\":0}"
+    },
+    {
+      "group": "online",
+      "name": "sim: clock a year in the past for a send, then corrected: the stored time is a year old, so the next flush sends at once (no wait, no timer) and the server holds the new score",
+      "ok": true,
+      "detail": "{\"n\":2,\"server\":{\"score\":200,\"name\":\"Past\",\"ts\":1700000012000,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"pend\":null,\"timers\":0}"
+    },
+    {
+      "group": "online",
+      "name": "sim: five more flush calls during a wait all answer \"busy\", do not push the send later (it still goes out 11.05 s after the first call), and do not send twice",
+      "ok": true,
+      "detail": "{\"busy\":[[[\"busy\",null]],[[\"busy\",null]],[[\"busy\",null]],[[\"busy\",null]],[[\"busy\",null]]],\"midN\":1,\"n\":2,\"server\":{\"score\":200,\"name\":\"Wait\",\"ts\":1700000011050,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"timers\":0}"
+    },
+    {
+      "group": "online",
+      "name": "sim: watchdog: a flush whose request never answers is \"busy\" at 30 s (no second send), a new flush may start after 45 s and sends, the late answer of the dead one does no harm, and flushing is never stuck",
+      "ok": true,
+      "detail": "{\"h1\":[[\"retry\",null]],\"h2\":[[\"busy\",null]],\"h3\":[[null,{\"sent\":true,\"name\":\"Hung\",\"score\":100}]],\"h4\":[[null,{\"sent\":true,\"name\":\"Hung\",\"score\":300}]],\"n30\":1,\"n\":3,\"server\":{\"score\":300,\"name\":\"Hung\",\"ts\":1700000058000,\"always403\":false,\"status\":0,\"tokenStatus\":200,\"getStatus\":0},\"pend\":null}"
+    },
+    {
+      "group": "online",
+      "name": "sim: refresh answered 400 or 403: one fresh sign-up (exactly one /v1/token call and one signUp), the new id is stored and used in the commit, the record is sent; refresh answered 500: no sign-up, record kept",
+      "ok": true,
+      "detail": "{\"out\":[{\"code\":400,\"r\":[[null,{\"sent\":true,\"name\":\"Resign\",\"score\":100}]],\"signups\":2,\"tokenCalls\":1,\"uid\":\"sim2\",\"commits\":1,\"doc\":\"projects/p/databases/(default)/documents/scores/sim2\",\"server\":100},{\"code\":403,\"r\":[[null,{\"sent\":true,\"name\":\"Resign\",\"score\":100}]],\"signups\":2,\"tokenCalls\":1,\"uid\":\"sim2\",\"commits\":1,\"doc\":\"projects/p/databases/(default)/documents/scores/sim2\",\"server\":100}],\"r5\":[[\"server\",null]],\"signups5\":0}"
+    },
+    {
+      "group": "online",
+      "name": "sim: after a refresh 403 the stored anonymous id is a NEW id (not the old one) and the commit is written under it",
+      "ok": true,
+      "detail": "{\"auth\":\"{\\\"uid\\\":\\\"sim7\\\",\\\"refreshToken\\\":\\\"r\\\"}\",\"doc\":\"projects/p/databases/(default)/documents/scores/sim7\"}"
+    },
+    {
+      "group": "online",
+      "name": "sim: own-entry read fails (HTTP 500 or 403) with a record at attempts 1: the send still goes out in the same flush and is cleared when accepted (never stuck unsent)",
+      "ok": true,
+      "detail": "[{\"st\":500,\"r\":[[null,{\"sent\":true,\"name\":\"ReadFail\",\"score\":800}]],\"gets\":1,\"commits\":1,\"server\":800,\"pend\":null},{\"st\":403,\"r\":[[null,{\"sent\":true,\"name\":\"ReadFail\",\"score\":800}]],\"gets\":1,\"commits\":1,\"server\":800,\"pend\":null}]"
+    },
+    {
+      "group": "online",
+      "name": "sim: a failed read counts as an attempt: read fail + refused send from attempts 1 reaches 3 and drops the record after ONE send; attempts 2 + failed read drops it unsent; a read with no answer is not counted and the send goes ahead",
+      "ok": true,
+      "detail": "{\"b\":[1,null,[[\"rejected\",null]]],\"c\":[0,null,[[\"rejected\",null]]],\"d\":[1,null,[[null,{\"sent\":true,\"name\":\"ReadFail\",\"score\":800}]]]}"
+    },
+    {
+      "group": "online",
+      "name": "file://: with a full config MR.online.enabled() is false, boot and opening Top 5 make no request at all, and the sheet is the plain local one (no note, no privacy line, no Loading)",
+      "ok": true,
+      "detail": "{\"gate\":false,\"xhr\":0,\"mock\":0,\"stray\":[],\"ui\":{\"head\":\"TOP 5\",\"rows\":[\"#1Local OneKSh 777\"],\"note\":false,\"priv\":false,\"loading\":false}}"
+    },
+    {
+      "group": "online",
+      "name": "http: enabled() is true with a config; booting with nothing pending sends no request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "top() parses a realistic runQuery answer: keeps good rows, drops rows with a missing or non-string name, double or negative or zero or junk score, bad id, blank name, non-objects; names cut to 12",
+      "ok": true,
+      "detail": "{\"e\":null,\"rows\":[{\"name\":\"Wanjiru K\",\"score\":90000,\"id\":\"uidAAAA1\"},{\"name\":\"<img onerror\",\"score\":80000,\"id\":\"uidBBBB2\"},{\"name\":\"Mwangi Kamau\",\"score\":70000,\"id\":\"uidCCCC3\"},{\"name\":\"Last Good\",\"score\":20000,\"id\":\"uidKKKK1\"}]}"
+    },
+    {
+      "group": "online",
+      "name": "top() sends one POST to the firestore host :runQuery for scores, orderBy score DESCENDING, limit 5, with no Authorization header",
+      "ok": true,
+      "detail": "{\"q\":{\"host\":\"firestore.googleapis.com\",\"path\":\"/v1/projects/test-proj/databases/(default)/documents:runQuery\",\"auth\":\"\",\"search\":\"?key=test-key\"},\"qb\":{\"structuredQuery\":{\"from\":[{\"collectionId\":\"scores\"}],\"orderBy\":[{\"field\":{\"fieldPath\":\"score\"},\"direction\":\"DESCENDING\"}],\"limit\":5}}}"
+    },
+    {
+      "group": "online",
+      "name": "opening Top 5 online shows \"Loading...\" (not the empty state), the shared heading \"Top 5, all players\" and the public-data note while the request is out",
+      "ok": true,
+      "detail": "{\"open\":true,\"head\":\"Top 5, all players\",\"loading\":true,\"loadTxt\":\"Loading...\",\"listHidden\":true,\"emptyHidden\":true,\"note\":false,\"priv\":\"Names and scores on this board are public.\"}"
+    },
+    {
+      "group": "online",
+      "name": "a server name like <img onerror=...> is shown as text (no element is created, no dialog, no script ran) and the list has the four good rows",
+      "ok": true,
+      "detail": "{\"rows\":[\"#1Wanjiru KKSh 90,000\",\"#2<img onerrorKSh 80,000\",\"#3Mwangi KamauKSh 70,000\",\"#4Last GoodKSh 20,000\"],\"imgs\":0,\"html\":\"<li><span class=\\\"rk\\\">#1</span><span class=\\\"nm\\\">Wanjiru K</span><span class=\\\"sc\\\">KSh 90,000</span></li><li><span class=\\\"rk\\\">#2</span><span class=\\\"nm\\\">&lt;img onerror</span><span class=\\\"sc\\\">KSh 80,000</span></li><li><span class=\\\"rk\\\">#3</span><span class=\\\"nm\\\">Mwangi Kamau</span><span class=\\\"sc\\\">KSh 70,000</span></li><li><span class=\\\"rk\\\">#4</span><span class=\\\"nm\\\">Last Good</span><span class=\\\"sc\\\">KSh 20,000</span></li>\",\"loading\":false,\"note\":false,\"me\":0,\"yours\":false,\"aria\":\"Top 5 fares, all players\"}"
+    },
+    {
+      "group": "online",
+      "name": "with no local uid nothing is highlighted and there is no \"Your best\" line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "the row whose id equals the local uid gets aria-current=\"true\" and the highlight class; no \"Your best\" line when the player is in the list",
+      "ok": true,
+      "detail": "{\"cur\":[{\"t\":\"Mama Pima\",\"cls\":\"me\"}],\"yours\":false}"
+    },
+    {
+      "group": "online",
+      "name": "a player outside the shared top 5 sees one extra line \"Your best: KSh 4,321\" under the list",
+      "ok": true,
+      "detail": "{\"rows\":5,\"me\":0,\"yours\":\"Your best: KSh 4,321\"}"
+    },
+    {
+      "group": "online",
+      "name": "online Top 5 sheet at 320x568: all text 14 px or more, no sideways scroll, Close button can be brought fully on screen",
+      "ok": true,
+      "detail": "{\"small\":[],\"closeIn\":true,\"noScroll\":true,\"sideways\":false,\"n\":19}"
+    },
+    {
+      "group": "online",
+      "name": "online Top 5 sheet at 844x390: all text 14 px or more, no sideways scroll, Close button can be brought fully on screen",
+      "ok": true,
+      "detail": "{\"small\":[],\"closeIn\":true,\"noScroll\":false,\"sideways\":false,\"n\":19}"
+    },
+    {
+      "group": "online",
+      "name": "when the shared board cannot be fetched (HTTP 500) the sheet shows this device's own list, the heading \"TOP 5\" and the note \"Offline. Showing this device only.\"; Loading is gone",
+      "ok": true,
+      "detail": "{\"mid\":true,\"E\":{\"note\":\"Offline. Showing this device only.\",\"head\":\"TOP 5\",\"rows\":[\"#1Local OneKSh 777\",\"#2Local TwoKSh 500\"],\"priv\":false,\"loading\":false,\"aria\":\"Top 5 fares on this device\"}}"
+    },
+    {
+      "group": "online",
+      "name": "an empty shared board shows the \"No fares yet\" message, not an error note",
+      "ok": true,
+      "detail": "{\"empty\":true,\"list\":true,\"note\":false}"
+    },
+    {
+      "group": "online",
+      "name": "closing the sheet while the request is in the air: the late answer changes nothing visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "online",
+      "name": "sign-up happens once and the access token is reused: two sends, one signUp, no refresh, same Bearer token and same document",
+      "ok": true,
+      "detail": "{\"a\":{\"err\":null,\"val\":{\"name\":\"Mama Pima\",\"score\":1000}},\"b\":{\"err\":null,\"val\":{\"name\":\"Mama Pima\",\"score\":2000}},\"signups\":1,\"refreshes\":0,\"auth\":[\"Bearer id-1\",\"Bearer id-1\"]}"
+    },
+    {
+      "group": "online",
+      "name": "sign-up request: POST to the identitytoolkit host /v1/accounts:signUp?key=... with {\"returnSecureToken\":true}; the uid and refresh token are stored under matatuRush.auth",
+      "ok": true,
+      "detail": "{\"t\":1794737653763,\"host\":\"identitytoolkit.googleapis.com\",\"path\":\"/v1/accounts:signUp\",\"search\":\"?key=test-key\",\"method\":\"POST\",\"body\":\"{\\\"returnSecureToken\\\":true}\",\"auth\":\"\"}"
+    },
+    {
+      "group": "online",
+      "name": "submit() sends the alias instead of a non-ASCII, blocklisted (any case, whole word) or HTML name; a clean name (even one that merely contains a listed string) is trimmed and kept",
+      "ok": true,
+      "detail": "[\"Konda 222\",\"Rubani 333\",\"Makanga 444\",\"Kumar\",\"Dere 555\",\"Wambui K\"]"
+    },
+    {
+      "group": "online",
+      "name": "submit() refuses (and sends nothing) for a zero score, a score above the cap, and a bad name with a bad alias",
+      "ok": true,
+      "detail": "[{\"err\":\"badscore\"},{\"err\":\"badscore\"},{\"err\":\"badname\"}]"
+    },
+    {
+      "group": "online",
+      "name": "commit body: one write, update of scores/{uid} with name (string) and score (integer as a string), updateTransforms ts = REQUEST_TIME, no updateMask, no precondition, key in the URL",
+      "ok": true,
+      "detail": "{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Mama Pima\",\"score\":\"1000\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1}"
+    },
+    {
+      "group": "online",
+      "name": "a second flush inside the rate window is delayed, not sent (nothing while the one window wait is running), a third call meanwhile is refused as busy, and the delayed one goes out after that ONE wait even when the injected clock never moves (no repeated waiting)",
+      "ok": true,
+      "detail": "{\"stamp1\":5000000,\"early\":1,\"busy\":[\"busy\"],\"stamp2\":5000000,\"n\":2}"
+    },
+    {
+      "group": "online",
+      "name": "while PAUSED top(), flush() and submit() all refuse with \"running\" and no request leaves (guard allows only the title and game over screens)",
+      "ok": true,
+      "detail": "{\"r\":{\"top\":\"running\",\"flush\":\"running\",\"submit\":\"running\"},\"before\":0,\"now\":0}"
+    },
+    {
+      "group": "online",
+      "name": "game over with a new local best: the run is queued at once under its alias (pending = alias, alias, score); nothing is sent yet; the shared list and the public-data note show on the over screen",
+      "ok": true,
+      "detail": "{\"s\":327,\"pend\":{\"name\":\"Dere 478\",\"alias\":\"Dere 478\",\"score\":327},\"alias\":\"Dere 478\",\"commits\":0,\"ui0\":{\"head\":\"Top 5, all players\",\"pub\":\"Names and scores on this board are public.\",\"rows\":2,\"form\":true}}"
+    },
+    {
+      "group": "online",
+      "name": "game over with the network down: the over screen shows this device's list, heading \"Top 5\" and the note \"Offline. Showing this device only.\"; Loading is gone",
+      "ok": true,
+      "detail": "{\"note\":\"Offline. Showing this device only.\",\"head\":\"Top 5\",\"rows\":[\"#1Makanga 481KSh 327\"],\"loading\":false}"
+    },
+    {
+      "group": "online",
+      "name": "Save with a typed name sends exactly one commit: typed name, integer score of the run, ts = REQUEST_TIME; one sign-up; the Bearer token is the one just issued",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Mama Pima\",\"score\":\"327\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1},\"signups\":1}"
+    },
+    {
+      "group": "online",
+      "name": "after the send the pending record is gone, onlineBest equals the score, and the over list is re-fetched and highlights this player (aria-current, class me) under the typed name",
+      "ok": true,
+      "detail": "{\"after\":{\"cur\":[{\"t\":\"Mama Pima\",\"c\":\"me\"}],\"rows\":[\"#1Wanjiru KKSh 100,000\",\"#2Mama PimaKSh 327\",\"#3TinyKSh 1\"],\"saved\":\"Saved as Mama Pima\"},\"q\":2}"
+    },
+    {
+      "group": "online",
+      "name": "nothing was requested while the mode was \"running\" (every request was made at the title or game over)",
+      "ok": true,
+      "detail": "[\"gameover documents:runQuery\",\"gameover accounts:signUp\",\"gameover documents:commit\",\"gameover documents:runQuery\"]"
+    },
+    {
+      "group": "online",
+      "name": "no dialog and no stray (non-mocked) request on the save flow",
+      "ok": true,
+      "detail": "{\"dialogs\":[],\"stray\":[]}"
+    },
+    {
+      "group": "online",
+      "name": "a typed blocklisted name (\"Fuck Off\") is sent as the alias, not as typed (the local board keeps what the player typed)",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Makanga 624\",\"score\":\"327\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1},\"alias\":\"Makanga 624\",\"local\":[{\"name\":\"Fuck Off\",\"score\":327,\"id\":\"mwhogw01d282r3\"}]}"
+    },
+    {
+      "group": "online",
+      "name": "the player is told when the shared board cannot use the typed name: \"Saved as Fuck Off on this device. Shared board shows <alias>.\" (also in the live region), not a silent swap",
+      "ok": true,
+      "detail": "{\"saved\":{\"t\":\"Saved as Fuck Off on this device. Shared board shows Makanga 624.\",\"live\":\"Saved as Fuck Off on this device. Shared board shows Makanga 624. Rank 1 on the Top 5.\"},\"alias\":\"Makanga 624\"}"
+    },
+    {
+      "group": "online",
+      "name": "Skip sends one commit under the alias",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Makanga 890\",\"score\":\"327\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1},\"alias\":\"Makanga 890\"}"
+    },
+    {
+      "group": "online",
+      "name": "a score outside the shared top 5: five rows, none highlighted, and the line \"Your best: KSh N\" under the list on the game over screen",
+      "ok": true,
+      "detail": "{\"ui\":{\"yours\":\"Your best: KSh 327\",\"rows\":5,\"cur\":0},\"score\":327}"
+    },
+    {
+      "group": "online",
+      "name": "a first 403 keeps the pending record (attempts 1), does not raise onlineBest and sends nothing more at once (no tight loop)",
+      "ok": true,
+      "detail": "{\"n\":1,\"p1\":{\"name\":\"Rejected\",\"alias\":\"Dere 526\",\"score\":327,\"attempts\":1}}"
+    },
+    {
+      "group": "online",
+      "name": "one 403 and then success: the same record is retried after the window (one GET in between), is accepted, the pending record is cleared and onlineBest is raised",
+      "ok": true,
+      "detail": "{\"n\":2,\"gets\":1,\"gap\":1306}"
+    },
+    {
+      "group": "online",
+      "name": "Play again with the form untouched: the start-of-run flush asks for sign-up before the run starts, but nothing is sent once the run is going (the commit waits; the record stays pending)",
+      "ok": true,
+      "detail": "{\"signups\":1,\"commits\":0,\"pend\":{\"name\":\"Dere 814\",\"alias\":\"Dere 814\",\"score\":327},\"modes\":[\"gameover\",\"gameover\"]}"
+    },
+    {
+      "group": "online",
+      "name": "an HTTP 400 drops the pending record at once and nothing is retried",
+      "ok": true,
+      "detail": "{\"n\":1}"
+    },
+    {
+      "group": "online",
+      "name": "network down at Save: the record stays pending with the typed name, nothing is committed, and there is no retry loop (request count unchanged after 2.5 s)",
+      "ok": true,
+      "detail": "{\"pend\":{\"name\":\"Baraka\",\"alias\":\"Makanga 481\",\"score\":327},\"hits\":2,\"now\":2}"
+    },
+    {
+      "group": "online",
+      "name": "Menu (back to the title) flushes the pending record: the typed name goes out once the network is back",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Baraka\",\"score\":\"327\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1}}"
+    },
+    {
+      "group": "online",
+      "name": "a 403 that never goes away: exactly 3 attempts, each at least one window (1.2 s here) after the previous answer, the record is then dropped, onlineBest is not raised, and a re-read of the own entry (GET) comes before each retry",
+      "ok": true,
+      "detail": "{\"n\":3,\"pend\":\"\",\"gaps\":[1305,1304],\"gets\":2}"
+    },
+    {
+      "group": "online",
+      "name": "after a reload the dropped record is not resent",
+      "ok": true,
+      "detail": "3"
+    },
+    {
+      "group": "online",
+      "name": "after the second run the pending alias of the FIRST run goes out (the older record was kept: same score, not replaced), still nothing while running",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Dere 814\",\"score\":\"327\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1},\"alias\":\"Dere 814\",\"modes\":[\"gameover\",\"gameover\",\"gameover\",\"gameover\"]}"
+    },
+    {
+      "group": "online",
+      "name": "pending survives a boot with the network down (kept, no commit)",
+      "ok": true,
+      "detail": "{\"survived\":{\"name\":\"Wambui K\",\"alias\":\"Dere 123\",\"score\":4242},\"hits\":1}"
+    },
+    {
+      "group": "online",
+      "name": "the next boot sends it: one sign-up, one commit with the stored name and score, made at the title (not during a run), pending cleared",
+      "ok": true,
+      "detail": "{\"f\":{\"doc\":\"projects/test-proj/databases/(default)/documents/scores/mockuid1\",\"name\":\"Wambui K\",\"score\":\"4242\",\"tr\":[{\"fieldPath\":\"ts\",\"setToServerValue\":\"REQUEST_TIME\"}],\"keys\":[\"update\",\"updateTransforms\"],\"fkeys\":[\"name\",\"score\"],\"nwrites\":1},\"modes\":[\"title\",\"title\"]}"
+    },
+    {
+      "group": "online",
+      "name": "after a reload the stored refresh token is used (POST securetoken /v1/token, form-encoded grant_type=refresh_token) and no second sign-up happens",
+      "ok": true,
+      "detail": "{\"signups\":1,\"refreshes\":1}"
+    },
+    {
+      "group": "online",
+      "name": "an invalid refresh token (HTTP 400) makes the client sign up again once and still send",
+      "ok": true,
+      "detail": "{\"signups\":2,\"refreshes\":2,\"au\":{\"uid\":\"mockuid2\",\"refreshToken\":\"rt-2\"}}"
+    },
+    {
+      "group": "online",
+      "name": "a refresh answered HTTP 403 makes the client sign up again once (new id) and still send under the new id",
+      "ok": true,
+      "detail": "{\"signups\":3,\"refreshes\":3,\"au3\":{\"uid\":\"mockuid3\",\"refreshToken\":\"rt-3\"}}"
+    },
+    {
+      "group": "online",
+      "name": "a refresh started at boot and answered during a run does not lead to a commit during the run; the record stays pending",
+      "ok": true,
+      "detail": "{\"commits\":0,\"modes\":[\"title\"]}"
+    },
+    {
+      "group": "online",
+      "name": "the held record goes out after the run ends, with its own stored name, and no request ever carried mode \"running\"",
+      "ok": true,
+      "detail": "{\"n\":1,\"modes\":[\"title\",\"gameover\",\"gameover\"]}"
+    },
+    {
+      "group": "online",
+      "name": "every Google request made by the online pages went to one of the three default hosts and was answered by the mock (no real network, no other host)",
+      "ok": true,
+      "detail": "{\"hosts\":[\"firestore.googleapis.com\",\"identitytoolkit.googleapis.com\",\"securetoken.googleapis.com\"],\"strays\":[]}"
     },
     {
       "group": "shots",
@@ -1673,7 +2158,7 @@
       "group": "offline",
       "name": "every request made by every page was file:// (no network)",
       "ok": true,
-      "detail": "{\"requests\":484,\"nonFile\":0}"
+      "detail": "{\"requests\":968,\"nonFile\":0}"
     }
   ]
 }

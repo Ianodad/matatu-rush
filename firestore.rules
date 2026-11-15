@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Matatu Rush shared Top 5 board. Deny by default: only the `scores` collection is reachable.
+// One document per device: the document id is that device's anonymous auth uid.
+// Document shape: { name: string, score: int, ts: timestamp (server time) }.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // SCORE_MAX = 5,000,000. How it was derived: the demo autopilot averages about 160 to 260 KSh per
+    // second and peaks near 800 KSh per second over a 10 s window (tests/sim-balance.cjs and a 600 s probe of
+    // seeds 1, 2, 3, 5, 7, 9, 42). Even 800 KSh per second held without a single mistake needs
+    // 5,000,000 / 800 = 6,250 s (about 1.7 hours); at the autopilot average it is more than 5 hours.
+    // The run ends at the third crash, so no human sustains that. It is a ceiling against absurd
+    // posted values, not proof that a score is real (the server cannot replay a run).
+    function scoreOk(s) {
+      return s is int && s > 0 && s <= 5000000;
+    }
+
+    // 1 to 12 chars, ASCII letters, digits, space, dot, underscore, hyphen; must start with a letter or digit.
+    // The blocklist is matched on whole tokens of the lower-cased name: the name is split on anything that is not
+    // a letter, and a token is refused when it equals an entry, or an entry plus s, es, er or ing. So Kumar,
+    // Shitote and Himalaya pass, while "69fuck69" and "big fuck" do not. KEEP IN SYNC with BLOCKLIST and SUFFIXES
+    // in js/online.js (tests/run-tests.cjs, group "online", fails if they differ).
+    function nameOk(n) {
+      return n is string
+        && n.matches('^[A-Za-z0-9][A-Za-z0-9 ._-]{0,11}$')
+        && !n.lower().matches('(^|.*[^a-z])(nigger|nigga|faggot|retard|tranny|chink|gook|wetback|cunt|fuck|shit|bitch|whore|slut|bastard|pussy|twat|wanker|bollock|piss|rapist|hitler|asshole|arsehole|dickhead|cocksucker|kkk|kuma|malaya|mjinga|pumbavu|mshenzi|msenge|shoga|mboo|mkundu|nyoko|chokora|kunya)(s|es|er|ing)?([^a-z].*|$)');
+    }
+
+    // Shape and value checks for the document being written (client sent ts must be the server time).
+    function shapeOk() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'score', 'ts'])
+        && d.keys().hasAll(['name', 'score', 'ts'])
+        && nameOk(d.name)
+        && scoreOk(d.score)
+        && d.ts == request.time;
+    }
+
+    function ownsDoc(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /scores/{uid} {
+      allow get: if true;
+      // the client asks for the top 5; anything above 10 rows, or no limit at all, is refused. An offset is refused
+      // too: skipped documents are billed as reads, so offset 100000 would cost 100000 reads. Unset or 0 only.
+      allow list: if request.query.limit <= 10
+        && (!('offset' in request.query) || request.query.offset == 0);
+
+      allow create: if ownsDoc(uid) && shapeOk();
+
+      // a device's entry can never go down, and it can be written once per 10 s
+      allow update: if ownsDoc(uid) && shapeOk()
+        && request.resource.data.score >= resource.data.score
+        && request.time > resource.data.ts + duration.value(10, 's');
+
+      allow delete: if false;
+    }
+  }
+}

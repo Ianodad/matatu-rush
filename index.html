@@ -117,8 +117,12 @@
 <section id="board" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="boardH">
   <div class="panel small">
     <h2 id="boardH" class="h2">TOP 5</h2>
+    <p id="boardNote" class="boardnote warn" hidden></p>
     <p id="boardEmpty" class="tag" hidden>No fares yet. Be the first on the board.</p>
+    <p id="boardLoading" class="tag" hidden>Loading...</p>
     <ol id="boardList" class="board" aria-label="Top 5 fares on this device"></ol>
+    <p id="boardYours" class="boardnote" hidden></p>
+    <p id="boardPrivacy" class="boardnote" hidden>Names and scores on this board are public.</p>
     <div class="actions">
       <button id="btnBoardClose" class="ghost" type="button">Close</button>
     </div>
@@ -145,6 +149,7 @@
     <form id="nameForm" class="nameform" hidden autocomplete="off">
       <p id="nameRank" class="namerank">You made the Top 5! Rank #1</p>
       <label for="nameInput">Your name for the board</label>
+      <p id="namePublic" class="boardnote" hidden>Names and scores on this board are public.</p>
       <input id="nameInput" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Dere 100">
       <div class="actions">
         <button id="btnSaveName" class="ghost save" type="submit">Save name</button>
@@ -160,8 +165,11 @@
       <div><dt>Best combo</dt><dd id="oCombo">x0</dd></div>
     </dl>
     <div id="overBoardBox" class="boardbox" hidden>
-      <h3 class="h3">Top 5</h3>
+      <h3 id="overBoardH" class="h3">Top 5</h3>
+      <p id="overNote" class="boardnote warn" hidden></p>
+      <p id="overLoading" class="boardnote" hidden>Loading...</p>
       <ol id="overBoard" class="board" aria-label="Top 5 fares on this device"></ol>
+      <p id="overYours" class="boardnote" hidden></p>
     </div>
     <div class="actions">
       <button id="btnAgain" class="cta" type="button">TWENDE TENA <small>Play again</small></button>
@@ -175,6 +183,8 @@
 
 <script src="js/core.js"></script>
 <script src="js/game.js"></script>
+<script src="js/config.js"></script>
+<script src="js/online.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/art.js"></script>
 <script src="js/render.js"></script>

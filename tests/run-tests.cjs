@@ -225,10 +225,10 @@ function overlapScene(seed) {
   });
   return S;
 }
-/* captured from the UNMODIFIED simulation (before OVERLAP existed): autopilot, 120 s of sim time or game over */
+/* captured from the simulation as it was before OVERLAP existed, with only the current speed tuning (MAX_SPEED 15, SPEED_RAMP 0.010) applied: autopilot, 120 s of sim time or game over */
 const AUTOPILOT_BASELINE = {
-  7: { rows: { 1200: [806, 56.1088, 3, 1, 1, 5, 5], 6000: [7877, 352.0523, 3, 2, 2.925, 25, 12], 12000: [23263, 863.0856, 3, 1, 1, 52, 39] }, final: [14400, 26107, 1107.1704749184764, 3, 'running'], events: 214, md5: '8d6925f2976ab0a7dbe04994fe95629e' },
-  42: { rows: { 1200: [2366, 66.0215, 3, 2, 2.175, 7, 7], 6000: [13932, 357.8173, 3, 3, 3, 27, 1], 12000: [34269, 884.7808, 3, 1, 1, 64, 38] }, final: [14400, 40169, 1164.6012535547197, 3, 'running'], events: 266, md5: '65ff6024bb9447b7659d22110a4424d4' }
+  7: { rows: { 1200: [807, 57.2004, 3, 1, 1, 5, 5], 6000: [10746, 386.1872, 3, 2, 2, 26, 21], 12000: [17998, 1068.423, 2, 0, 0, 46, 1] }, final: [14400, 23948, 1418.4237618765258, 2, 'running'], events: 226, md5: '167d65b39127f2e07409af4f7c8bdcbc' },
+  42: { rows: { 1200: [2367, 67.5274, 3, 1, 1, 7, 7], 6000: [15452, 402.1132, 3, 1, 1, 32, 6], 12000: [35343, 1168.6424, 1, 0, 0, 72, 7] }, final: [12270, 35677, 1202.8711460128172, 0, 'gameover'], events: 251, md5: '5445cd2394c9ff9ab174b4503f1b2851' }
 };
 function overlapNodeChecks() {
   const G = 'overlap', crypto = require('crypto');
@@ -866,7 +866,999 @@ async function nearMissAndRepair(browser, seed) {
   return out;
 }
 
-if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, layoutChecks, results, problems }; return; }
+/* ===== online (shared board) group ===== */
+const http = require('http');
+const NodeURL = require('url').URL; /* the global URL is shadowed by the game URL constant at the top of this file */
+const ONLINE_RULES = path.join(ROOT, 'firestore.rules');
+
+/* Node checks: the same js/online.js in a bare context. The XHR constructor counts every use. */
+function onlineHarness(opt) {
+  opt = opt || {};
+  const store = Object.assign({}, opt.store || {});
+  const calls = { xhr: 0 };
+  const win = {
+    location: { protocol: opt.protocol === undefined ? 'http:' : opt.protocol, search: '' },
+    localStorage: { getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; } },
+    XMLHttpRequest: function () { calls.xhr++; throw new Error('XHR must not be used here'); },
+    setTimeout, clearTimeout
+  };
+  if (opt.cfg !== null) win.MR_ONLINE_TEST = opt.cfg || { projectId: 'p', apiKey: 'k' };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/online.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  return { MR: win.MR, store, calls };
+}
+function onlineNodeChecks() {
+  const G = 'online';
+  const rules = fs.readFileSync(ONLINE_RULES, 'utf8');
+  const alt = (/\(\^\|\.\*\[\^a-z\]\)\(([a-z|]+)\)\(s\|es\|er\|ing\)\?\(\[\^a-z\]\.\*\|\$\)/.exec(rules) || [null, ''])[1].split('|');
+  const altSfx = (/\)\(([a-z|]+)\)\?\(\[\^a-z\]\.\*\|\$\)/.exec(rules) || [null, ''])[1].split('|');
+  const h = onlineHarness();
+  const list = Array.from(h.MR.online.BLOCKLIST);
+  check(G, 'node: the blocklist in js/online.js is identical (same words, same order) to the one in firestore.rules', alt.length >= 25 && alt.length <= 40 && JSON.stringify(list) === JSON.stringify(alt), { client: list.length, rules: alt.length, onlyClient: list.filter((x) => alt.indexOf(x) < 0), onlyRules: alt.filter((x) => list.indexOf(x) < 0) });
+  check(G, 'node: the suffix list (s, es, er, ing) in js/online.js is identical to the one in firestore.rules, and the rules match whole tokens: (^|.*[^a-z])(words)(suffixes)?([^a-z].*|$)',
+    JSON.stringify(Array.from(h.MR.online.SUFFIXES)) === JSON.stringify(altSfx) && altSfx.join(',') === 's,es,er,ing', { client: h.MR.online.SUFFIXES, rules: altSfx });
+  const cap = parseInt((/s <= (\d+)/.exec(rules) || [0, '0'])[1], 10);
+  check(G, 'node: SCORE_MAX in js/online.js equals the cap in firestore.rules (5,000,000)', cap === 5000000 && h.MR.online.SCORE_MAX === cap, { rules: cap, client: h.MR.online.SCORE_MAX });
+  const nre = (/matches\('(\^\[A-Za-z0-9\]\[A-Za-z0-9 \._-\]\{0,11\}\$)'\)/.exec(rules) || [])[1];
+  check(G, 'node: the name pattern in firestore.rules is the one the client uses (1 to 12 chars, ASCII letters, digits, space . _ -)', nre === '^[A-Za-z0-9][A-Za-z0-9 ._-]{0,11}$', nre);
+  const ok = h.MR.online.nameOk;
+  check(G, 'node: client name test: aliases and plain names pass; empty, 13 chars, leading space or hyphen, accents, HTML, quotes and blocklisted words (any case, embedded) fail',
+    ['Dere 482', 'Konda 100', 'Makanga 999', 'Rubani 123', 'Bob', 'a_b-c.d e', '123456789012', 'Class Act'].every(ok) &&
+    ['', '1234567890123', ' Bob', '-Bob', 'Wanjirú', '<b>x</b>', "O'Brien", 'Bob\n', 'FUCK', 'big fuck', 'MaLaYa', 'aa.KUMA.zz', 'Hitler'].every((x) => !ok(x)));
+  const realNames = ['Kumar', 'Kumari', 'Shitote', 'Shitanda', 'Himalaya', 'Mbooni', 'Kunyanga', 'Malayan', 'Scunthorpe', 'Pissarides'];
+  check(G, 'node: whole-token blocklist: Kumar, Kumari, Shitote, Shitanda, Himalaya, Mbooni, Kunyanga, Malayan, Scunthorpe and Pissarides are ALLOWED', realNames.every(ok), realNames.filter((x) => !ok(x)));
+  const wl = Array.from(h.MR.online.BLOCKLIST);
+  const missed = [];
+  wl.forEach((w) => {
+    const forms = [w, w.toUpperCase(), '6' + w + '9', 'a ' + w, w + '.x', 'x_' + w, w + 's', w + 'es', w + 'er', w + 'ing', '1-' + w];
+    forms.forEach((f) => { if (f.length <= 12 && ok(f)) missed.push(f); });
+  });
+  check(G, 'node: every blocklist word is DENIED alone, in upper case, with digits around it (6word9), as a separate token (a word, word.x, x_word, 1-word) and with s, es, er, ing', wl.length >= 25 && missed.length === 0, missed);
+  /* the gate: enabled() needs both config values AND an http(s) page */
+  const gate = (proto, cfg) => onlineHarness({ protocol: proto, cfg }).MR.online.enabled();
+  check(G, 'node: enabled() is false under file:// even with a full config, false with an empty config, true only for http: or https: with projectId and apiKey',
+    gate('file:') === false && gate('http:', null) === false && gate('https:', null) === false && gate('http:', { projectId: 'p', apiKey: '' }) === false && gate('http:', { projectId: '', apiKey: 'k' }) === false &&
+    gate('ftp:') === false && gate('about:') === false && gate('http:') === true && gate('https:') === true);
+  /* under file:// nothing may reach XHR, whatever is called */
+  const f = onlineHarness({ protocol: 'file:' });
+  const o = f.MR.online;
+  let cbs = 0;
+  const q = o.queue({ name: 'A', alias: 'Dere 111', score: 500 });
+  o.top(() => { cbs++; }); o.flush(() => { cbs++; }); o.submit('A', 5, () => { cbs++; }, 'Dere 111');
+  check(G, 'node: under file:// top, flush, submit and queue make zero XHR calls and store nothing', f.calls.xhr === 0 && q === false && cbs === 3 && Object.keys(f.store).length === 0, { xhr: f.calls.xhr, q, keys: Object.keys(f.store) });
+  /* queue rules (enabled, but no request is ever sent here: flush is not called) */
+  const q1 = onlineHarness();
+  const qo = q1.MR.online, P = () => JSON.parse(q1.store['matatuRush.pending'] || 'null');
+  const r1 = qo.queue({ name: 'Dere 111', alias: 'Dere 111', score: 500 });
+  const r2 = qo.queue({ name: 'Konda 222', alias: 'Konda 222', score: 400 });
+  const afterLower = JSON.stringify(P());
+  const r3 = qo.queue({ name: 'Rubani 333', alias: 'Rubani 333', score: 900 });
+  const r4 = qo.queue({ name: 'Makanga 444', alias: 'Makanga 444', score: 900 });
+  check(G, 'node: queue keeps ONE pending record and the higher score (a lower or equal one is ignored, a higher one replaces it)',
+    r1 === true && r2 === false && afterLower === JSON.stringify({ name: 'Dere 111', alias: 'Dere 111', score: 500 }) && r3 === true && r4 === false && P().score === 900 && P().name === 'Rubani 333', P());
+  check(G, 'node: rename updates the pending name only (empty or missing record: no change)', qo.rename('Mama Pima') === true && P().name === 'Mama Pima' && P().alias === 'Rubani 333' && qo.rename('   ') === false && P().name === 'Mama Pima');
+  const q2 = onlineHarness({ store: { 'matatuRush.onlineBest': '700' } }).MR.online;
+  check(G, 'node: only a score above onlineBest is queued; 0, negative, NaN, text and above-cap scores never are', q2.queue({ name: 'A', alias: 'Dere 111', score: 700 }) === false && q2.queue({ name: 'A', alias: 'Dere 111', score: 701 }) === true &&
+    [0, -3, NaN, 'abc', null, 5000001].every((sc) => onlineHarness().MR.online.queue({ name: 'A', alias: 'Dere 111', score: sc }) === false));
+  const bad = onlineHarness({ store: { 'matatuRush.pending': '{not json', 'matatuRush.auth': '[1,2]', 'matatuRush.onlineBest': 'zzz' } }).MR.online;
+  check(G, 'node: corrupt stored pending, auth and onlineBest read as empty and do not throw', bad.pending() === null && bad.uid() === '' && bad.best() === 0);
+}
+
+
+/* A fake world for the pending-record logic: one shared clock, one fake Firestore (10 s rule modelled), shared storage,
+   and fake timers that only move when the test says so. Nothing here touches a real clock or the network. */
+function simWorld() {
+  const w = { clock: { t: 1700000000000 }, store: {}, server: { score: 0, name: '', ts: 0, always403: false, status: 0, tokenStatus: 200, getStatus: 0 }, skew: 0, signups: 0, timers: [], nextId: 0, hold: false, held: [] };
+  w.advance = (ms) => {
+    const target = w.clock.t + ms;
+    for (;;) {
+      const due = w.timers.filter((x) => x.at <= target).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      if (!due) break;
+      w.timers.splice(w.timers.indexOf(due), 1);
+      if (due.at > w.clock.t) w.clock.t = due.at;
+      due.fn();
+    }
+    w.clock.t = target;
+  };
+  w.release = () => { const h = w.held.splice(0); h.forEach((f) => f()); };
+  return w;
+}
+function simTab(w, opt) {
+  opt = opt || {};
+  const tab = { commits: [], gets: 0, reqs: [] };
+  function XHR() { this.status = 0; this.responseText = ''; this.h = {}; }
+  XHR.prototype.open = function (m, u) { this.m = m; this.u = u; };
+  XHR.prototype.setRequestHeader = function (k, v) { this.h[k] = v; };
+  const reply = (x, status, obj) => { x.status = status; x.responseText = JSON.stringify(obj || {}); x.onload(); };
+  XHR.prototype.send = function (body) {
+    const x = this; tab.reqs.push({ m: x.m, u: x.u });
+    if (/accounts:signUp/.test(x.u)) { w.signups++; reply(x, 200, { idToken: 'i', refreshToken: 'r', localId: 'sim' + w.signups, expiresIn: '3600' }); return; }
+    if (/\/v1\/token/.test(x.u)) {
+      if (w.server.tokenStatus !== 200) { reply(x, w.server.tokenStatus, { error: { message: 'INVALID_REFRESH_TOKEN' } }); return; }
+      reply(x, 200, { id_token: 'i2', expires_in: '3600', refresh_token: 'r' }); return;
+    }
+    if (x.m === 'GET' && /\/documents\/scores\/sim[0-9]+/.test(x.u)) {
+      tab.gets++;
+      const sv = w.server;
+      if (sv.getStatus === 'net') { x.onerror(); return; }
+      if (sv.getStatus) { reply(x, sv.getStatus, {}); return; }
+      if (!sv.score) reply(x, 404, {});
+      else reply(x, 200, { fields: { name: { stringValue: sv.name }, score: { integerValue: String(sv.score) }, ts: { timestampValue: new Date(sv.ts).toISOString() } } });
+      return;
+    }
+    if (/:commit/.test(x.u)) {
+      const wr = JSON.parse(body).writes[0];
+      const rec = { name: wr.update.fields.name.stringValue, score: parseInt(wr.update.fields.score.integerValue, 10), sentAt: w.clock.t, doc: wr.update.name };
+      tab.commits.push(rec);
+      const decide = () => { /* the server decides when the request ARRIVES */
+        const sv = w.server;
+        if (sv.status) { reply(x, sv.status, {}); return; }
+        if (sv.always403 || rec.score < sv.score || w.clock.t - sv.ts <= 10000) { reply(x, 403, {}); return; }
+        sv.score = rec.score; sv.name = rec.name; sv.ts = w.clock.t;
+        reply(x, 200, {});
+      };
+      if (w.hold) w.held.push(decide); else decide();
+      return;
+    }
+    reply(x, 404, {});
+  };
+  const store = opt.store || w.store; /* a tab that does not share storage gets its own */
+  tab.store = store;
+  const win = {
+    location: { protocol: 'http:', search: '' },
+    localStorage: { getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; } },
+    XMLHttpRequest: XHR,
+    setTimeout: (fn, ms) => { const id = ++w.nextId; w.timers.push({ id, at: w.clock.t + ms, fn }); return id; },
+    clearTimeout: (id) => { w.timers = w.timers.filter((x) => x.id !== id); },
+    MR_ONLINE_TEST: { projectId: 'p', apiKey: 'k', now: () => w.clock.t + w.skew }
+  };
+  win.window = win;
+  if (!store['matatuRush.auth'] && !opt.noAuth) store['matatuRush.auth'] = JSON.stringify({ uid: 'sim1', refreshToken: 'r' });
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/online.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  tab.o = win.MR.online;
+  tab.pend = () => { try { return JSON.parse(store['matatuRush.pending'] || 'null'); } catch (e) { return null; } };
+  tab.flush = () => { const r = []; tab.o.flush((e, v) => r.push([e, v])); return r; };
+  return tab;
+}
+function onlineSimChecks() {
+  const G = 'online';
+  const rec = (name, score) => ({ name, alias: name, score });
+  /* 1. the reviewer's repro on shared storage: tab A sent 500; tab B queues 900 and flushes at once. B waits (shared send time), then wins. */
+  {
+    const w = simWorld(), a = simTab(w), b = simTab(w);
+    a.o.queue(rec('Tab A', 500)); a.flush();
+    const q = b.o.queue(rec('Tab B', 900));
+    b.flush();
+    const early = b.commits.length;
+    w.advance(5000); const mid = b.commits.length;
+    w.advance(6200);
+    check(G, 'sim: two tabs on shared storage: B (900) flushed right after A (500) sent waits for the window (nothing at 0 s or 5 s), then sends exactly once; the server holds 900, B\'s pending record is gone, nothing is lost',
+      q === true && early === 0 && mid === 0 && b.commits.length === 1 && w.server.score === 900 && b.pend() === null && b.o.best() === 900, { q, early, mid, n: b.commits.length, server: w.server, pend: b.pend() });
+  }
+  /* 2. a tab that does not know about the other send (no stored send time) gets 403: keeps the record, retries later after re-reading the server copy */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('Tab A', 500)); a.flush();
+    w.advance(3000);
+    const b = simTab(w, { store: { 'matatuRush.auth': JSON.stringify({ uid: 'sim1', refreshToken: 'r' }) } });
+    b.o.queue(rec('Tab B', 900));
+    const r1 = b.flush();
+    const kept = b.pend();
+    check(G, 'sim: a "too soon" 403 KEEPS the pending record (900), counts attempts = 1 and does not touch onlineBest',
+      r1.length === 1 && r1[0][0] === 'retry' && !!kept && kept.score === 900 && kept.attempts === 1 && b.commits.length === 1 && w.server.score === 500, { r1, kept, server: w.server });
+    w.advance(6000);
+    const quiet = b.commits.length;
+    w.advance(5300); /* now more than 11 s after the 403 answer */
+    check(G, 'sim: the retry waits 11 s after the answer (nothing at +6 s), then first re-reads the server copy (one GET) and sends once; the 900 lands and the record is cleared',
+      quiet === 1 && b.gets === 1 && b.commits.length === 2 && w.server.score === 900 && b.pend() === null && b.o.best() === 900, { quiet, gets: b.gets, n: b.commits.length, server: w.server, pend: b.pend() });
+  }
+  /* 3. slow connection: the answer arrives 3 s after the request left; the next write must be 11 s after the ANSWER */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.hold = true;
+    a.o.queue(rec('Slow', 500)); a.flush();
+    w.advance(3000); w.release(); /* arrives and is answered now: server time = T+3 s */
+    w.hold = false;
+    a.o.queue(rec('Slow', 900));
+    a.flush();
+    const t0 = a.commits.length;
+    w.advance(8100); /* 11.1 s after the first request LEFT, but only 8.1 s after the answer */
+    const t1 = a.commits.length;
+    w.advance(3000);
+    check(G, 'sim: slow answer: a follow-up 11.1 s after the request left (8.1 s after the answer) is NOT sent; it goes out 11 s after the answer and the server accepts it (no 403)',
+      t0 === 1 && t1 === 1 && a.commits.length === 2 && w.server.score === 900 && a.pend() === null, { t0, t1, n: a.commits.length, server: w.server });
+  }
+  /* 4. 403 forever: three attempts, 11 s apart, then dropped; never a tight loop */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.always403 = true;
+    a.o.queue(rec('Nope', 700)); a.flush();
+    const n1 = a.commits.length, p1 = a.pend();
+    w.advance(10000); const n2 = a.commits.length;
+    w.advance(1300); const n3 = a.commits.length, p3 = a.pend();
+    w.advance(10000); const n4 = a.commits.length;
+    w.advance(1400); const n5 = a.commits.length, p5 = a.pend();
+    w.advance(60000);
+    check(G, 'sim: a 403 that never goes away: attempts 1, 2, 3 are 11 s or more apart (nothing at +10 s), the record is dropped after the third, and nothing more is sent ever after',
+      n1 === 1 && p1 && p1.attempts === 1 && n2 === 1 && n3 === 2 && p3 && p3.attempts === 2 && n4 === 2 && n5 === 3 && p5 === null && a.commits.length === 3 &&
+      a.commits[1].sentAt - a.commits[0].sentAt >= 11000 && a.commits[2].sentAt - a.commits[1].sentAt >= 11000, { n: [n1, n2, n3, n4, n5], p1, p3, p5, at: a.commits.map((c) => c.sentAt - a.commits[0].sentAt) });
+  }
+  /* 5. 429 behaves like 403; 400 drops at once; 500 keeps without a retry loop */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.status = 429;
+    a.o.queue(rec('Busy', 700)); a.flush();
+    const k429 = a.pend();
+    const w4 = simWorld(), b = simTab(w4);
+    w4.server.status = 400;
+    b.o.queue(rec('Bad', 700)); const r = b.flush();
+    const w5 = simWorld(), c = simTab(w5);
+    w5.server.status = 500;
+    c.o.queue(rec('Down', 700)); c.flush(); w5.advance(120000);
+    check(G, 'sim: 429 keeps the record with attempts 1; 400 drops it at once with no retry; a 500 keeps it with no retry loop',
+      !!k429 && k429.attempts === 1 && r[0][0] === 'rejected' && b.pend() === null && w4.timers.length === 0 && c.pend() !== null && c.commits.length === 1, { k429, r, c: c.commits.length });
+  }
+  /* 6. the retry resync: the server already holds this score under this name, or a higher one: clear without sending */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.score = 900; w.server.name = 'Same'; w.server.ts = w.clock.t - 60000;
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Same', alias: 'Same', score: 900, attempts: 1 });
+    a.flush();
+    const w2 = simWorld(), b = simTab(w2);
+    w2.server.score = 900; w2.server.name = 'Other'; w2.server.ts = w2.clock.t - 60000;
+    w2.store['matatuRush.pending'] = JSON.stringify({ name: 'Same', alias: 'Same', score: 900, attempts: 1 });
+    b.flush();
+    check(G, 'sim: after a 403 the retry re-reads the server copy: same score and same name clears the record without sending (onlineBest resynced); same score but another name is a rename and is sent',
+      a.gets === 1 && a.commits.length === 0 && a.pend() === null && a.o.best() === 900 && b.gets === 1 && b.commits.length === 1 && w2.server.name === 'Same' && b.pend() === null, { a: [a.gets, a.commits.length, a.pend()], b: [b.gets, b.commits.length, w2.server] });
+  }
+  /* 7. another tab changed the pending record while this one waited */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('First', 100)); a.flush();
+    a.o.queue(rec('Second', 200)); a.flush(); /* waits for the window */
+    w.store['matatuRush.pending'] = ''; /* another tab sent it and cleared it */
+    w.advance(11200);
+    const sent = a.commits.length;
+    a.o.queue(rec('Third', 300)); const higher = a.o.queue(rec('Lower', 250));
+    check(G, 'sim: a record cleared by another tab while this tab waited is not sent (the pending record is re-read after the wait); queue keeps the higher score',
+      sent === 1 && higher === false && a.pend() && a.pend().score === 300, { sent, pend: a.pend() });
+  }
+  /* 8. pre-validation: nothing the rules would refuse is ever sent */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.store['matatuRush.onlineBest'] = '900';
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Old', alias: 'Old', score: 500 });
+    const r1 = a.flush();
+    const lowOk = a.commits.length === 0 && a.pend() === null;
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Fuck', alias: 'Dere 111', score: 1000 });
+    a.flush();
+    const aliasSent = a.commits.length === 1 && a.commits[0].name === 'Dere 111';
+    w.advance(12000);
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Wanjirú', alias: 'Shit', score: 2000 });
+    const r3 = a.flush();
+    check(G, 'sim: before sending the client checks what the rules check: a score below onlineBest is dropped unsent, a blocklisted name falls back to the alias, a bad name with a bad alias is dropped unsent',
+      lowOk && aliasSent && a.commits.length === 1 && a.pend() === null && r3[0][0] === 'badname', { lowOk, aliasSent, n: a.commits.length, r1, r3 });
+  }
+  /* 9. the test override is typed: a string now() or a negative delayMs is ignored */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('T', 100)); a.flush();
+    const sent = parseInt(w.store['matatuRush.lastSend'], 10);
+    check(G, 'sim: the send time is stored in shared storage (matatuRush.lastSend) from the injected clock, stamped at the request and again at the answer', sent === w.clock.t, { sent, now: w.clock.t });
+  }
+  const YEAR = 365 * 86400000;
+  const devNow = (w) => w.clock.t + w.skew;
+  /* 10. N1: the device clock was a year ahead for one send, then got corrected. The stored send time is in the future; it must be
+     clamped and repaired: the next flush waits exactly ONE window, sends, and nothing is stuck afterwards. */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.skew = YEAR;
+    a.o.queue(rec('Ahead', 100)); a.flush();
+    const first = a.commits.length;
+    w.advance(12000);
+    w.skew = 0; /* clock corrected */
+    const storedAhead = parseInt(w.store['matatuRush.lastSend'], 10) > devNow(w) + YEAR / 2; /* the stored time is now far in the future, as in the reviewer's repro */
+    a.o.queue(rec('Ahead', 200)); const r2 = a.flush();
+    const rep = parseInt(w.store['matatuRush.lastSend'], 10) <= devNow(w); /* repaired the moment it was read */
+    w.advance(10900); const early = a.commits.length;
+    w.advance(200); const sent = a.commits.length;
+    const ok2 = w.server.score === 200 && a.pend() === null && w.timers.length === 0;
+    a.o.queue(rec('Ahead', 300)); const r3 = a.flush(); /* a flush after that must not be stuck behind 'busy' */
+    w.advance(11100);
+    check(G, 'sim: clock a year ahead for a send, then corrected: the stored time is repaired, the next flush sends after exactly one window (nothing at 10.9 s, sent by 11.1 s), is not stuck busy, and the flush after it works too',
+      first === 1 && storedAhead && r2.length === 1 && early === 1 && sent === 2 && rep && ok2 && r3.length === 1 && a.commits.length === 3 && w.server.score === 300 && parseInt(w.store['matatuRush.lastSend'], 10) <= devNow(w),
+      { first, storedAhead, r2, rep, early, sent, ok2, r3, n: a.commits.length, server: w.server, timers: w.timers.length });
+  }
+  /* 11. the clock jumps backwards while a flush is waiting: the wait is not repeated; the request is sent after the one window */
+  {
+    const w = simWorld(), b = simTab(w);
+    b.o.queue(rec('Jump', 100)); b.flush();
+    b.o.queue(rec('Jump', 200)); b.flush(); /* waits one window (the send time was just stamped) */
+    const j0 = b.commits.length;
+    w.advance(3000);
+    w.skew = -YEAR; /* clock set back a year in the middle of the wait */
+    w.advance(8100);
+    const j1 = b.commits.length;
+    w.advance(500);
+    check(G, 'sim: clock set back a year in the middle of a wait: the wait is NOT repeated, the request goes out when the one window is over (11.1 s after the flush started), the pending record is cleared and no timer is left running',
+      j0 === 1 && j1 === 2 && w.server.score === 200 && b.pend() === null && w.timers.length === 0 && b.commits.length === 2,
+      { j0, j1, server: w.server, pend: b.pend(), timers: w.timers.length });
+  }
+  /* 12. clock set in the past: stored send time is an old (past) time, so nothing to wait for; the next send is not delayed */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.skew = -YEAR;
+    a.o.queue(rec('Past', 100)); a.flush();
+    w.advance(12000);
+    w.skew = 0;
+    a.o.queue(rec('Past', 200)); const r = a.flush();
+    check(G, 'sim: clock a year in the past for a send, then corrected: the stored time is a year old, so the next flush sends at once (no wait, no timer) and the server holds the new score',
+      a.commits.length === 2 && w.server.score === 200 && a.pend() === null && w.timers.length === 0 && r.length === 1, { n: a.commits.length, server: w.server, pend: a.pend(), timers: w.timers.length });
+  }
+  /* 13. flush calls made during a wait neither extend it nor start a second send; the watchdog frees a flush that hangs */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('Wait', 100)); a.flush();
+    a.o.queue(rec('Wait', 200));
+    const first = a.flush(); /* waits a full window */
+    const busy = [];
+    for (let i = 0; i < 5; i++) { w.advance(2000); busy.push(a.flush()); }
+    const midN = a.commits.length; /* 10 s into the wait */
+    w.advance(1100); /* 11.1 s after the wait began */
+    check(G, 'sim: five more flush calls during a wait all answer "busy", do not push the send later (it still goes out 11.05 s after the first call), and do not send twice',
+      busy.every((r) => r.length === 1 && r[0][0] === 'busy') && midN === 1 && a.commits.length === 2 && w.server.score === 200 && a.pend() === null && w.timers.length === 0 && first.length === 1,
+      { busy, midN, n: a.commits.length, server: w.server, timers: w.timers.length });
+    /* watchdog: a request that is never answered (no timeout fires) blocks flush as 'busy' for 45 s, then a new flush may start */
+    const w2 = simWorld(), b = simTab(w2);
+    w2.hold = true;
+    b.o.queue(rec('Hung', 100)); const h1 = b.flush();
+    w2.advance(30000);
+    const h2 = b.flush();
+    const n30 = b.commits.length;
+    w2.advance(16000); /* 46 s since the hung flush began */
+    w2.hold = false;
+    const h3 = b.flush();
+    w2.release(); /* the old answer finally arrives: it must neither crash nor free/steal the new flush */
+    b.o.queue(rec('Hung', 300));
+    w2.advance(12000);
+    const h4 = b.flush();
+    w2.advance(100);
+    check(G, 'sim: watchdog: a flush whose request never answers is "busy" at 30 s (no second send), a new flush may start after 45 s and sends, the late answer of the dead one does no harm, and flushing is never stuck',
+      h2.length === 1 && h2[0][0] === 'busy' && n30 === 1 && b.commits.length === 3 && w2.server.score === 300 && b.pend() === null && h3.length === 1 && h3[0][0] === null && h1.length === 1 && h4.length === 1,
+      { h1, h2, h3, h4, n30, n: b.commits.length, server: w2.server, pend: b.pend() });
+  }
+  /* 14. N2: a refresh call answered 400 or 403 falls back to ONE fresh anonymous sign-up (new uid) and still sends; 5xx does not */
+  {
+    const out = [];
+    [400, 403].forEach((code) => {
+      const w = simWorld(), a = simTab(w);
+      w.signups = 1; /* so the new id is sim2, not the old sim1 */
+      w.server.tokenStatus = code;
+      a.o.queue(rec('Resign', 100)); const r = a.flush();
+      const au = JSON.parse(a.store['matatuRush.auth'] || 'null');
+      const tokenCalls = a.reqs.filter((q) => /\/v1\/token/.test(q.u)).length;
+      out.push({ code, r, signups: w.signups, tokenCalls, uid: au && au.uid, commits: a.commits.length, doc: a.commits[0] && a.commits[0].doc, server: w.server.score });
+    });
+    const w5 = simWorld(), c = simTab(w5);
+    w5.server.tokenStatus = 500;
+    c.o.queue(rec('Resign', 100)); const r5 = c.flush();
+    const ok = out.every((o) => o.r.length === 1 && o.r[0][0] === null && o.signups === 2 && o.tokenCalls === 1 && o.uid === 'sim2' && o.commits === 1 && /\/scores\/sim2$/.test(o.doc) && o.server === 100);
+    check(G, 'sim: refresh answered 400 or 403: one fresh sign-up (exactly one /v1/token call and one signUp), the new id is stored and used in the commit, the record is sent; refresh answered 500: no sign-up, record kept',
+      ok && r5.length === 1 && r5[0][0] === 'server' && w5.signups === 0 && c.pend() !== null && c.commits.length === 0, { out, r5, signups5: w5.signups });
+    /* the new uid really is a new one when the old one is known */
+    const w6 = simWorld(); w6.signups = 6;
+    const d = simTab(w6); w6.server.tokenStatus = 403;
+    d.o.queue(rec('Resign', 100)); d.flush();
+    check(G, 'sim: after a refresh 403 the stored anonymous id is a NEW id (not the old one) and the commit is written under it', JSON.parse(d.store['matatuRush.auth']).uid === 'sim7' && /\/scores\/sim7$/.test(d.commits[0].doc) && d.o.uid() === 'sim7', { auth: d.store['matatuRush.auth'], doc: d.commits[0] && d.commits[0].doc });
+  }
+  /* 15. L-a: reading this device's own entry keeps failing before a retry: it counts as an attempt and the send goes ahead anyway */
+  {
+    const pend = (attempts) => JSON.stringify({ name: 'ReadFail', alias: 'ReadFail', score: 800, attempts });
+    const res = [];
+    [500, 403].forEach((st) => {
+      const w = simWorld(), a = simTab(w);
+      w.server.getStatus = st;
+      w.store['matatuRush.pending'] = pend(1);
+      const r = a.flush();
+      res.push({ st, r, gets: a.gets, commits: a.commits.length, server: w.server.score, pend: a.pend() });
+    });
+    const w2 = simWorld(), b = simTab(w2); /* read fails AND the send is refused (403): attempts 1 -> 2 (read) -> 3 (send) = dropped, one send only */
+    w2.server.getStatus = 500; w2.server.always403 = true;
+    w2.store['matatuRush.pending'] = pend(1);
+    const r2 = b.flush(); w2.advance(60000);
+    const w3 = simWorld(), c = simTab(w3); /* attempts already 2: one more failed read reaches 3 and drops the record unsent */
+    w3.server.getStatus = 500;
+    w3.store['matatuRush.pending'] = pend(2);
+    const r3 = c.flush(); w3.advance(60000);
+    const w4 = simWorld(), d = simTab(w4); /* no answer at all: not counted, the send goes ahead and also gets no answer... here the server is fine */
+    w4.server.getStatus = 'net';
+    w4.store['matatuRush.pending'] = pend(1);
+    const r4 = d.flush();
+    check(G, 'sim: own-entry read fails (HTTP 500 or 403) with a record at attempts 1: the send still goes out in the same flush and is cleared when accepted (never stuck unsent)',
+      res.every((x) => x.gets === 1 && x.commits === 1 && x.server === 800 && x.pend === null && x.r.length === 1 && x.r[0][0] === null), res);
+    check(G, 'sim: a failed read counts as an attempt: read fail + refused send from attempts 1 reaches 3 and drops the record after ONE send; attempts 2 + failed read drops it unsent; a read with no answer is not counted and the send goes ahead',
+      b.commits.length === 1 && b.pend() === null && r2.length === 1 && r2[0][0] === 'rejected' && c.commits.length === 0 && c.pend() === null && r3.length === 1 && r3[0][0] === 'rejected' &&
+      d.commits.length === 1 && d.pend() === null && r4.length === 1 && r4[0][0] === null,
+      { b: [b.commits.length, b.pend(), r2], c: [c.commits.length, c.pend(), r3], d: [d.commits.length, d.pend(), r4] });
+  }
+}
+
+/* a tiny static server for the repo root */
+function startStaticServer() {
+  const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.ttf': 'font/ttf', '.png': 'image/png', '.json': 'application/json' };
+  const srv = http.createServer((req, res) => {
+    let p = decodeURIComponent((req.url || '/').split('?')[0]);
+    if (p === '/') p = '/index.html';
+    const full = path.normalize(path.join(ROOT, p));
+    if (full.indexOf(ROOT + path.sep) !== 0 || !fs.existsSync(full) || fs.statSync(full).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
+    res.writeHead(200, { 'content-type': MIME[path.extname(full)] || 'application/octet-stream', 'cache-control': 'no-store' });
+    fs.createReadStream(full).pipe(res);
+  });
+  return new Promise((resolve) => srv.listen(0, '127.0.0.1', () => resolve({ srv, port: srv.address().port })));
+}
+
+const ON_CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, authorization', 'access-control-allow-methods': 'POST, GET, OPTIONS' };
+const ON_HOSTS = ['identitytoolkit.googleapis.com', 'securetoken.googleapis.com', 'firestore.googleapis.com'];
+const ON_PROJECT = 'test-proj', ON_KEY = 'test-key';
+function makeMock() {
+  return { signups: 0, refreshes: 0, commits: [], queries: [], log: [], stray: [], db: {}, rawQuery: null, queryStatus: 200, queryDelay: 0, commitStatus: 200, failCommits: 0, gets: [], tokenDelay: 0, tokenStatus: 200, net: false, netHits: 0 };
+}
+function mockRows(db) {
+  const rows = Object.keys(db).map((uid) => ({ uid, name: db[uid].name, score: db[uid].score })).sort((a, b) => b.score - a.score).slice(0, 5);
+  if (!rows.length) return [{ readTime: '2026-01-01T00:00:00Z' }];
+  return rows.map((r) => ({ document: { name: 'projects/' + ON_PROJECT + '/databases/(default)/documents/scores/' + r.uid, fields: { name: { stringValue: r.name }, score: { integerValue: String(r.score) }, ts: { timestampValue: '2026-01-01T00:00:00Z' } }, createTime: '2026-01-01T00:00:00Z', updateTime: '2026-01-01T00:00:00Z' }, readTime: '2026-01-01T00:00:00Z' }));
+}
+async function installMock(ctx, st) {
+  const json = (route, status, obj) => route.fulfill({ status, headers: Object.assign({ 'content-type': 'application/json' }, ON_CORS), body: JSON.stringify(obj) });
+  /* anything that is not the local server falls here first (registered first = checked last) and is refused */
+  await ctx.route((u) => /^https?:$/.test(u.protocol) && u.hostname !== '127.0.0.1', (route) => { st.stray.push(route.request().url()); route.abort('failed'); });
+  const handler = async (route) => {
+    const req = route.request(), u = new NodeURL(req.url());
+    if (req.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: ON_CORS }); return; }
+    if (st.net) { st.netHits++; await route.abort('failed'); return; }
+    const post = req.postData() || '';
+    const rec = { t: Date.now(), host: u.hostname, path: u.pathname, search: u.search, method: req.method(), body: post, auth: req.headers().authorization || '' };
+    st.log.push(rec);
+    if (u.pathname.endsWith('/accounts:signUp')) {
+      st.signups++;
+      await json(route, 200, { kind: 'identitytoolkit#SignupNewUserResponse', idToken: 'id-' + st.signups, refreshToken: 'rt-' + st.signups, expiresIn: '3600', localId: 'mockuid' + st.signups });
+    } else if (u.pathname === '/v1/token') {
+      st.refreshes++;
+      if (st.tokenDelay) await sleep(st.tokenDelay);
+      if (st.tokenStatus !== 200) { await json(route, st.tokenStatus, { error: { code: st.tokenStatus, message: 'INVALID_REFRESH_TOKEN' } }); return; }
+      await json(route, 200, { id_token: 'id-r' + st.refreshes, refresh_token: new URLSearchParams(post).get('refresh_token') || 'rt', expires_in: '3600', user_id: 'x' });
+    } else if (u.pathname.endsWith(':runQuery')) {
+      st.queries.push(rec);
+      if (st.queryDelay) await sleep(st.queryDelay);
+      if (st.queryStatus !== 200) { await json(route, st.queryStatus, { error: { message: 'boom' } }); return; }
+      await json(route, 200, st.rawQuery || mockRows(st.db));
+    } else if (u.pathname.endsWith(':commit')) {
+      let b = null; try { b = JSON.parse(post); } catch (e) { /* kept as null */ }
+      st.commits.push({ t: rec.t, body: b, auth: rec.auth, search: u.search, path: u.pathname, host: u.hostname });
+      if (st.failCommits > 0) { st.failCommits--; await json(route, st.commitStatus === 200 ? 403 : st.commitStatus, { error: { code: 403, status: 'PERMISSION_DENIED', message: 'Missing or insufficient permissions.' } }); return; }
+      if (st.commitStatus !== 200) { await json(route, st.commitStatus, { error: { code: st.commitStatus, status: 'PERMISSION_DENIED', message: 'Missing or insufficient permissions.' } }); return; }
+      try {
+        const w = b.writes[0], uid = w.update.name.split('/').pop();
+        st.db[uid] = { name: w.update.fields.name.stringValue, score: parseInt(w.update.fields.score.integerValue, 10) };
+      } catch (e) { /* malformed: leave db alone */ }
+      await json(route, 200, { writeResults: [{ updateTime: '2026-01-01T00:00:00Z', transformResults: [{ timestampValue: '2026-01-01T00:00:00Z' }] }], commitTime: '2026-01-01T00:00:00Z' });
+    } else if (req.method() === 'GET' && /\/documents\/scores\/[^/]+$/.test(u.pathname)) {
+      const uid = u.pathname.split('/').pop();
+      st.gets.push({ t: rec.t, uid });
+      const d = st.db[uid];
+      if (!d) { await json(route, 404, { error: { code: 404, status: 'NOT_FOUND' } }); return; }
+      await json(route, 200, { name: 'projects/' + ON_PROJECT + '/databases/(default)/documents/scores/' + uid, fields: { name: { stringValue: d.name }, score: { integerValue: String(d.score) }, ts: { timestampValue: '2026-01-01T00:00:00Z' } } });
+    } else await json(route, 404, {});
+  };
+  for (const h of ON_HOSTS) await ctx.route('https://' + h + '/**', handler);
+}
+/* console errors from the mocked network failing on purpose are expected; everything else counts */
+function watchOnline(page, label) {
+  pagesWatched++;
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) problems.consoleErrors.push({ page: label, text: m.text() });
+    if (m.type() === 'warning') problems.consoleWarnings.push({ page: label, text: m.text() });
+  });
+  page.on('pageerror', (e) => problems.pageErrors.push({ page: label, text: String(e && e.message || e) }));
+  page.on('request', () => { requestsSeen++; });
+}
+const XHR_LOGGER = () => {
+  const open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) { this.__m = m; this.__u = u; return open.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function (b) {
+    let mode = 'boot';
+    try { mode = window.MatatuRush.snapshot().mode; } catch (e) { /* page not ready */ }
+    (window.__xhr = window.__xhr || []).push({ m: this.__m, u: this.__u, mode, t: Date.now() });
+    return send.apply(this, arguments);
+  };
+};
+async function onlinePage(browser, base, opt) {
+  opt = opt || {};
+  const ctx = await browser.newContext({ viewport: opt.viewport || { width: 1280, height: 720 } });
+  const st = makeMock();
+  await installMock(ctx, st);
+  const cfg = opt.cfg === undefined ? { projectId: ON_PROJECT, apiKey: ON_KEY } : opt.cfg;
+  await ctx.addInitScript((c) => { if (c) window.MR_ONLINE_TEST = c; }, cfg);
+  /* optional test overrides: a shorter rate window, and a clock the test moves by hand (window.__clk) */
+  if (opt.delayMs !== undefined) await ctx.addInitScript((d) => { if (window.MR_ONLINE_TEST) window.MR_ONLINE_TEST.delayMs = d; }, opt.delayMs);
+  if (opt.clock) await ctx.addInitScript((t0) => { window.__clk = t0; if (window.MR_ONLINE_TEST) window.MR_ONLINE_TEST.now = function () { return window.__clk; }; }, opt.clock);
+  await ctx.addInitScript(XHR_LOGGER);
+  const page = await ctx.newPage();
+  watchOnline(page, opt.label || 'online');
+  const dialogs = [];
+  page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss().catch(() => {}); });
+  return { ctx, page, st, dialogs, base };
+}
+const xhrLog = (page) => page.evaluate(() => window.__xhr || []);
+async function until(fn, ms, label) {
+  const t0 = Date.now();
+  for (;;) {
+    let v; try { v = await fn(); } catch (e) { v = false; }
+    if (v) return v;
+    if (Date.now() - t0 > ms) return false;
+    await sleep(40);
+  }
+}
+const lsGet = (page, k) => page.evaluate((key) => localStorage.getItem(key), k);
+const lsJson = async (page, k) => { try { return JSON.parse(await lsGet(page, k)); } catch (e) { return null; } };
+const ON_ALIAS = /^(Dere|Konda|Makanga|Rubani) [1-9]\d\d$/;
+/* seed 20 with no input crashes after about 11 s (score a few hundred), which always makes an empty local board */
+async function idleToOver(page, base) {
+  await page.goto(base + '/index.html?seed=20');
+  await page.waitForFunction(() => !!window.MatatuRush);
+  await page.keyboard.press('Enter');
+  await waitFor(page, (x) => x.mode === 'running', 4000, 'online run');
+  await page.waitForSelector('#over:not([hidden])', { timeout: 70000 });
+  await sleep(120);
+  return snap(page);
+}
+const commitFields = (c) => { try { const w = c.body.writes[0]; return { doc: w.update.name, name: w.update.fields.name.stringValue, score: w.update.fields.score.integerValue, tr: w.updateTransforms, keys: Object.keys(w), fkeys: Object.keys(w.update.fields), nwrites: c.body.writes.length }; } catch (e) { return null; } };
+
+async function onlineBrowserChecks(browser, desktop) {
+  const G = 'online';
+  const { srv, port } = await startStaticServer();
+  const base = 'http://127.0.0.1:' + port;
+  const allMocks = [];
+  const mk = async (opt) => { const o = await onlinePage(browser, base, opt); allMocks.push(o.st); return o; };
+  try {
+    /* ---- under file:// the same page, fully configured, stays offline ---- */
+    {
+      const ctx = await browser.newContext(desktop);
+      const st = makeMock(); /* no routes on purpose: the page must not even try; watch() fails the run on any non-file request */
+      await ctx.addInitScript((c) => { window.MR_ONLINE_TEST = c; }, { projectId: ON_PROJECT, apiKey: ON_KEY });
+      await ctx.addInitScript(XHR_LOGGER);
+      const page = await ctx.newPage(); watch(page, 'online-file');
+      await page.goto(URL + '?seed=7');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      const gate = await page.evaluate(() => window.MR.online.enabled());
+      await page.evaluate(() => localStorage.setItem('matatuRush.top5', JSON.stringify([{ name: 'Local One', score: 777, id: 'l1' }])));
+      await page.reload();
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.click('#btnBoard');
+      await sleep(300);
+      const ui = await page.evaluate(() => ({ head: document.getElementById('boardH').textContent, rows: Array.from(document.querySelectorAll('#boardList li')).map((l) => l.textContent), note: !document.getElementById('boardNote').hidden, priv: !document.getElementById('boardPrivacy').hidden, loading: !document.getElementById('boardLoading').hidden }));
+      const xs = await xhrLog(page);
+      check(G, 'file://: with a full config MR.online.enabled() is false, boot and opening Top 5 make no request at all, and the sheet is the plain local one (no note, no privacy line, no Loading)',
+        gate === false && xs.length === 0 && st.log.length === 0 && st.stray.length === 0 && ui.head === 'TOP 5' && ui.rows.length === 1 && /Local One/.test(ui.rows[0]) && !ui.note && !ui.priv && !ui.loading, { gate, xhr: xs.length, mock: st.log.length, stray: st.stray, ui });
+      await ctx.close();
+    }
+
+    /* ---- reading the board: request shape, parsing, text-only rendering, states ---- */
+    {
+      const { ctx, page, st, dialogs } = await mk({ label: 'online-read' });
+      await page.goto(base + '/index.html?seed=7');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      check(G, 'http: enabled() is true with a config; booting with nothing pending sends no request', (await page.evaluate(() => window.MR.online.enabled())) === true && (await xhrLog(page)).length === 0);
+      const doc = (uid, fields) => ({ document: { name: 'projects/' + ON_PROJECT + '/databases/(default)/documents/scores/' + uid, fields }, readTime: 't' });
+      const S = (v) => ({ stringValue: v }), I = (v) => ({ integerValue: String(v) });
+      st.rawQuery = [
+        doc('uidAAAA1', { name: S('Wanjiru K'), score: I(90000), ts: { timestampValue: 't' } }),
+        doc('uidBBBB2', { name: S('<img onerror=alert(1)>'), score: I(80000) }),
+        doc('uidCCCC3', { name: S('Mwangi Kamau Junior'), score: I(70000) }),
+        doc('uidDDDD4', { name: S('Float Guy'), score: { doubleValue: 60000.5 } }),
+        doc('uidEEEE5', { name: { integerValue: '5' }, score: I(50000) }),
+        doc('uidFFFF6', { score: I(40000) }),
+        doc('uidGGGG7', { name: S('Neg'), score: I(-5) }),
+        doc('uidHHHH8', { name: S('Zero'), score: I(0) }),
+        doc('uidIIII9', { name: S('Junk'), score: I('12abc') }),
+        doc('uid bad!', { name: S('Bad Id'), score: I(30000) }),
+        doc('uidJJJJ0', { name: S('   '), score: I(25000) }),
+        { readTime: 't' }, null, 'str', 7, { document: null }, { document: { name: 'x', fields: 'nope' } },
+        doc('uidKKKK1', { name: S('Last Good'), score: I(20000) })
+      ];
+      const r = await page.evaluate(() => new Promise((res) => window.MR.online.top((e, rows) => res({ e, rows }))));
+      check(G, 'top() parses a realistic runQuery answer: keeps good rows, drops rows with a missing or non-string name, double or negative or zero or junk score, bad id, blank name, non-objects; names cut to 12',
+        r.e === null && JSON.stringify(r.rows) === JSON.stringify([{ name: 'Wanjiru K', score: 90000, id: 'uidAAAA1' }, { name: '<img onerror', score: 80000, id: 'uidBBBB2' }, { name: 'Mwangi Kamau', score: 70000, id: 'uidCCCC3' }, { name: 'Last Good', score: 20000, id: 'uidKKKK1' }]), r);
+      const q = st.queries[0], qb = q && (() => { try { return JSON.parse(q.body); } catch (e) { return null; } })();
+      check(G, 'top() sends one POST to the firestore host :runQuery for scores, orderBy score DESCENDING, limit 5, with no Authorization header',
+        !!q && q.host === 'firestore.googleapis.com' && q.method === 'POST' && q.path === '/v1/projects/' + ON_PROJECT + '/databases/(default)/documents:runQuery' && q.auth === '' && q.search === '?key=' + ON_KEY &&
+        JSON.stringify(qb) === JSON.stringify({ structuredQuery: { from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: 5 } }), { q: q && { host: q.host, path: q.path, auth: q.auth, search: q.search }, qb });
+      /* the sheet: Loading first, then the list; the hostile name is plain text */
+      st.queryDelay = 900;
+      await page.click('#btnBoard');
+      await sleep(250);
+      const L = await page.evaluate(() => ({ open: !document.getElementById('board').hidden, head: document.getElementById('boardH').textContent, loading: !document.getElementById('boardLoading').hidden, loadTxt: document.getElementById('boardLoading').textContent, listHidden: document.getElementById('boardList').hidden, emptyHidden: document.getElementById('boardEmpty').hidden, note: !document.getElementById('boardNote').hidden, priv: document.getElementById('boardPrivacy').hidden ? '' : document.getElementById('boardPrivacy').textContent }));
+      check(G, 'opening Top 5 online shows "Loading..." (not the empty state), the shared heading "Top 5, all players" and the public-data note while the request is out',
+        L.open && L.loading && L.loadTxt === 'Loading...' && L.listHidden && L.emptyHidden && !L.note && L.head === 'Top 5, all players' && L.priv === 'Names and scores on this board are public.', L);
+      await until(async () => !(await page.evaluate(() => document.getElementById('boardList').hidden)), 5000);
+      const U = await page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('#boardList li')).map((l) => l.textContent), imgs: document.querySelectorAll('#board img, #boardList img').length, html: document.getElementById('boardList').innerHTML, loading: !document.getElementById('boardLoading').hidden, note: !document.getElementById('boardNote').hidden, me: document.querySelectorAll('#boardList li[aria-current]').length, yours: !document.getElementById('boardYours').hidden, aria: document.getElementById('boardList').getAttribute('aria-label') }));
+      check(G, 'a server name like <img onerror=...> is shown as text (no element is created, no dialog, no script ran) and the list has the four good rows',
+        U.rows.length === 4 && /<img onerror/.test(U.rows[1]) && U.imgs === 0 && /&lt;img onerror/.test(U.html) && dialogs.length === 0 && !U.loading && !U.note && /Top 5 fares, all players/.test(U.aria), U);
+      check(G, 'with no local uid nothing is highlighted and there is no "Your best" line', U.me === 0 && U.yours === false);
+      await page.keyboard.press('Escape');
+
+      /* highlight own row, and the "Your best" line when the player is not in the shared top 5 */
+      st.queryDelay = 0; st.rawQuery = null;
+      st.db = { uidAAAA1: { name: 'Wanjiru K', score: 90000 }, uidBBBB2: { name: 'Baraka', score: 80000 }, mockuid1: { name: 'Mama Pima', score: 5000 } };
+      await page.evaluate(() => { localStorage.setItem('matatuRush.auth', JSON.stringify({ uid: 'mockuid1', refreshToken: 'rt-x' })); localStorage.setItem('matatuRush.onlineBest', '5000'); });
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await page.click('#btnBoard');
+      await until(async () => !(await page.evaluate(() => document.getElementById('boardList').hidden)), 5000);
+      const H = await page.evaluate(() => ({ cur: Array.from(document.querySelectorAll('#boardList li[aria-current="true"]')).map((l) => ({ t: l.querySelector('.nm').textContent, cls: l.className })), yours: !document.getElementById('boardYours').hidden }));
+      check(G, 'the row whose id equals the local uid gets aria-current="true" and the highlight class; no "Your best" line when the player is in the list', H.cur.length === 1 && H.cur[0].t === 'Mama Pima' && H.cur[0].cls === 'me' && H.yours === false, H);
+      await page.keyboard.press('Escape');
+      st.db = { a1: { name: 'A', score: 90000 }, a2: { name: 'B', score: 80000 }, a3: { name: 'C', score: 70000 }, a4: { name: 'D', score: 60000 }, a5: { name: 'E', score: 50000 } };
+      await page.evaluate(() => localStorage.setItem('matatuRush.onlineBest', '4321'));
+      await page.click('#btnBoard');
+      await until(async () => !(await page.evaluate(() => document.getElementById('boardList').hidden)), 5000);
+      const Y = await page.evaluate(() => ({ rows: document.querySelectorAll('#boardList li').length, me: document.querySelectorAll('#boardList li[aria-current]').length, yours: document.getElementById('boardYours').hidden ? '' : document.getElementById('boardYours').textContent }));
+      check(G, 'a player outside the shared top 5 sees one extra line "Your best: KSh 4,321" under the list', Y.rows === 5 && Y.me === 0 && Y.yours === 'Your best: KSh 4,321', Y);
+      await page.keyboard.press('Escape');
+
+      /* layout: the online sheet fits small screens (text at 14 px or more, Close reachable) */
+      for (const [w, h] of [[320, 568], [844, 390]]) {
+        await page.setViewportSize({ width: w, height: h });
+        await page.click('#btnBoard');
+        await until(async () => !(await page.evaluate(() => document.getElementById('boardList').hidden)), 5000);
+        const fit = await page.evaluate(() => {
+          const root = document.getElementById('board');
+          const nodes = Array.from(root.querySelectorAll('*')).filter((n) => n.offsetParent !== null && Array.from(n.childNodes).some((c) => c.nodeType === 3 && c.textContent.trim()));
+          const small = nodes.filter((n) => parseFloat(getComputedStyle(n).fontSize) < 14).map((n) => n.id || n.className || n.tagName);
+          const btn = document.getElementById('btnBoardClose'); btn.scrollIntoView({ block: 'nearest' });
+          const r = btn.getBoundingClientRect();
+          return { small, closeIn: r.top >= 0 && r.bottom <= innerHeight + 1 && r.left >= 0 && r.right <= innerWidth, noScroll: root.scrollHeight <= root.clientHeight + 1, sideways: root.scrollWidth > root.clientWidth + 1, n: nodes.length };
+        });
+        check(G, 'online Top 5 sheet at ' + w + 'x' + h + ': all text 14 px or more, no sideways scroll, Close button can be brought fully on screen', fit.small.length === 0 && fit.closeIn && !fit.sideways && fit.n > 8, fit);
+        await page.keyboard.press('Escape');
+      }
+      await page.setViewportSize({ width: 1280, height: 720 });
+
+      /* failure and empty states */
+      await page.evaluate(() => localStorage.setItem('matatuRush.top5', JSON.stringify([{ name: 'Local One', score: 777, id: 'l1' }, { name: 'Local Two', score: 500, id: 'l2' }])));
+      st.queryStatus = 500; st.queryDelay = 400;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await page.click('#btnBoard');
+      await sleep(120);
+      const mid = await page.evaluate(() => !document.getElementById('boardLoading').hidden);
+      await until(async () => !(await page.evaluate(() => document.getElementById('boardNote').hidden)), 5000);
+      const E = await page.evaluate(() => ({ note: document.getElementById('boardNote').textContent, head: document.getElementById('boardH').textContent, rows: Array.from(document.querySelectorAll('#boardList li')).map((l) => l.textContent), priv: !document.getElementById('boardPrivacy').hidden, loading: !document.getElementById('boardLoading').hidden, aria: document.getElementById('boardList').getAttribute('aria-label') }));
+      check(G, 'when the shared board cannot be fetched (HTTP 500) the sheet shows this device\'s own list, the heading "TOP 5" and the note "Offline. Showing this device only."; Loading is gone',
+        mid && E.note === 'Offline. Showing this device only.' && E.head === 'TOP 5' && E.rows.length === 2 && /Local One/.test(E.rows[0]) && !E.priv && !E.loading && /on this device/.test(E.aria), { mid, E });
+      await page.keyboard.press('Escape');
+      st.queryStatus = 200; st.queryDelay = 0; st.rawQuery = [{ readTime: 't' }];
+      await page.click('#btnBoard');
+      await until(async () => !(await page.evaluate(() => document.getElementById('boardEmpty').hidden)), 5000);
+      const Em = await page.evaluate(() => ({ empty: !document.getElementById('boardEmpty').hidden, list: document.getElementById('boardList').hidden, note: !document.getElementById('boardNote').hidden }));
+      check(G, 'an empty shared board shows the "No fares yet" message, not an error note', Em.empty && Em.list && !Em.note, Em);
+      await page.keyboard.press('Escape');
+      /* closing the sheet while the request is out: the late answer must not reopen or repaint it */
+      st.queryDelay = 700; st.rawQuery = null; st.db = { zz: { name: 'Late', score: 1 } };
+      await page.click('#btnBoard'); await sleep(100); await page.keyboard.press('Escape'); await sleep(1000);
+      check(G, 'closing the sheet while the request is in the air: the late answer changes nothing visible', await page.evaluate(() => document.getElementById('board').hidden));
+      await ctx.close();
+    }
+
+    /* ---- the pending record, rate limit and token reuse through the public API ---- */
+    {
+      const { ctx, page, st } = await mk({ label: 'online-api' });
+      await page.goto(base + '/index.html?seed=7');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      const call = (expr) => page.evaluate((e) => new Promise((res) => { const cb = (err, val) => res({ err, val }); (new Function('cb', 'return ' + e))(cb); }), expr);
+      const a = await call("MR.online.submit('Mama Pima', 1000, cb, 'Dere 111')");
+      const b = await call("MR.online.submit('Mama Pima', 2000, cb, 'Dere 111')");
+      const fa = commitFields(st.commits[0] || {}), fb = commitFields(st.commits[1] || {});
+      check(G, 'sign-up happens once and the access token is reused: two sends, one signUp, no refresh, same Bearer token and same document',
+        a.err === null && b.err === null && st.signups === 1 && st.refreshes === 0 && st.commits.length === 2 && st.commits[0].auth === 'Bearer id-1' && st.commits[1].auth === 'Bearer id-1' && fa.doc === fb.doc && /\/scores\/mockuid1$/.test(fa.doc) && fb.score === '2000', { a, b, signups: st.signups, refreshes: st.refreshes, auth: st.commits.map((c) => c.auth) });
+      const signLog = st.log.find((l) => l.path.endsWith('/accounts:signUp'));
+      check(G, 'sign-up request: POST to the identitytoolkit host /v1/accounts:signUp?key=... with {"returnSecureToken":true}; the uid and refresh token are stored under matatuRush.auth',
+        !!signLog && signLog.host === 'identitytoolkit.googleapis.com' && signLog.method === 'POST' && signLog.search === '?key=' + ON_KEY && JSON.parse(signLog.body).returnSecureToken === true && JSON.stringify(await lsJson(page, 'matatuRush.auth')) === JSON.stringify({ uid: 'mockuid1', refreshToken: 'rt-1' }), signLog);
+      const nameChecks = [
+        ['non-ASCII name', "MR.online.submit('Wanjir\\u00fa', 3000, cb, 'Konda 222')", 'Konda 222'],
+        ['blocklisted name (upper case)', "MR.online.submit('SHIT HEAD', 3001, cb, 'Rubani 333')", 'Rubani 333'],
+        ['blocklisted word as its own token', "MR.online.submit('xx fuck xx', 3002, cb, 'Makanga 444')", 'Makanga 444'],
+        ['real name that only CONTAINS a listed string (Kumar) is kept', "MR.online.submit('Kumar', 3005, cb, 'Makanga 445')", 'Kumar'],
+        ['HTML in the name', "MR.online.submit('<b>hi</b>', 3003, cb, 'Dere 555')", 'Dere 555'],
+        ['padded name: trimmed, spaces collapsed, kept', "MR.online.submit('   Wambui   K  ', 3004, cb, 'Dere 666')", 'Wambui K']
+      ];
+      const sent = [];
+      for (const [, expr] of nameChecks) { const before = st.commits.length; await call(expr); sent.push(st.commits.length === before + 1 ? commitFields(st.commits[st.commits.length - 1]).name : null); }
+      check(G, 'submit() sends the alias instead of a non-ASCII, blocklisted (any case, whole word) or HTML name; a clean name (even one that merely contains a listed string) is trimmed and kept',
+        JSON.stringify(sent) === JSON.stringify(nameChecks.map((x) => x[2])), sent);
+      const bad = await Promise.all([call("MR.online.submit('Bob', 0, cb, 'Dere 111')"), call("MR.online.submit('Bob', 5000001, cb, 'Dere 111')"), call("MR.online.submit('fuck', 10, cb, 'shit')")]);
+      check(G, 'submit() refuses (and sends nothing) for a zero score, a score above the cap, and a bad name with a bad alias', bad[0].err === 'badscore' && bad[1].err === 'badscore' && bad[2].err === 'badname' && st.commits.length === 2 + nameChecks.length, bad);
+      const cf = fa;
+      check(G, 'commit body: one write, update of scores/{uid} with name (string) and score (integer as a string), updateTransforms ts = REQUEST_TIME, no updateMask, no precondition, key in the URL',
+        cf && cf.nwrites === 1 && JSON.stringify(cf.keys.sort()) === JSON.stringify(['update', 'updateTransforms']) && JSON.stringify(cf.fkeys.sort()) === JSON.stringify(['name', 'score']) && cf.name === 'Mama Pima' && cf.score === '1000' && JSON.stringify(cf.tr) === JSON.stringify([{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }]) && st.commits[0].search === '?key=' + ON_KEY && st.commits[0].host === 'firestore.googleapis.com' && st.commits[0].path === '/v1/projects/' + ON_PROJECT + '/databases/(default)/documents:commit', cf);
+      await ctx.close();
+    }
+    {
+      /* rate limit: a second flush inside the window is delayed, not sent. The page gets a hand-driven clock (window.__clk) and a
+         300 ms window, so nothing depends on real 11 s waits. The wait is ONE window at most (one timer of about 350 ms): the clock
+         here is frozen on purpose, and the write still leaves after that one wait, because a wait is never repeated (a stuck or
+         moved clock must not lock the device out). */
+      const { ctx, page, st } = await mk({ label: 'online-rate', delayMs: 300, clock: 5000000 });
+      await page.goto(base + '/index.html?seed=7');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.evaluate(() => { window.__fl = []; MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 100 }); MR.online.flush((e, v) => window.__fl.push(['f1', e, v && v.sent])); });
+      await until(async () => st.commits.length === 1, 5000);
+      await until(async () => (await page.evaluate(() => window.__fl.length)) === 1, 3000);
+      const stamp1 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
+      await page.evaluate(() => { MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 200 }); MR.online.flush((e, v) => window.__fl.push(['f2', e, v && v.sent])); MR.online.flush((e) => window.__fl.push(['f3', e])); });
+      await sleep(120); /* well inside the one 350 ms wait; the clock has not moved */
+      const early = st.commits.length;
+      const busy = await page.evaluate(() => window.__fl.filter((x) => x[0] === 'f3').map((x) => x[1]));
+      await until(async () => st.commits.length === 2, 5000); /* the one wait ends, the frozen clock notwithstanding */
+      const stamp2 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
+      check(G, 'a second flush inside the rate window is delayed, not sent (nothing while the one window wait is running), a third call meanwhile is refused as busy, and the delayed one goes out after that ONE wait even when the injected clock never moves (no repeated waiting)',
+        stamp1 === 5000000 && early === 1 && busy.length === 1 && busy[0] === 'busy' && st.commits.length === 2 && stamp2 === 5000000 && commitFields(st.commits[1]).score === '200', { stamp1, early, busy, stamp2, n: st.commits.length });
+      await ctx.close();
+    }
+    {
+      /* nothing is requested while the game is PAUSED (only the title and game over screens may talk to the network) */
+      const { ctx, page, st } = await mk({ label: 'online-pause' });
+      await page.goto(base + '/index.html?seed=20');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.keyboard.press('Enter');
+      await waitFor(page, (x) => x.mode === 'running', 4000, 'pause run');
+      await page.keyboard.press('p');
+      await waitFor(page, (x) => x.mode === 'paused', 4000, 'paused');
+      const before = st.log.length, xb = (await xhrLog(page)).length;
+      const r = await page.evaluate(() => new Promise((res) => {
+        const out = {};
+        MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 123456 });
+        MR.online.top((e) => { out.top = e; MR.online.flush((e2) => { out.flush = e2; MR.online.submit('Bob', 99, (e3) => { out.submit = e3; res(out); }, 'Dere 111'); }); });
+      }));
+      await sleep(300);
+      check(G, 'while PAUSED top(), flush() and submit() all refuse with "running" and no request leaves (guard allows only the title and game over screens)',
+        r.top === 'running' && r.flush === 'running' && r.submit === 'running' && st.log.length === before && (await xhrLog(page)).length === xb, { r, before, now: st.log.length });
+      await ctx.close();
+    }
+
+    /* ---- real runs: queue at game over, send on Save / Skip / Play again / Menu, failures ---- */
+    const runScenarios = [];
+    /* G1: Save with a typed name */
+    runScenarios.push((async () => {
+      const { ctx, page, st, dialogs } = await mk({ label: 'online-save' });
+      st.db = { uidTop1: { name: 'Wanjiru K', score: 100000 }, uidLow1: { name: 'Tiny', score: 1 } };
+      const s = await idleToOver(page, base);
+      await until(async () => (await page.evaluate(() => document.querySelectorAll('#overBoard li').length)) === 2, 5000);
+      const pend = await lsJson(page, 'matatuRush.pending');
+      const alias = await page.evaluate(() => document.getElementById('nameInput').placeholder);
+      const ui0 = await page.evaluate(() => ({ head: document.getElementById('overBoardH').textContent, pub: document.getElementById('namePublic').hidden ? '' : document.getElementById('namePublic').textContent, rows: document.querySelectorAll('#overBoard li').length, form: !document.getElementById('nameForm').hidden }));
+      check(G, 'game over with a new local best: the run is queued at once under its alias (pending = alias, alias, score); nothing is sent yet; the shared list and the public-data note show on the over screen',
+        s.screen === 'over' && s.score > 0 && !!pend && pend.name === alias && pend.alias === alias && ON_ALIAS.test(alias) && pend.score === s.score && st.commits.length === 0 && st.signups === 0 && ui0.form && ui0.head === 'Top 5, all players' && ui0.rows === 2 && ui0.pub === 'Names and scores on this board are public.', { s: s.score, pend, alias, commits: st.commits.length, ui0 });
+      await page.fill('#nameInput', 'Mama Pima');
+      await page.keyboard.press('Enter');
+      await until(async () => st.commits.length === 1, 6000);
+      await until(async () => (await page.evaluate(() => document.querySelectorAll('#overBoard li[aria-current]').length)) === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      const after = await page.evaluate(() => ({ cur: Array.from(document.querySelectorAll('#overBoard li[aria-current="true"]')).map((l) => ({ t: l.querySelector('.nm').textContent, c: l.className })), rows: Array.from(document.querySelectorAll('#overBoard li')).map((l) => l.textContent), saved: document.getElementById('nameSaved').textContent }));
+      const xs = await xhrLog(page);
+      check(G, 'Save with a typed name sends exactly one commit: typed name, integer score of the run, ts = REQUEST_TIME; one sign-up; the Bearer token is the one just issued',
+        st.commits.length === 1 && !!f && f.name === 'Mama Pima' && f.score === String(s.score) && /^\d+$/.test(f.score) && JSON.stringify(f.tr) === JSON.stringify([{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }]) && st.signups === 1 && st.commits[0].auth === 'Bearer id-1' && /\/scores\/mockuid1$/.test(f.doc), { f, signups: st.signups });
+      check(G, 'after the send the pending record is gone, onlineBest equals the score, and the over list is re-fetched and highlights this player (aria-current, class me) under the typed name',
+        (await lsGet(page, 'matatuRush.pending')) === '' && (await lsGet(page, 'matatuRush.onlineBest')) === String(s.score) && after.cur.length === 1 && after.cur[0].t === 'Mama Pima' && after.cur[0].c === 'me' && after.rows.length === 3 && st.queries.length >= 2, { after, q: st.queries.length });
+      check(G, 'nothing was requested while the mode was "running" (every request was made at the title or game over)', xs.length >= 3 && xs.every((x) => x.mode !== 'running' && x.mode !== 'paused'), xs.map((x) => x.mode + ' ' + x.u.replace(/\?.*/, '').split('/').pop()));
+      check(G, 'no dialog and no stray (non-mocked) request on the save flow', dialogs.length === 0 && st.stray.length === 0, { dialogs, stray: st.stray });
+      await ctx.close();
+    })());
+    /* G2: Skip, player outside the shared top 5 */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-skip' });
+      st.db = { a1: { name: 'A', score: 90000 }, a2: { name: 'B', score: 80000 }, a3: { name: 'C', score: 70000 }, a4: { name: 'D', score: 60000 }, a5: { name: 'E', score: 50000 } };
+      const s = await idleToOver(page, base);
+      const alias = await page.evaluate(() => document.getElementById('nameInput').placeholder);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      await until(async () => (await page.evaluate(() => !document.getElementById('overYours').hidden)), 6000);
+      const ui = await page.evaluate(() => ({ yours: document.getElementById('overYours').hidden ? '' : document.getElementById('overYours').textContent, rows: document.querySelectorAll('#overBoard li').length, cur: document.querySelectorAll('#overBoard li[aria-current]').length }));
+      check(G, 'Skip sends one commit under the alias', st.commits.length === 1 && !!f && f.name === alias && ON_ALIAS.test(f.name) && f.score === String(s.score), { f, alias });
+      check(G, 'a score outside the shared top 5: five rows, none highlighted, and the line "Your best: KSh N" under the list on the game over screen',
+        ui.rows === 5 && ui.cur === 0 && ui.yours === 'Your best: KSh ' + String(s.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), { ui, score: s.score });
+      await ctx.close();
+    })());
+    /* G3: a blocklisted typed name */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-block' });
+      const s = await idleToOver(page, base);
+      const alias = await page.evaluate(() => document.getElementById('nameInput').placeholder);
+      await page.fill('#nameInput', 'Fuck Off');
+      await page.click('#btnSaveName');
+      await until(async () => st.commits.length === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      const local = await lsJson(page, 'matatuRush.top5');
+      check(G, 'a typed blocklisted name ("Fuck Off") is sent as the alias, not as typed (the local board keeps what the player typed)', !!f && f.name === alias && !/fuck/i.test(JSON.stringify(st.commits[0].body)) && local && local[0].name === 'Fuck Off' && f.score === String(s.score), { f, alias, local });
+      const saved = await page.evaluate(() => ({ t: document.getElementById('nameSaved').textContent, live: document.getElementById('live').textContent }));
+      check(G, 'the player is told when the shared board cannot use the typed name: "Saved as Fuck Off on this device. Shared board shows <alias>." (also in the live region), not a silent swap',
+        saved.t === 'Saved as Fuck Off on this device. Shared board shows ' + alias + '.' && saved.live.indexOf('Shared board shows ' + alias) !== -1, { saved, alias });
+      await ctx.close();
+    })());
+    /* G4: Play again with the form untouched; the next run is never interrupted; sent at its end */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-again' });
+      const s = await idleToOver(page, base);
+      const alias = await page.evaluate(() => document.getElementById('nameInput').placeholder);
+      await sleep(700);
+      await page.click('#btnAgain');
+      await waitFor(page, (x) => x.mode === 'running', 4000, 'second run');
+      await until(async () => st.signups === 1, 3000);
+      await sleep(1200);
+      const mid = await xhrLog(page);
+      const pend = await lsJson(page, 'matatuRush.pending');
+      check(G, 'Play again with the form untouched: the start-of-run flush asks for sign-up before the run starts, but nothing is sent once the run is going (the commit waits; the record stays pending)',
+        st.signups === 1 && st.commits.length === 0 && !!pend && pend.name === alias && mid.length >= 1 && mid.every((x) => x.mode !== 'running'), { signups: st.signups, commits: st.commits.length, pend, modes: mid.map((x) => x.mode) });
+      await page.waitForSelector('#over:not([hidden])', { timeout: 70000 });
+      await sleep(150);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      const all = await xhrLog(page);
+      check(G, 'after the second run the pending alias of the FIRST run goes out (the older record was kept: same score, not replaced), still nothing while running', !!f && f.name === alias && f.score === String(s.score) && all.every((x) => x.mode !== 'running'), { f, alias, modes: all.map((x) => x.mode) });
+      await ctx.close();
+    })());
+    /* G5: network down at Save; pending survives; Menu sends it */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-net' });
+      st.net = true;
+      const s = await idleToOver(page, base);
+      const alias = await page.evaluate(() => document.getElementById('nameInput').placeholder);
+      const over = await page.evaluate(() => ({ note: document.getElementById('overNote').hidden ? '' : document.getElementById('overNote').textContent, head: document.getElementById('overBoardH').textContent, rows: Array.from(document.querySelectorAll('#overBoard li')).map((l) => l.textContent), loading: !document.getElementById('overLoading').hidden }));
+      check(G, 'game over with the network down: the over screen shows this device\'s list, heading "Top 5" and the note "Offline. Showing this device only."; Loading is gone',
+        over.note === 'Offline. Showing this device only.' && over.head === 'Top 5' && over.rows.length === 1 && !over.loading, over);
+      await page.fill('#nameInput', 'Baraka');
+      await page.keyboard.press('Enter');
+      await sleep(1500);
+      const hits = st.netHits;
+      await sleep(2500);
+      const pend = await lsJson(page, 'matatuRush.pending');
+      check(G, 'network down at Save: the record stays pending with the typed name, nothing is committed, and there is no retry loop (request count unchanged after 2.5 s)',
+        !!pend && pend.name === 'Baraka' && pend.score === s.score && st.commits.length === 0 && hits >= 1 && st.netHits === hits && (await lsGet(page, 'matatuRush.onlineBest')) !== String(s.score), { pend, hits, now: st.netHits });
+      st.net = false;
+      await page.click('#btnMenu');
+      await until(async () => st.commits.length === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      await until(async () => (await lsGet(page, 'matatuRush.pending')) === '', 4000);
+      const xs = await xhrLog(page);
+      check(G, 'Menu (back to the title) flushes the pending record: the typed name goes out once the network is back', !!f && f.name === 'Baraka' && f.score === String(s.score) && xs.every((x) => x.mode !== 'running') && (await lsGet(page, 'matatuRush.pending')) === '', { f });
+      await ctx.close();
+    })());
+    /* G6: 403 (rules said no, or "too soon"): keep the record, retry once per window, drop after 3 attempts. 100 ms-scale window via delayMs. */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-403', delayMs: 1200 });
+      st.commitStatus = 403;
+      const s = await idleToOver(page, base);
+      await page.fill('#nameInput', 'Rejected');
+      await page.keyboard.press('Enter');
+      await until(async () => st.commits.length === 1, 6000);
+      await sleep(500);
+      const p1 = await lsJson(page, 'matatuRush.pending');
+      check(G, 'a first 403 keeps the pending record (attempts 1), does not raise onlineBest and sends nothing more at once (no tight loop)',
+        st.commits.length === 1 && !!p1 && p1.attempts === 1 && p1.name === 'Rejected' && (await lsGet(page, 'matatuRush.onlineBest')) === '0', { n: st.commits.length, p1 });
+      await until(async () => st.commits.length === 3, 12000);
+      await sleep(2500); /* longer than a window: a fourth attempt would show now */
+      const pend = await lsGet(page, 'matatuRush.pending');
+      const gaps = st.commits.map((c) => c.t).slice(1).map((t, i) => t - st.commits[i].t);
+      check(G, 'a 403 that never goes away: exactly 3 attempts, each at least one window (1.2 s here) after the previous answer, the record is then dropped, onlineBest is not raised, and a re-read of the own entry (GET) comes before each retry',
+        st.commits.length === 3 && pend === '' && gaps.every((g) => g >= 1150) && st.gets.length === 2 && (await lsGet(page, 'matatuRush.onlineBest')) === '0' && st.signups === 1, { n: st.commits.length, pend, gaps, gets: st.gets.length });
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await sleep(1500);
+      check(G, 'after a reload the dropped record is not resent', st.commits.length === 3, st.commits.length);
+      await ctx.close();
+    })());
+    /* G6b: one "too soon" 403, then the retry goes through and the score is not lost */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-403b', delayMs: 1200 });
+      st.failCommits = 1;
+      const s = await idleToOver(page, base);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 2, 12000);
+      await until(async () => (await lsGet(page, 'matatuRush.pending')) === '', 4000);
+      const gap = st.commits.length === 2 ? st.commits[1].t - st.commits[0].t : -1;
+      check(G, 'one 403 and then success: the same record is retried after the window (one GET in between), is accepted, the pending record is cleared and onlineBest is raised',
+        st.commits.length === 2 && st.gets.length === 1 && gap >= 1150 && (await lsGet(page, 'matatuRush.onlineBest')) === String(s.score) && commitFields(st.commits[1]).score === String(s.score), { n: st.commits.length, gets: st.gets.length, gap });
+      await ctx.close();
+    })());
+    /* G6c: HTTP 400 (malformed) is dropped at once and never retried */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-400', delayMs: 1200 });
+      st.commitStatus = 400;
+      await idleToOver(page, base);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 1, 6000);
+      await sleep(2800);
+      check(G, 'an HTTP 400 drops the pending record at once and nothing is retried', st.commits.length === 1 && (await lsGet(page, 'matatuRush.pending')) === '', { n: st.commits.length });
+      await ctx.close();
+    })());
+    await Promise.all(runScenarios);
+
+    /* ---- pending survives a reload when the network fails, and is sent at the next boot ---- */
+    {
+      const { ctx, page, st } = await mk({ label: 'online-boot' });
+      await page.goto(base + '/index.html?seed=7');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.evaluate(() => localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Wambui K', alias: 'Dere 123', score: 4242 })));
+      st.net = true;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await sleep(1000);
+      const survived = await lsJson(page, 'matatuRush.pending');
+      check(G, 'pending survives a boot with the network down (kept, no commit)', !!survived && survived.score === 4242 && survived.name === 'Wambui K' && st.commits.length === 0 && st.netHits >= 1, { survived, hits: st.netHits });
+      st.net = false;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await until(async () => st.commits.length === 1, 6000);
+      const f = commitFields(st.commits[0] || {});
+      const xs = await xhrLog(page);
+      check(G, 'the next boot sends it: one sign-up, one commit with the stored name and score, made at the title (not during a run), pending cleared',
+        !!f && f.name === 'Wambui K' && f.score === '4242' && st.signups === 1 && xs.every((x) => x.mode === 'boot' || x.mode === 'title') && (await until(async () => (await lsGet(page, 'matatuRush.pending')) === '', 2000)), { f, modes: xs.map((x) => x.mode) });
+      /* a second boot with a stored refresh token uses it (no new sign-up) */
+      await page.evaluate(() => localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Wambui K', alias: 'Dere 123', score: 5000 })));
+      await page.evaluate(() => localStorage.setItem('matatuRush.lastSend', '0'));
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await until(async () => st.commits.length === 2, 6000);
+      check(G, 'after a reload the stored refresh token is used (POST securetoken /v1/token, form-encoded grant_type=refresh_token) and no second sign-up happens',
+        st.signups === 1 && st.refreshes === 1 && st.commits.length === 2 && /grant_type=refresh_token&refresh_token=rt-1/.test((st.log.find((l) => l.path === '/v1/token') || {}).body || '') && st.commits[1].auth === 'Bearer id-r1', { signups: st.signups, refreshes: st.refreshes });
+      /* an invalid refresh token: sign up again, once */
+      await page.evaluate(() => { localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Wambui K', alias: 'Dere 123', score: 6000 })); localStorage.setItem('matatuRush.lastSend', '0'); });
+      st.tokenStatus = 400;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await until(async () => st.commits.length === 3, 6000);
+      const au = await lsJson(page, 'matatuRush.auth');
+      check(G, 'an invalid refresh token (HTTP 400) makes the client sign up again once and still send', st.signups === 2 && st.refreshes === 2 && st.commits.length === 3 && au && au.uid === 'mockuid2' && /\/scores\/mockuid2$/.test(commitFields(st.commits[2]).doc), { signups: st.signups, refreshes: st.refreshes, au });
+      /* a refresh answered 403 (API key that does not allow the Token Service API): also one fresh sign-up, then the send */
+      await page.evaluate(() => { localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Wambui K', alias: 'Dere 123', score: 7000 })); localStorage.setItem('matatuRush.lastSend', '0'); });
+      st.tokenStatus = 403;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await until(async () => st.commits.length === 4, 6000);
+      const au3 = await lsJson(page, 'matatuRush.auth');
+      check(G, 'a refresh answered HTTP 403 makes the client sign up again once (new id) and still send under the new id', st.signups === 3 && st.refreshes === 3 && st.commits.length === 4 && au3 && au3.uid === 'mockuid3' && /\/scores\/mockuid3$/.test(commitFields(st.commits[3]).doc), { signups: st.signups, refreshes: st.refreshes, au3 });
+      await ctx.close();
+    }
+    {
+      /* a run that starts while a token refresh is still in the air: the commit is held back until the run is over */
+      const { ctx, page, st } = await mk({ label: 'online-hold' });
+      await page.goto(base + '/index.html?seed=20');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.evaluate(() => { localStorage.setItem('matatuRush.auth', JSON.stringify({ uid: 'mockuid1', refreshToken: 'rt-1' })); localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Held Back', alias: 'Dere 999', score: 1500 })); localStorage.setItem('matatuRush.lastSend', '0'); });
+      st.tokenDelay = 1500;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await page.keyboard.press('Enter');
+      await waitFor(page, (x) => x.mode === 'running', 4000, 'hold run');
+      await until(async () => st.refreshes === 1, 3000);
+      await sleep(2800);
+      const mid = await xhrLog(page);
+      check(G, 'a refresh started at boot and answered during a run does not lead to a commit during the run; the record stays pending', st.refreshes === 1 && st.commits.length === 0 && (await lsJson(page, 'matatuRush.pending')) && mid.every((x) => x.mode !== 'running'), { commits: st.commits.length, modes: mid.map((x) => x.mode) });
+      await page.waitForSelector('#over:not([hidden])', { timeout: 70000 });
+      await sleep(150);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 1, 6000);
+      const all = await xhrLog(page);
+      check(G, 'the held record goes out after the run ends, with its own stored name, and no request ever carried mode "running"', st.commits.length === 1 && commitFields(st.commits[0]).name === 'Held Back' && all.every((x) => x.mode !== 'running'), { n: st.commits.length, modes: all.map((x) => x.mode) });
+      await ctx.close();
+    }
+
+    /* ---- network report for the whole group ---- */
+    const hosts = new Set(); let strays = [];
+    for (const m of allMocks) { for (const l of m.log) hosts.add(l.host); strays = strays.concat(m.stray); }
+    check(G, 'every Google request made by the online pages went to one of the three default hosts and was answered by the mock (no real network, no other host)',
+      strays.length === 0 && Array.from(hosts).every((h) => ON_HOSTS.indexOf(h) !== -1) && hosts.size === 3, { hosts: Array.from(hosts), strays });
+  } finally {
+    srv.close();
+  }
+}
+
+if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, layoutChecks, onlineNodeChecks, onlineSimChecks, onlineBrowserChecks, results, problems }; return; }
 
 (async () => {
   const { pw, from } = loadPlaywright();
@@ -880,6 +1872,21 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   const desktop = { viewport: { width: 1280, height: 720 } };
   const notes = {};
   const NM_SEED = 21;
+
+  /* ONLY=online runs just the online group (Node checks, fake-world checks, mocked browser pages) and writes no report files */
+  if (process.env.ONLY) {
+    if (process.env.ONLY !== 'online') { console.error('ONLY must be "online" (the only group that can run alone)'); await browser.close(); process.exit(2); }
+    console.log('ONLY=online: running the online group only');
+    onlineNodeChecks();
+    onlineSimChecks();
+    await onlineBrowserChecks(browser, desktop);
+    await browser.close();
+    const bad = results.filter((r) => !r.ok);
+    const clean1 = problems.consoleErrors.length === 0 && problems.pageErrors.length === 0;
+    console.log('\nONLY=online: ' + (results.length - bad.length) + '/' + results.length + ' checks passed' + (clean1 ? '' : ', console errors: ' + JSON.stringify(problems.consoleErrors.concat(problems.pageErrors))));
+    if (bad.length) console.log('FAILED:\n' + bad.map((f) => ' - [' + f.group + '] ' + f.name + ' ' + f.detail).join('\n'));
+    process.exit(bad.length || !clean1 ? 1 : 0);
+  }
 
   /* ===== 1. Title, offline, no audio before gesture ===== */
   console.log('1. Title screen / offline / no audio before gesture');
@@ -903,8 +1910,11 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await ctx.close();
   }
   {
-    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
+    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/config.js', 'js/online.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
     const bad = [], net = [], fontUrls = [], impact = [];
+    /* js/online.js is the ONLY file allowed to touch the network: XMLHttpRequest, and exactly these three https origins */
+    const ONLINE_HOSTS = ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://firestore.googleapis.com'];
+    const onlineUrls = [];
     for (const f of files) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
       if (/[\u2014\u2013]/.test(src)) bad.push(f);
@@ -912,6 +1922,13 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
       let scan = src;
       if (f === 'css/style.css') {
         scan = src.replace(/url\("\.\.\/fonts\/([A-Za-z0-9-]+\.ttf)"\)/g, (m, name) => { fontUrls.push(name); return 'LOCALFONT'; });
+      }
+      if (f === 'js/online.js') {
+        /* relaxed for this file only: every absolute URL must be exactly one of the three hosts, and XHR / fetch( are allowed.
+           WebSocket, //cdn, @import, <img>, <audio>, <video> and url( are still rejected here like everywhere else. */
+        const urls = scan.match(/https?:\/\/[^\s'"`)]*/gi) || [];
+        for (const u of urls) { onlineUrls.push(u); if (ONLINE_HOSTS.indexOf(u) === -1) net.push(f + ' (url ' + u + ')'); }
+        scan = scan.replace(/https?:\/\/[^\s'"`)]*/gi, 'ALLOWEDHOST').replace(/fetch\(|XMLHttpRequest/g, 'ALLOWEDXHR');
       }
       if (/https?:\/\/|\/\/cdn|@import|fetch\(|XMLHttpRequest|WebSocket|<img|<audio|<video|url\(/i.test(scan)) net.push(f);
       if (/\bImpact\b|Haettenschweiler/.test(src)) impact.push(f);
@@ -926,7 +1943,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('static', 'no font size below 14 px anywhere in css/style.css', small.length === 0, small);
     {
     check('static', 'no em or en dashes anywhere in shipped source (covers all on-screen text)', bad.length === 0, bad);
-    check('static', 'no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed)', net.length === 0, net);
+    check('static', 'no remote URLs, fetch, XHR, image or media tags in shipped source (only local relative font urls allowed; js/online.js alone may use XHR and the three Google hosts)', net.length === 0, net);
+    check('static', 'js/online.js names exactly the three Google hosts (identitytoolkit, securetoken, firestore) and no other absolute URL', onlineUrls.length === 3 && ONLINE_HOSTS.every((h) => onlineUrls.indexOf(h) !== -1), onlineUrls);
     check('static', 'inline data: favicon is declared, so http serving never requests /favicon.ico', /<link rel="icon"[^>]*href="data:image\/png;base64,[A-Za-z0-9+\/=]+"/.test(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')));
     }
   }
@@ -1276,20 +2294,20 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   }
   {
     /* a demo (autopilot) run that really reaches game over must not enter the board, show the form, or highlight a row.
-       Seed 101 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 53 s);
+       Seed 121 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 59 s);
        the board is pre-filled with score 1 entries so a wrongly inserted demo score (thousands) would show up. */
     const ctx = await browser.newContext(desktop);
     const page = await ctx.newPage(); watch(page, 'board-demo');
     const seeded = JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
     await page.goto(URL + '?seed=7');
     await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), seeded);
-    await page.goto(URL + '?seed=101&autopilot=1&autostart=1');
+    await page.goto(URL + '?seed=121&autopilot=1&autostart=1');
     await page.waitForFunction(() => !!window.MatatuRush);
     const sDemo = await waitFor(page, (x) => x.mode === 'gameover', 90000, 'demo game over');
     await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
     await sleep(100);
     const d = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden, cur: document.querySelectorAll('#overBoard li[aria-current]').length, rows: document.querySelectorAll('#overBoard li').length, tag: document.getElementById('overTag').textContent }));
-    check('board', 'a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
+    check('board', 'a real demo game over (autopilot seed 121, about 59 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
       sDemo.autopilot === true && sDemo.boardRank === 0 && sDemo.score > 1 && !d.form && d.ls === seeded && d.cur === 0 && d.rows === 5 && /Demo over/.test(d.tag), { rank: sDemo.boardRank, score: sDemo.score, d });
     await ctx.close();
   }
@@ -1485,8 +2503,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('determinism', 'same seed gives an identical event log in two browser runs', A.ev.length > 10 && ja === jb, { events: A.ev.length });
     check('determinism', 'browser event log equals a pure Node replay of js/game.js (events are real simulation output)', ja === jn, { browser: A.ev.length, node: node.length });
 
-    /* ----- 7b. Seed 7 demo started by a REAL click on "Watch demo": popups, audio, recording ----- */
-    console.log('\n7b. Seed 7 demo after a real click: popup overlap audit, audio-on recording');
+    /* ----- 7b. Seed 4 demo started by a REAL click on "Watch demo": popups, audio, recording ----- */
+    console.log('\n7b. Seed 4 demo after a real click: popup overlap audit, audio-on recording');
     const ctx = await browser.newContext(desktop);
     await ctx.addInitScript(AUDIO_TAP);
     const page = await ctx.newPage(); watch(page, 'demo-audio');
@@ -1503,7 +2521,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
         cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
       });
     } catch (e) { cdp = null; }
-    await page.goto(URL + '?seed=7');
+    await page.goto(URL + '?seed=4');
     await page.waitForFunction(() => !!window.MatatuRush);
     await fontsReady(page); await sleep(300);
     const pre = await snap(page);
@@ -1530,15 +2548,15 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     if (cdp) { await sleep(400); await cdp.send('Page.stopScreencast').catch(() => {}); }
     await ctx.close();
     const dp = dEv.filter((x) => x.type === 'pickup'), fired = last.audio.fired || {};
-    notes.demoAudio = { seed: 7, simSeconds: last.time, pickups: dp.length, hornReadyEvents: dEv.filter((x) => x.type === 'hornReady').length, audioState: last.audio.state, statesSeen: Array.from(states), sequencerSteps: last.audio.steps, peakRms: peak, sfxFired: fired,
+    notes.demoAudio = { seed: 4, simSeconds: last.time, pickups: dp.length, hornReadyEvents: dEv.filter((x) => x.type === 'hornReady').length, audioState: last.audio.state, statesSeen: Array.from(states), sequencerSteps: last.audio.steps, peakRms: peak, sfxFired: fired,
       popups: { frames: pa.frames, maxFloats: pa.maxFloats, comboAndFareFrames: pa.both, hornReadyWithPickupFrames: pa.hornWithPickup, slotFrames: pa.slotSeen, slotCopy: pa.copy } };
     console.log('  AUDIO  demo AudioContext state: ' + last.audio.state + ', sequencer steps: ' + last.audio.steps + ', peak RMS: ' + peak + ', sfx fired: ' + JSON.stringify(fired));
     check('audio', 'recording page: no AudioContext and no recorder before the click; the click on Watch demo starts audio (running, music on)', pre.audio.created === false && !preRec.hasRecorder && preRec.chunks === 0 && first.audio.created && first.audio.state === 'running' && first.audio.musicOn, { before: pre.audio.state, after: first.audio.state });
     check('audio', 'demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)', peak > 0.01 && states.size === 1 && fired.pickup === dp.length && dp.length >= 5 && (fired.ready || 0) === dEv.filter((x) => x.type === 'hornReady').length && (fired.horn || 0) === dEv.filter((x) => x.type === 'horn').length, { peakRms: peak, fired, pickups: dp.length });
-    check('popup', 'seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame', pa.frames > 50 && pa.overlaps.length === 0 && pa.floatOffRoad === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
-    check('popup', 'seed 7 demo: combo (BEBA) and fare popups were visible in the same frame', pa.both > 0, { frames: pa.both });
-    check('popup', 'seed 7 demo: HORN READY was visible at the same time as pickup text', pa.hornWithPickup > 0 && shotPop, { frames: pa.hornWithPickup });
-    check('popup', 'seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
+    check('popup', 'seed 4 demo: no two live floating popups (or the horn slot) overlap in any sampled frame', pa.frames > 50 && pa.overlaps.length === 0 && pa.floatOffRoad === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
+    check('popup', 'seed 4 demo: combo (BEBA) and fare popups were visible in the same frame', pa.both > 0, { frames: pa.both });
+    check('popup', 'seed 4 demo: HORN READY was visible at the same time as pickup text', pa.hornWithPickup > 0 && shotPop, { frames: pa.hornWithPickup });
+    check('popup', 'seed 4 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
     check('text', 'demo HUD (short demo tag included): every visible text is at least 14 px', !!demoFonts && demoFonts.bad.length === 0, demoFonts && { nodes: demoFonts.n, min: demoFonts.min, bad: demoFonts.bad });
 
     let videoNote = 'not recorded', audioNote = 'no audio captured';
@@ -1580,6 +2598,12 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     notes.video = videoNote;
     check('demo', 'gameplay recording saved', /gameplay-demo\.mp4/.test(videoNote), videoNote);
   }
+
+  /* ===== 7c. Online: the shared Top 5 board (mocked network, local http server) ===== */
+  console.log('\n7c. Online shared board: Node checks, then real pages on a local http server with all three Firebase hosts mocked');
+  onlineNodeChecks();
+  onlineSimChecks();
+  await onlineBrowserChecks(browser, desktop);
 
   /* ===== 8. Contact sheet ===== */
   {

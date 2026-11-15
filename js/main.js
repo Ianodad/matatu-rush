@@ -5,6 +5,8 @@
   function $(id) { return document.getElementById(id); }
 
   var g = MR.createGame();
+  /* no network request of any kind unless the game is at the title or the game over screen: not while running, not while paused */
+  MR.online.guard = function () { return g.mode !== 'title' && g.mode !== 'gameover'; };
   var params = MR.params;
   var fixedSeed = (params.seed !== undefined && isFinite(parseInt(params.seed, 10))) ? (parseInt(params.seed, 10) >>> 0) : null;
   var screen = 'title';       /* 'title' | 'game' | 'pause' | 'over' */
@@ -68,7 +70,7 @@
   function closeHow() { $('howto').hidden = true; try { $('btnHow').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
 
   /* ---------- Top 5 board ---------- */
-  /* one renderer for both lists. Names are user input: textContent only, never innerHTML. */
+  /* one renderer for both lists. Names are user input (and, online, other players' input): textContent only, never innerHTML. */
   function renderBoard(ol, list, hiId) {
     while (ol.firstChild) ol.removeChild(ol.firstChild);
     for (var i = 0; i < list.length; i++) {
@@ -81,15 +83,100 @@
       ol.appendChild(li);
     }
   }
-  function openBoard() {
+
+  /* Two places show the board: the title sheet ('sheet') and the game over screen ('over').
+     Online (served over http(s) with a Firebase project set up): the shared Top 5, fetched on open / on game over
+     and again after a send. Otherwise, or when the fetch fails: this device's own list, exactly as before. */
+  var SHARED_HEAD = 'Top 5, all players';
+  var OFFLINE_NOTE = 'Offline. Showing this device only.';
+  var boardSeq = { sheet: 0, over: 0 };
+  var boardMode = { sheet: 'local', over: 'local' };
+  var overHiId = null;
+  function sharedOn() { return !!(MR.online && MR.online.enabled()); }
+  function boardView(kind) {
+    if (kind === 'sheet') {
+      return { kind: kind, head: $('boardH'), headLocal: 'TOP 5', note: $('boardNote'), loading: $('boardLoading'), ol: $('boardList'),
+        yours: $('boardYours'), priv: $('boardPrivacy'), empty: $('boardEmpty'), box: null };
+    }
+    return { kind: kind, head: $('overBoardH'), headLocal: 'Top 5', note: $('overNote'), loading: $('overLoading'), ol: $('overBoard'),
+      yours: $('overYours'), priv: null, empty: null, box: $('overBoardBox') };
+  }
+  function paintLocal(v, hiId, note) {
     var list = g.board();
-    renderBoard($('boardList'), list, null);
-    $('boardEmpty').hidden = list.length > 0;
-    $('boardList').hidden = list.length === 0;
+    boardMode[v.kind] = 'local';
+    v.head.textContent = v.headLocal;
+    v.ol.setAttribute('aria-label', 'Top 5 fares on this device');
+    v.loading.hidden = true; v.yours.hidden = true;
+    if (v.priv) v.priv.hidden = true;
+    v.note.textContent = note || ''; v.note.hidden = !note;
+    renderBoard(v.ol, list, hiId);
+    if (v.empty) v.empty.hidden = list.length > 0;
+    v.ol.hidden = list.length === 0;
+    if (v.box) v.box.hidden = list.length === 0;
+  }
+  function paintLoading(v) {
+    boardMode[v.kind] = 'loading';
+    v.head.textContent = SHARED_HEAD;
+    v.ol.setAttribute('aria-label', 'Top 5 fares, all players');
+    v.note.hidden = true; v.yours.hidden = true;
+    if (v.empty) v.empty.hidden = true;
+    if (v.priv) v.priv.hidden = false;
+    renderBoard(v.ol, [], null);
+    v.ol.hidden = true;
+    v.loading.hidden = false;
+    if (v.box) v.box.hidden = false;
+  }
+  function paintShared(v, rows) {
+    var uid = MR.online.uid(), best = MR.online.best(), mine = false, i;
+    boardMode[v.kind] = 'shared';
+    v.head.textContent = SHARED_HEAD;
+    v.ol.setAttribute('aria-label', 'Top 5 fares, all players');
+    v.loading.hidden = true; v.note.hidden = true;
+    if (v.priv) v.priv.hidden = false;
+    renderBoard(v.ol, rows, uid);
+    for (i = 0; i < rows.length; i++) if (uid && rows[i].id === uid) mine = true;
+    /* the player's own best is not in the shared top 5: say what it is */
+    var showYours = !!uid && best > 0 && !mine;
+    v.yours.textContent = showYours ? 'Your best: ' + MR.formatKsh(best) : '';
+    v.yours.hidden = !showYours;
+    if (v.empty) v.empty.hidden = rows.length > 0;
+    v.ol.hidden = rows.length === 0;
+    if (v.box) v.box.hidden = rows.length === 0 && !showYours;
+  }
+  function loadShared(kind, withLoading) {
+    var v = boardView(kind), n = ++boardSeq[kind];
+    if (withLoading) paintLoading(v);
+    MR.online.top(function (err, rows) {
+      if (n !== boardSeq[kind]) return; /* a newer request owns this view */
+      if (kind === 'sheet' ? $('board').hidden : el.over.hidden) return;
+      if (err || !rows) paintLocal(v, kind === 'over' ? overHiId : null, OFFLINE_NOTE);
+      else paintShared(v, rows);
+    });
+  }
+  /* a pending score was accepted: the shared list may have changed, and the uid now exists for the highlight */
+  function refreshBoards() {
+    if (!sharedOn()) return;
+    if (!$('board').hidden) loadShared('sheet', false);
+    if (!el.over.hidden) loadShared('over', false);
+  }
+  MR.online.onSent = refreshBoards;
+
+  function openBoard() {
     $('board').hidden = false;
+    if (sharedOn()) loadShared('sheet', true);
+    else { boardSeq.sheet++; paintLocal(boardView('sheet'), null, ''); }
     try { $('btnBoardClose').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   }
-  function closeBoard() { $('board').hidden = true; try { $('btnBoard').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+  function closeBoard() { boardSeq.sheet++; $('board').hidden = true; try { $('btnBoard').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* a run that made this device's Top 5 is also queued for the shared board (under its alias until a name is saved) */
+  function queueOnline(ev) {
+    if (g.autopilot || !(ev.rank > 0) || !g.boardId || !sharedOn()) return;
+    var list = g.board(), alias = '';
+    for (var i = 0; i < list.length; i++) if (list[i].id === g.boardId) alias = list[i].name;
+    if (!alias) return;
+    if (ev.score > MR.online.best()) MR.online.queue({ name: alias, alias: alias, score: ev.score });
+  }
 
   /* Save and Skip both end up here: the run is already on the board under its alias, a name only renames it */
   function finishName(text) {
@@ -98,11 +185,21 @@
     $('nameForm').hidden = true;
     /* the form is closing under a finger that may still be down: Play again, Menu and the over keys ignore input for 600 ms */
     overAt = performance.now();
+    /* shared board: the typed name (if any) goes to the pending record, then it is sent. When the shared board would refuse
+       the name (blocklist, characters), it gets the alias instead and the player is told. */
+    var sharedAs = '';
+    if (sharedOn()) {
+      var pend = MR.online.pending();
+      if (stored && pend && !MR.online.nameOk(stored)) sharedAs = MR.online.sharedName(stored, pend.alias);
+      MR.online.rename(text); MR.online.flush();
+    }
     if (!stored) { focusAgain(); return; }
-    $('nameSaved').textContent = 'Saved as ' + stored;
+    var savedMsg = 'Saved as ' + stored + (sharedAs ? ' on this device. Shared board shows ' + sharedAs + '.' : '');
+    $('nameSaved').textContent = savedMsg;
     $('nameSaved').hidden = false;
-    renderBoard($('overBoard'), g.board(), g.boardId);
-    announce('Saved as ' + stored + '. Rank ' + g.boardRank + ' on the Top 5.');
+    /* the list on screen is this device's own only when it is not the shared one */
+    if (boardMode.over === 'local') { var ov = boardView('over'); paintLocal(ov, g.boardId, ov.note.hidden ? '' : ov.note.textContent); }
+    announce(savedMsg + (sharedAs ? ' ' : '. ') + 'Rank ' + g.boardRank + ' on the Top 5.');
     focusAgain();
   }
   /* on short screens the over panel scrolls: let the focus call bring Play again into view */
@@ -125,6 +222,7 @@
     R.clearFx();
     acc = 0; hitStop = 0;
     hud = {};
+    MR.online.flush(); /* before the run starts; fire and forget. Nothing is sent once the run is going. */
     g.start(newSeed(), !!autopilot);
     el.demoTag.hidden = !g.autopilot;
     show('game');
@@ -155,6 +253,7 @@
     R.clearFx();
     $('titleBest').textContent = 'Best fare: ' + MR.formatKsh(g.best);
     show('title');
+    MR.online.flush();
   }
 
   function showOver(ev) {
@@ -175,11 +274,14 @@
       $('nameInput').value = '';
       $('nameInput').placeholder = alias;
     }
-    renderBoard($('overBoard'), list, rank > 0 ? g.boardId : null);
-    $('overBoardBox').hidden = list.length === 0;
+    $('namePublic').hidden = !(rank > 0 && sharedOn());
+    overHiId = rank > 0 ? g.boardId : null;
+    if (sharedOn()) paintLoading(boardView('over'));
+    else { boardSeq.over++; paintLocal(boardView('over'), overHiId, ''); }
     $('overTag').textContent = g.autopilot ? 'Demo over. Your turn, dere!' :
       (ev.newBest ? 'Umeweza! That is a new record.' : 'Game over. The matatu needs a fundi.');
     show('over');
+    if (sharedOn()) loadShared('over', false); /* the list is already in its Loading state; this fetches it */
     if (rank > 0) {
       el.over.scrollTop = 0;
       try { $('nameInput').focus(); } catch (e) { /* ignore */ }
@@ -286,6 +388,7 @@
         A.sfx.gameOver(); A.stopMusic();
         R.shake(1);
         overAt = performance.now();
+        queueOnline(ev);
         overTimer = setTimeout(function () { overTimer = null; showOver(ev); }, 700);
         break;
       default: break;
@@ -502,6 +605,7 @@
     refreshMuteUi();
     $('titleBest').textContent = 'Best fare: ' + MR.formatKsh(g.best);
     show('title');
+    MR.online.flush(); /* a score left pending by an earlier visit goes out now */
     if (params.autostart) startGame(!!params.autopilot && params.autopilot !== '0', false);
     last = performance.now();
     requestAnimationFrame(frame);

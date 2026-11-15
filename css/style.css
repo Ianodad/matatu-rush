@@ -331,3 +331,18 @@ kbd {
   .horn.ready, .ovl.ready, .newbest, .val.bump, .combo.pulse, #hearts svg.pop { animation: none; }
   .cta { transition: none; }
 }
+
+/* ---------- shared board notes (online only; hidden from file://) ---------- */
+.boardnote { margin: 8px 0 0; font: 700 14px/1.3 var(--body); letter-spacing: 0.02em; color: #aeb4dc; }
+.boardnote.warn { color: #ffb3c0; margin: 0 0 8px; }
+#board .boardnote { margin: 4px 0 12px; }
+#board .boardnote.warn { margin: 0 0 8px; }
+.nameform .boardnote { margin: 0 0 6px; }
+.boardbox .boardnote { margin: 4px 0 6px; text-align: left; }
+#board #boardLoading { margin: 8px auto 14px; }
+@media (max-height: 520px) {
+  #board .panel.small { padding: 12px 16px 10px; }
+  #board .h2 { margin-bottom: 6px; }
+  #board .boardnote { margin: 2px 0 8px; }
+  #board .boardnote.warn { margin: 0 0 6px; }
+}
