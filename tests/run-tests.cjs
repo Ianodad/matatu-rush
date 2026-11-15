@@ -225,10 +225,10 @@ function overlapScene(seed) {
   });
   return S;
 }
-/* captured from the UNMODIFIED simulation (before OVERLAP existed): autopilot, 120 s of sim time or game over */
+/* captured from the simulation as it was before OVERLAP existed, with only the current speed tuning (MAX_SPEED 15, SPEED_RAMP 0.010) applied: autopilot, 120 s of sim time or game over */
 const AUTOPILOT_BASELINE = {
-  7: { rows: { 1200: [806, 56.1088, 3, 1, 1, 5, 5], 6000: [7877, 352.0523, 3, 2, 2.925, 25, 12], 12000: [23263, 863.0856, 3, 1, 1, 52, 39] }, final: [14400, 26107, 1107.1704749184764, 3, 'running'], events: 214, md5: '8d6925f2976ab0a7dbe04994fe95629e' },
-  42: { rows: { 1200: [2366, 66.0215, 3, 2, 2.175, 7, 7], 6000: [13932, 357.8173, 3, 3, 3, 27, 1], 12000: [34269, 884.7808, 3, 1, 1, 64, 38] }, final: [14400, 40169, 1164.6012535547197, 3, 'running'], events: 266, md5: '65ff6024bb9447b7659d22110a4424d4' }
+  7: { rows: { 1200: [807, 57.2004, 3, 1, 1, 5, 5], 6000: [10746, 386.1872, 3, 2, 2, 26, 21], 12000: [17998, 1068.423, 2, 0, 0, 46, 1] }, final: [14400, 23948, 1418.4237618765258, 2, 'running'], events: 226, md5: '167d65b39127f2e07409af4f7c8bdcbc' },
+  42: { rows: { 1200: [2367, 67.5274, 3, 1, 1, 7, 7], 6000: [15452, 402.1132, 3, 1, 1, 32, 6], 12000: [35343, 1168.6424, 1, 0, 0, 72, 7] }, final: [12270, 35677, 1202.8711460128172, 0, 'gameover'], events: 251, md5: '5445cd2394c9ff9ab174b4503f1b2851' }
 };
 function overlapNodeChecks() {
   const G = 'overlap', crypto = require('crypto');
@@ -2294,20 +2294,20 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   }
   {
     /* a demo (autopilot) run that really reaches game over must not enter the board, show the form, or highlight a row.
-       Seed 101 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 53 s);
+       Seed 121 is the one autopilot seed found (scan of seeds 1 to 300 in Node) that dies inside 60 s of sim (at about 59 s);
        the board is pre-filled with score 1 entries so a wrongly inserted demo score (thousands) would show up. */
     const ctx = await browser.newContext(desktop);
     const page = await ctx.newPage(); watch(page, 'board-demo');
     const seeded = JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ name: 'Low ' + n, score: 1, id: 'low' + n })));
     await page.goto(URL + '?seed=7');
     await page.evaluate((v) => localStorage.setItem('matatuRush.top5', v), seeded);
-    await page.goto(URL + '?seed=101&autopilot=1&autostart=1');
+    await page.goto(URL + '?seed=121&autopilot=1&autostart=1');
     await page.waitForFunction(() => !!window.MatatuRush);
     const sDemo = await waitFor(page, (x) => x.mode === 'gameover', 90000, 'demo game over');
     await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
     await sleep(100);
     const d = await page.evaluate(() => ({ ls: localStorage.getItem('matatuRush.top5'), form: !document.getElementById('nameForm').hidden, cur: document.querySelectorAll('#overBoard li[aria-current]').length, rows: document.querySelectorAll('#overBoard li').length, tag: document.getElementById('overTag').textContent }));
-    check('board', 'a real demo game over (autopilot seed 101, about 53 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
+    check('board', 'a real demo game over (autopilot seed 121, about 59 s of sim): over screen shown, no name form, rank 0, board storage unchanged, no highlighted row',
       sDemo.autopilot === true && sDemo.boardRank === 0 && sDemo.score > 1 && !d.form && d.ls === seeded && d.cur === 0 && d.rows === 5 && /Demo over/.test(d.tag), { rank: sDemo.boardRank, score: sDemo.score, d });
     await ctx.close();
   }
