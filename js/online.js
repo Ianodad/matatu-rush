@@ -25,7 +25,9 @@
   var TOP_TIMEOUT = 8000;
   var NET_TIMEOUT = 10000;
 
-  /* one list, lower case, matched as substrings of the lower-cased name. Identical to firestore.rules (a test checks). */
+  /* one list, lower case. A name is refused when one of its tokens (the lower-cased name split on anything that is not
+     a letter) EQUALS an entry, or an entry plus one of SUFFIXES. Whole tokens only, so Kumar, Shitote and Himalaya pass.
+     Identical to firestore.rules (a test checks both lists). */
   var BLOCKLIST = [
     'nigger', 'nigga', 'faggot', 'retard', 'tranny', 'chink', 'gook', 'wetback', 'cunt', 'fuck',
     'shit', 'bitch', 'whore', 'slut', 'bastard', 'pussy', 'twat', 'wanker', 'bollock', 'piss',
@@ -33,11 +35,13 @@
     'kuma', 'malaya', 'mjinga', 'pumbavu', 'mshenzi', 'msenge', 'shoga', 'mboo', 'mkundu',
     'nyoko', 'chokora', 'kunya'
   ];
+  var SUFFIXES = ['s', 'es', 'er', 'ing'];
 
   var AUTH_KEY = 'matatuRush.auth';
   var PENDING_KEY = 'matatuRush.pending';
   var BEST_KEY = 'matatuRush.onlineBest';
-  var SEND_KEY = 'matatuRush.lastSend';
+  var SEND_KEY = 'matatuRush.lastSend';   /* last time a write request left OR was answered, shared by all tabs */
+  var MAX_ATTEMPTS = 3;                   /* a pending record is dropped after this many 403/429 answers */
 
   function noop() { }
   function enc(s) { return encodeURIComponent(String(s)); }
@@ -63,16 +67,38 @@
     return !!(c.projectId && c.apiKey) && (proto === 'http:' || proto === 'https:');
   }
 
+  /* test override, read only from the global and only when typed right: now() -> number, delayMs -> number. Never from storage or the URL. */
+  function testOpt() { var t = window.MR_ONLINE_TEST; return (t && typeof t === 'object') ? t : null; }
+  function now() {
+    var t = testOpt();
+    if (t && typeof t.now === 'function') {
+      try { var v = t.now(); if (typeof v === 'number' && isFinite(v)) return v; } catch (e) { /* fall back to the real clock */ }
+    }
+    return Date.now();
+  }
+  function rateMs() {
+    var t = testOpt();
+    if (t && typeof t.delayMs === 'number' && isFinite(t.delayMs) && t.delayMs >= 0 && t.delayMs <= RATE_MS) return t.delayMs;
+    return RATE_MS;
+  }
+
   /* ---------- names ---------- */
   function cleanName(s) {
     if (typeof s !== 'string') return '';
     return s.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX).trim();
   }
-  /* the same test the server applies: shape regex, then no blocklisted stem anywhere in the lower-cased name */
+  function badToken(t) {
+    for (var i = 0; i < BLOCKLIST.length; i++) {
+      if (t === BLOCKLIST[i]) return true;
+      for (var j = 0; j < SUFFIXES.length; j++) if (t === BLOCKLIST[i] + SUFFIXES[j]) return true;
+    }
+    return false;
+  }
+  /* the same test the server applies: shape regex, then no token of the lower-cased name is a blocklisted word */
   function nameOk(n) {
     if (typeof n !== 'string' || !NAME_RE.test(n)) return false;
-    var low = n.toLowerCase();
-    for (var i = 0; i < BLOCKLIST.length; i++) if (low.indexOf(BLOCKLIST[i]) !== -1) return false;
+    var toks = n.toLowerCase().split(/[^a-z]+/);
+    for (var i = 0; i < toks.length; i++) if (toks[i] && badToken(toks[i])) return false;
     return true;
   }
   function resolveName(name, alias) {
@@ -118,14 +144,26 @@
     var score = wholeScore(p.score);
     var name = cleanName(p.name), alias = cleanName(p.alias);
     if (!score || (!name && !alias)) return null;
-    return { name: name || alias, alias: alias, score: score };
+    var at = parseInt(p.attempts, 10);
+    return { name: name || alias, alias: alias, score: score, attempts: (isFinite(at) && at > 0) ? Math.min(at, MAX_ATTEMPTS) : 0 };
   }
-  function writePending(p) { MR.store.set(PENDING_KEY, JSON.stringify({ name: p.name, alias: p.alias, score: p.score })); }
+  /* attempts is stored only once it is above 0, so a fresh record has exactly name, alias and score */
+  function writePending(p) {
+    var o = { name: p.name, alias: p.alias, score: p.score };
+    if (p.attempts > 0) o.attempts = p.attempts;
+    MR.store.set(PENDING_KEY, JSON.stringify(o));
+  }
   function clearPending() { MR.store.set(PENDING_KEY, ''); }
-  var lastSend = (function () {
+  /* read fresh every time: another tab may have written since */
+  function readSend() {
     var v = parseInt(MR.store.get(SEND_KEY, '0'), 10);
     return (isFinite(v) && v > 0) ? v : 0;
-  })();
+  }
+  /* the later of what is stored and t: stamped when a write leaves AND when its answer arrives */
+  function stampSend(t) {
+    var cur = readSend();
+    if (t > cur) MR.store.set(SEND_KEY, String(Math.floor(t)));
+  }
 
   /* ---------- the one place a request leaves this file ---------- */
   var api = {};
@@ -271,23 +309,42 @@
   }
 
   /* ---------- writing the board ---------- */
-  /* one commit: set scores/{uid} to {name, score, ts = server time}. No mask, no precondition: create or overwrite. */
+  /* one commit: set scores/{uid} to {name, score, ts = server time}. No mask, no precondition: create or overwrite.
+     The send time is stamped when the request leaves and again when the answer arrives (any answer, any outcome), in
+     shared storage, so a slow connection or a second tab cannot make the next write land inside the server's 10 s window.
+     cb(err, status). */
   function commit(name, score, cb) {
     var c = conf();
-    if (blocked()) { cb('running'); return; }
+    if (blocked()) { cb('running', 0); return; }
     var doc = 'projects/' + c.projectId + '/databases/(default)/documents/scores/' + auth.uid;
     var body = JSON.stringify({ writes: [{
       update: { name: doc, fields: { name: { stringValue: name }, score: { integerValue: String(score) } } },
       updateTransforms: [{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }]
     }] });
-    lastSend = Date.now();
-    MR.store.set(SEND_KEY, String(lastSend));
+    stampSend(now());
     request('POST', c.fsBase + '/v1/projects/' + enc(c.projectId) + '/databases/(default)/documents:commit?key=' + enc(c.apiKey),
       body, { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, NET_TIMEOUT, function (err, status) {
-        if (err) { cb(err); return; }
-        if (status === 200) { cb(null); return; }
+        stampSend(now());
+        if (err) { cb(err, 0); return; }
+        if (status === 200) { cb(null, 200); return; }
         if (status === 401) { idToken = ''; idExp = 0; }
-        cb(failOf(status));
+        cb(failOf(status), status);
+      });
+  }
+  /* reads this device's own entry: cb(err, null | { name, score, ts }). null means no entry yet (HTTP 404). */
+  function fetchOwn(cb) {
+    var c = conf();
+    request('GET', c.fsBase + '/v1/projects/' + enc(c.projectId) + '/databases/(default)/documents/scores/' + enc(auth.uid) + '?key=' + enc(c.apiKey),
+      null, {}, TOP_TIMEOUT, function (err, status, text) {
+        if (err) { cb(err); return; }
+        if (status === 404) { cb(null, null); return; }
+        var j = status === 200 ? parseJson(text) : null;
+        var f = j && typeof j === 'object' ? j.fields : null;
+        if (!f || typeof f !== 'object' || !f.score || typeof f.score.integerValue !== 'string' || !/^[0-9]{1,15}$/.test(f.score.integerValue)) {
+          cb(status === 200 ? 'parse' : failOf(status)); return;
+        }
+        var ts = (f.ts && typeof f.ts.timestampValue === 'string') ? Date.parse(f.ts.timestampValue) : NaN;
+        cb(null, { name: (f.name && typeof f.name.stringValue === 'string') ? f.name.stringValue : '', score: parseInt(f.score.integerValue, 10), ts: isFinite(ts) ? ts : 0 });
       });
   }
   function accepted(score) { if (score > getBest()) setBest(score); }
@@ -311,15 +368,15 @@
     });
   }
 
-  /* ---------- pending record: one per device, survives reloads ---------- */
+  /* ---------- pending record: one per device, survives reloads, shared by all tabs through storage ---------- */
   function queue(rec) {
     if (!enabled() || !rec || typeof rec !== 'object') return false;
     var score = wholeScore(rec.score);
     var alias = cleanName(rec.alias), name = cleanName(rec.name) || alias;
     if (!score || !name || score <= getBest()) return false;
-    var cur = readPending();
+    var cur = readPending(); /* fresh from storage: another tab may have queued or sent since */
     if (cur && cur.score >= score) return false; /* keep the higher one */
-    writePending({ name: name, alias: alias, score: score });
+    writePending({ name: name, alias: alias, score: score, attempts: 0 });
     return true;
   }
   function rename(name) {
@@ -331,12 +388,24 @@
     return true;
   }
 
-  var flushing = false, flushTimer = null, again = false;
+  var flushing = false, flushTimer = null, retryTimer = null, again = false;
+  /* how long until the next write may leave: the stored send time is read fresh, never cached in this tab */
   function waitMs() {
-    if (!lastSend) return 0;
-    var left = RATE_MS - (Date.now() - lastSend);
-    if (left > RATE_MS) left = RATE_MS; /* the clock went backwards: never wait longer than one window */
+    var last = readSend();
+    if (!last) return 0;
+    var left = rateMs() - (now() - last);
+    if (left > rateMs()) left = rateMs(); /* the clock went backwards: never wait longer than one window */
     return left > 0 ? left : 0;
+  }
+  function afterWait(fn) {
+    var w = waitMs();
+    if (w > 0) flushTimer = setTimeout(function () { flushTimer = null; fn(); }, w + 50);
+    else fn();
+  }
+  /* one retry at a time, never sooner than one window after the last answer; flush() re-checks the stored time anyway */
+  function scheduleRetry() {
+    if (retryTimer) return;
+    retryTimer = setTimeout(function () { retryTimer = null; flush(noop); }, rateMs() + 100);
   }
   function finishFlush(cb, err, res) {
     flushing = false;
@@ -346,42 +415,86 @@
     if (res && res.sent && typeof api.onSent === 'function') { try { api.onSent(res); } catch (e) { /* the hook must never break a flush */ } }
     if (rerun) flush(noop); /* a rename or better score arrived while sending: once more, still rate limited */
   }
-  function flushNow(cb) {
+  /* synced: this attempt already re-read the server's copy of this device's entry */
+  function flushNow(cb, synced) {
     if (blocked()) { finishFlush(cb, 'running'); return; }
-    var p = readPending();
+    var p = readPending(); /* fresh: another tab may have sent or replaced it while this one waited */
     if (!p) { finishFlush(cb, null, { sent: false }); return; }
+    /* everything the rules check, checked here first, so a 403 later most likely means timing and not a bad record */
+    var n = resolveName(p.name, p.alias);
+    if (!n) { clearPending(); finishFlush(cb, 'badname'); return; }
+    if (!wholeScore(p.score) || p.score < getBest()) { clearPending(); finishFlush(cb, 'stale'); return; }
     ensureAuth(function (err) {
       if (err) { finishFlush(cb, err); return; }
-      var n = resolveName(p.name, p.alias);
-      if (!n) { clearPending(); finishFlush(cb, 'badname'); return; }
-      commit(n, p.score, function (err2) {
-        var cur = readPending();
-        if (!err2) {
-          accepted(p.score);
-          /* cleared only if nothing newer arrived while the request was in the air */
-          if (cur && cur.score <= p.score && cur.name === p.name) clearPending();
-          finishFlush(cb, null, { sent: true, name: n, score: p.score });
-          return;
+      var go = function () {
+        var w = waitMs(); /* another tab may have written while this one was signing in or re-reading */
+        if (w > 0) { afterWait(function () { flushNow(cb, true); }); return; }
+        send(p, n, cb);
+      };
+      if (p.attempts > 0 && !synced) {
+        /* an earlier attempt got 403/429: look at what the server really holds before sending again */
+        fetchOwn(function (err2, own) {
+          if (err2) { finishFlush(cb, err2); return; }
+          if (own) {
+            if (own.score > 0) setBest(own.score);
+            if (own.ts > 0) stampSend(Math.min(own.ts, now())); /* never trust a server time ahead of this clock */
+            if (own.score > p.score || (own.score === p.score && own.name === n)) {
+              var cur0 = readPending();
+              if (cur0 && cur0.score <= p.score && cur0.name === p.name) clearPending();
+              finishFlush(cb, null, { sent: false });
+              return;
+            }
+          }
+          var again2 = readPending();
+          if (!again2 || again2.score !== p.score || again2.name !== p.name) { flushNow(cb, true); return; } /* replaced meanwhile */
+          synced = true;
+          go();
+        });
+        return;
+      }
+      go();
+    });
+  }
+  function send(p, n, cb) {
+    commit(n, p.score, function (err2, status) {
+      var cur = readPending();
+      if (!err2) {
+        accepted(p.score);
+        /* cleared only if nothing newer arrived while the request was in the air */
+        if (cur && cur.score <= p.score && cur.name === p.name) clearPending();
+        finishFlush(cb, null, { sent: true, name: n, score: p.score });
+        return;
+      }
+      var same = !!cur && cur.score <= p.score && cur.name === p.name;
+      if (status === 400) { /* malformed: never retry */
+        if (same) clearPending();
+        finishFlush(cb, 'rejected');
+        return;
+      }
+      if (status === 403 || status === 429) {
+        /* 403 also means "written less than 10 s ago". Keep the record, count the attempt, retry once later. */
+        if (same) {
+          cur.attempts = (cur.attempts || 0) + 1;
+          if (cur.attempts >= MAX_ATTEMPTS) { clearPending(); finishFlush(cb, 'rejected'); return; }
+          writePending(cur);
+          scheduleRetry();
         }
-        if (err2 === 'rejected' && cur && cur.score <= p.score) clearPending(); /* rules said no: never retry it */
-        finishFlush(cb, err2);
-      });
+        finishFlush(cb, 'retry');
+        return;
+      }
+      finishFlush(cb, err2);
     });
   }
   /* sends the pending record, if any. cb(err, res): res.sent is true when a record went out.
-     Network trouble keeps the record; a rules rejection (400/403) drops it. Never two at once. */
+     Network trouble keeps the record. A 403 or 429 keeps it and retries once, 11 s after the answer, up to 3 attempts
+     in all; a 400 drops it. Never two at once. */
   function flush(cb) {
     cb = cb || noop;
     if (!enabled()) { cb(null, { sent: false }); return; }
     if (flushing) { again = true; cb('busy'); return; }
     if (!readPending()) { cb(null, { sent: false }); return; }
     flushing = true;
-    var w = waitMs();
-    if (w > 0) {
-      flushTimer = setTimeout(function () { flushTimer = null; flushNow(cb); }, w + 50);
-    } else {
-      flushNow(cb);
-    }
+    afterWait(function () { flushNow(cb, false); });
   }
 
   api.enabled = enabled;
@@ -398,6 +511,8 @@
   api.cached = function () { return cache ? copyRows(cache) : null; };
   api.nameOk = nameOk;
   api.BLOCKLIST = BLOCKLIST.slice();
+  api.SUFFIXES = SUFFIXES.slice();
+  api.sharedName = resolveName; /* the name the shared board would get: name if it passes, else alias, else '' */
   api.SCORE_MAX = SCORE_MAX;
   MR.online = api;
 })();

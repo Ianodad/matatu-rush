@@ -40,7 +40,7 @@ async function deny(label, p) {
 }
 
 /* values pulled from the rules file, so the tests follow what is really deployed */
-const stems = (/\.\*\(([a-z|]+)\)\.\*/.exec(RULES) || [null, ''])[1].split('|').filter(Boolean);
+const stems = (/\(\^\|\.\*\[\^a-z\]\)\(([a-z|]+)\)/.exec(RULES) || [null, ''])[1].split('|').filter(Boolean);
 const SCORE_MAX = parseInt((/s <= (\d+)/.exec(RULES) || [0, '0'])[1], 10);
 
 function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : c.toUpperCase())).join(''); }
@@ -94,7 +94,8 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
 
   /* ---------- create: name ---------- */
   console.log('create: name');
-  const goodNames = ['Bob', 'B', 'Dere 482', 'Konda 100', 'Makanga 999', 'Rubani 123', 'a_b-c.d e', '123456789012', 'Mwangi Kamau', 'Class Act', 'Sussex'];
+  const goodNames = ['Bob', 'B', 'Dere 482', 'Konda 100', 'Makanga 999', 'Rubani 123', 'a_b-c.d e', '123456789012', 'Mwangi Kamau', 'Class Act', 'Sussex',
+    'Kumar', 'Kumari', 'Shitote', 'Shitanda', 'Himalaya', 'Mbooni', 'Kunyanga', 'Malayan', 'Scunthorpe', 'Pissarides'];
   for (const nm of goodNames) { const u = nextUid(); await allow('name allowed: "' + nm + '"', create(u, good({ name: nm }))); }
   const badNames = [
     ['empty name', ''], ['13 chars', '1234567890123'], ['leading space', ' Bob'], ['leading hyphen', '-Bob'], ['leading dot', '.Bob'], ['leading underscore', '_Bob'],
@@ -104,10 +105,12 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
   ];
   for (const [label, v] of badNames) { const u = nextUid(); await deny('name denied: ' + label, create(u, good({ name: v }))); }
 
-  console.log('create: blocklist (' + stems.length + ' stems x lower, upper, mixed, embedded)');
+  console.log('create: blocklist (' + stems.length + ' words, whole tokens: alone, digits around, separate token, plural, case)');
   for (const st of stems) {
-    const variants = [['lower', st], ['UPPER', st.toUpperCase()], ['MiXeD', mixed(st)], ['embedded', ('a' + st + 'z').slice(0, 12)]];
+    const variants = [['lower', st], ['UPPER', st.toUpperCase()], ['MiXeD', mixed(st)], ['digits around', '6' + st + '9'],
+      ['separate token', 'a ' + st], ['dot separated', st + '.x'], ['plural', st + 's'], ['-ing', st + 'ing']];
     for (const [kind, v] of variants) {
+      if (v.length > 12) continue; /* the shape rule would refuse it anyway, so it proves nothing about the blocklist */
       const u = nextUid();
       await deny('blocklist "' + st + '" ' + kind + ' -> "' + v + '"', create(u, good({ name: v })));
     }
@@ -168,6 +171,20 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
   await deny('list: limit 11', getDocs(query(collection(anon(), 'scores'), orderBy('score', 'desc'), limit(11))));
   await deny('list: limit 1000', getDocs(query(collection(anon(), 'scores'), orderBy('score', 'desc'), limit(1000))));
   await deny('list: no limit', getDocs(collection(anon(), 'scores')));
+  /* offset: the web SDK cannot send one, so these go through the REST runQuery endpoint, without credentials (rules apply) */
+  const fsHostR = process.env.FIRESTORE_EMULATOR_HOST;
+  async function restQuery(extra) {
+    const body = { structuredQuery: Object.assign({ from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: 5 }, extra) };
+    const r = await fetch('http://' + fsHostR + '/v1/projects/' + PROJECT + '/databases/(default)/documents:runQuery', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return r.status;
+  }
+  if (fsHostR) {
+    { const st = await restQuery({}); record(st === 200, 'list via REST: limit 5, offset absent -> allowed', String(st)); }
+    { const st = await restQuery({ offset: 0 }); record(st === 200, 'list via REST: limit 5, explicit offset 0 -> allowed', String(st)); }
+    { const st = await restQuery({ offset: 1 }); record(st === 403, 'list via REST: offset 1 -> denied', String(st)); }
+    { const st = await restQuery({ offset: 100000 }); record(st === 403, 'list via REST: offset 100000 -> denied', String(st)); }
+    { const st = await restQuery({ limit: 11 }); record(st === 403, 'list via REST: limit 11 -> denied', String(st)); }
+  } else record(false, 'FIRESTORE_EMULATOR_HOST is set for the REST offset checks');
   await deny('list: orderBy but no limit', getDocs(query(collection(anon(), 'scores'), orderBy('score', 'desc'))));
   { const r = await getDocs(query(collection(anon(), 'scores'), orderBy('score', 'desc'), limit(5))); record(r.size >= 1 && r.size <= 5, 'list returns at most 5 rows', String(r.size)); }
 
@@ -221,6 +238,7 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
     return win.MR;
   }
   const call = (fn) => new Promise((res) => fn((err, val) => res({ err, val })));
+  async function until(fn, ms) { const t0 = Date.now(); for (;;) { if (fn()) return true; if (Date.now() - t0 > ms) return false; await sleep(200); } }
   const readMap = (m, k) => { try { return JSON.parse(m.get(k)); } catch (e) { return null; } };
 
   {
@@ -291,7 +309,8 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
     chk(!f.err && f.val && f.val.sent === true && auth && auth.uid !== 'deadbeefdeadbeefdeadbeef0000', 'invalid refresh token: signs up again and the send works with the new uid', { f, uid: auth && auth.uid });
   }
   {
-    /* a rules rejection (400/403) drops the pending record; it is never retried */
+    /* a 403 is kept, not dropped: it can mean "too soon". The retry (11 s after the answer) first re-reads the server copy;
+       the server holds more than the pending score, so the record is then cleared without sending anything. */
     const store = new Map(); const MR = boot(store); const o = MR.online;
     o.queue({ name: 'Konda 500', alias: 'Konda 500', score: 9000 });
     let f = await call((cb) => o.flush(cb));
@@ -301,9 +320,42 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
     store.set('matatuRush.pending', JSON.stringify({ name: 'Konda 500', alias: 'Konda 500', score: 100 }));
     const MR2 = boot(store); const o2 = MR2.online;
     f = await call((cb) => o2.flush(cb));
-    chk(f.err === 'rejected' && o2.pending() === null, 'a rejected (403) pending record is dropped, not kept', f);
+    const kept = readMap(store, 'matatuRush.pending');
+    chk(f.err === 'retry' && !!kept && kept.score === 100 && kept.attempts === 1, 'a 403 keeps the pending record and counts the attempt (attempts 1), it is not dropped', { f, kept });
+    chk(!!(parseInt(store.get('matatuRush.lastSend'), 10) > 0), 'the send time is stored when the answer arrives');
+    const okd = await until(() => o2.pending() === null, 16000);
+    chk(okd && o2.best() === 9000, 'after 11 s the retry re-reads the server copy (9000 > 100), clears the record without sending, and resyncs onlineBest', { best: o2.best(), pending: o2.pending() });
     const f2 = await call((cb) => o2.flush(cb));
     chk(!f2.err && f2.val && f2.val.sent === false, 'nothing is sent afterwards');
+  }
+  {
+    /* the reviewer's repro: another tab (here: a copy that does not know the send time) wrote 500; this one sends 900 at once */
+    const sA = new Map(); const A = boot(sA).online;
+    A.queue({ name: 'Tab Ay', alias: 'Tab Ay', score: 500 });
+    const fa = await call((cb) => A.flush(cb));
+    chk(!fa.err && fa.val.sent === true, 'two tabs: tab A sends 500');
+    const uid = A.uid();
+    const sB = new Map(); sB.set('matatuRush.auth', sA.get('matatuRush.auth'));
+    const B = boot(sB).online;
+    B.queue({ name: 'Tab Bee', alias: 'Tab Bee', score: 900 });
+    const fb = await call((cb) => B.flush(cb));
+    const kb = readMap(sB, 'matatuRush.pending');
+    chk(fb.err === 'retry' && !!kb && kb.score === 900 && kb.attempts === 1, 'two tabs: B is told "too soon" (403) and KEEPS its 900', { fb, kb });
+    const done = await until(() => B.pending() === null, 16000);
+    const tt = await call((cb) => B.top(cb));
+    chk(done && B.best() === 900 && (tt.val || []).some((x) => x.id === uid && x.score === 900 && x.name === 'Tab Bee'), 'two tabs: the retry goes out 11 s after the answer and the 900 lands on the server', { best: B.best(), rows: tt.val });
+  }
+  {
+    /* two tabs that share storage (the real case): the send time is shared, so B waits instead of being refused */
+    const sS = new Map(); const A = boot(sS).online;
+    A.queue({ name: 'Shared A', alias: 'Shared A', score: 500 });
+    await call((cb) => A.flush(cb));
+    const B = boot(sS).online;
+    chk(B.best() === 500, 'shared storage: tab B sees onlineBest 500 written by tab A');
+    B.queue({ name: 'Shared B', alias: 'Shared B', score: 900 });
+    const t0 = Date.now();
+    const fb = await call((cb) => B.flush(cb));
+    chk(!fb.err && fb.val.sent === true && Date.now() - t0 >= 9000 && B.pending() === null, 'shared storage: tab B waits for the window (stored send time) and is accepted, nothing is lost', { fb, waited: Date.now() - t0 });
   }
   {
     const store = new Map(); const MR = boot(store, { cfg: { projectId: PROJECT, apiKey: 'k', authBase: 'http://127.0.0.1:1/x', tokenBase: 'http://127.0.0.1:1/y', fsBase: 'http://127.0.0.1:1' } }); const o = MR.online;
