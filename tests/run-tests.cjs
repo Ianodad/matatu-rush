@@ -2503,8 +2503,8 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     check('determinism', 'same seed gives an identical event log in two browser runs', A.ev.length > 10 && ja === jb, { events: A.ev.length });
     check('determinism', 'browser event log equals a pure Node replay of js/game.js (events are real simulation output)', ja === jn, { browser: A.ev.length, node: node.length });
 
-    /* ----- 7b. Seed 7 demo started by a REAL click on "Watch demo": popups, audio, recording ----- */
-    console.log('\n7b. Seed 7 demo after a real click: popup overlap audit, audio-on recording');
+    /* ----- 7b. Seed 4 demo started by a REAL click on "Watch demo": popups, audio, recording ----- */
+    console.log('\n7b. Seed 4 demo after a real click: popup overlap audit, audio-on recording');
     const ctx = await browser.newContext(desktop);
     await ctx.addInitScript(AUDIO_TAP);
     const page = await ctx.newPage(); watch(page, 'demo-audio');
@@ -2521,7 +2521,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
         cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
       });
     } catch (e) { cdp = null; }
-    await page.goto(URL + '?seed=7');
+    await page.goto(URL + '?seed=4');
     await page.waitForFunction(() => !!window.MatatuRush);
     await fontsReady(page); await sleep(300);
     const pre = await snap(page);
@@ -2548,15 +2548,15 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     if (cdp) { await sleep(400); await cdp.send('Page.stopScreencast').catch(() => {}); }
     await ctx.close();
     const dp = dEv.filter((x) => x.type === 'pickup'), fired = last.audio.fired || {};
-    notes.demoAudio = { seed: 7, simSeconds: last.time, pickups: dp.length, hornReadyEvents: dEv.filter((x) => x.type === 'hornReady').length, audioState: last.audio.state, statesSeen: Array.from(states), sequencerSteps: last.audio.steps, peakRms: peak, sfxFired: fired,
+    notes.demoAudio = { seed: 4, simSeconds: last.time, pickups: dp.length, hornReadyEvents: dEv.filter((x) => x.type === 'hornReady').length, audioState: last.audio.state, statesSeen: Array.from(states), sequencerSteps: last.audio.steps, peakRms: peak, sfxFired: fired,
       popups: { frames: pa.frames, maxFloats: pa.maxFloats, comboAndFareFrames: pa.both, hornReadyWithPickupFrames: pa.hornWithPickup, slotFrames: pa.slotSeen, slotCopy: pa.copy } };
     console.log('  AUDIO  demo AudioContext state: ' + last.audio.state + ', sequencer steps: ' + last.audio.steps + ', peak RMS: ' + peak + ', sfx fired: ' + JSON.stringify(fired));
     check('audio', 'recording page: no AudioContext and no recorder before the click; the click on Watch demo starts audio (running, music on)', pre.audio.created === false && !preRec.hasRecorder && preRec.chunks === 0 && first.audio.created && first.audio.state === 'running' && first.audio.musicOn, { before: pre.audio.state, after: first.audio.state });
     check('audio', 'demo: output is audible and sfx come from real events (one pickup sfx per pickup, horn ready chime per hornReady)', peak > 0.01 && states.size === 1 && fired.pickup === dp.length && dp.length >= 5 && (fired.ready || 0) === dEv.filter((x) => x.type === 'hornReady').length && (fired.horn || 0) === dEv.filter((x) => x.type === 'horn').length, { peakRms: peak, fired, pickups: dp.length });
-    check('popup', 'seed 7 demo: no two live floating popups (or the horn slot) overlap in any sampled frame', pa.frames > 50 && pa.overlaps.length === 0 && pa.floatOffRoad === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
-    check('popup', 'seed 7 demo: combo (BEBA) and fare popups were visible in the same frame', pa.both > 0, { frames: pa.both });
-    check('popup', 'seed 7 demo: HORN READY was visible at the same time as pickup text', pa.hornWithPickup > 0 && shotPop, { frames: pa.hornWithPickup });
-    check('popup', 'seed 7 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
+    check('popup', 'seed 4 demo: no two live floating popups (or the horn slot) overlap in any sampled frame', pa.frames > 50 && pa.overlaps.length === 0 && pa.floatOffRoad === 0, { frames: pa.frames, maxFloats: pa.maxFloats, overlaps: pa.overlaps });
+    check('popup', 'seed 4 demo: combo (BEBA) and fare popups were visible in the same frame', pa.both > 0, { frames: pa.both });
+    check('popup', 'seed 4 demo: HORN READY was visible at the same time as pickup text', pa.hornWithPickup > 0 && shotPop, { frames: pa.hornWithPickup });
+    check('popup', 'seed 4 demo: HORN READY sits in its dedicated gutter slot: off the road, clear of the matatu sprite, never in the float stack', pa.slotSeen > 0 && pa.slotBad.length === 0 && pa.hornInFloat === 0 && Object.keys(pa.copy).every((k) => /^HORN (READY!?|CHARGING)$/.test(k)), { slotFrames: pa.slotSeen, copy: pa.copy, bad: pa.slotBad });
     check('text', 'demo HUD (short demo tag included): every visible text is at least 14 px', !!demoFonts && demoFonts.bad.length === 0, demoFonts && { nodes: demoFonts.n, min: demoFonts.min, bad: demoFonts.bad });
 
     let videoNote = 'not recorded', audioNote = 'no audio captured';
