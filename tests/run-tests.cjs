@@ -949,7 +949,7 @@ function onlineNodeChecks() {
 /* A fake world for the pending-record logic: one shared clock, one fake Firestore (10 s rule modelled), shared storage,
    and fake timers that only move when the test says so. Nothing here touches a real clock or the network. */
 function simWorld() {
-  const w = { clock: { t: 1700000000000 }, store: {}, server: { score: 0, name: '', ts: 0, always403: false, status: 0 }, timers: [], nextId: 0, hold: false, held: [] };
+  const w = { clock: { t: 1700000000000 }, store: {}, server: { score: 0, name: '', ts: 0, always403: false, status: 0, tokenStatus: 200, getStatus: 0 }, skew: 0, signups: 0, timers: [], nextId: 0, hold: false, held: [] };
   w.advance = (ms) => {
     const target = w.clock.t + ms;
     for (;;) {
@@ -973,18 +973,23 @@ function simTab(w, opt) {
   const reply = (x, status, obj) => { x.status = status; x.responseText = JSON.stringify(obj || {}); x.onload(); };
   XHR.prototype.send = function (body) {
     const x = this; tab.reqs.push({ m: x.m, u: x.u });
-    if (/accounts:signUp/.test(x.u)) { reply(x, 200, { idToken: 'i', refreshToken: 'r', localId: 'sim1', expiresIn: '3600' }); return; }
-    if (/\/v1\/token/.test(x.u)) { reply(x, 200, { id_token: 'i2', expires_in: '3600', refresh_token: 'r' }); return; }
-    if (x.m === 'GET' && /\/documents\/scores\/sim1/.test(x.u)) {
+    if (/accounts:signUp/.test(x.u)) { w.signups++; reply(x, 200, { idToken: 'i', refreshToken: 'r', localId: 'sim' + w.signups, expiresIn: '3600' }); return; }
+    if (/\/v1\/token/.test(x.u)) {
+      if (w.server.tokenStatus !== 200) { reply(x, w.server.tokenStatus, { error: { message: 'INVALID_REFRESH_TOKEN' } }); return; }
+      reply(x, 200, { id_token: 'i2', expires_in: '3600', refresh_token: 'r' }); return;
+    }
+    if (x.m === 'GET' && /\/documents\/scores\/sim[0-9]+/.test(x.u)) {
       tab.gets++;
       const sv = w.server;
+      if (sv.getStatus === 'net') { x.onerror(); return; }
+      if (sv.getStatus) { reply(x, sv.getStatus, {}); return; }
       if (!sv.score) reply(x, 404, {});
       else reply(x, 200, { fields: { name: { stringValue: sv.name }, score: { integerValue: String(sv.score) }, ts: { timestampValue: new Date(sv.ts).toISOString() } } });
       return;
     }
     if (/:commit/.test(x.u)) {
       const wr = JSON.parse(body).writes[0];
-      const rec = { name: wr.update.fields.name.stringValue, score: parseInt(wr.update.fields.score.integerValue, 10), sentAt: w.clock.t };
+      const rec = { name: wr.update.fields.name.stringValue, score: parseInt(wr.update.fields.score.integerValue, 10), sentAt: w.clock.t, doc: wr.update.name };
       tab.commits.push(rec);
       const decide = () => { /* the server decides when the request ARRIVES */
         const sv = w.server;
@@ -1006,7 +1011,7 @@ function simTab(w, opt) {
     XMLHttpRequest: XHR,
     setTimeout: (fn, ms) => { const id = ++w.nextId; w.timers.push({ id, at: w.clock.t + ms, fn }); return id; },
     clearTimeout: (id) => { w.timers = w.timers.filter((x) => x.id !== id); },
-    MR_ONLINE_TEST: { projectId: 'p', apiKey: 'k', now: () => w.clock.t }
+    MR_ONLINE_TEST: { projectId: 'p', apiKey: 'k', now: () => w.clock.t + w.skew }
   };
   win.window = win;
   if (!store['matatuRush.auth'] && !opt.noAuth) store['matatuRush.auth'] = JSON.stringify({ uid: 'sim1', refreshToken: 'r' });
@@ -1142,6 +1147,141 @@ function onlineSimChecks() {
     a.o.queue(rec('T', 100)); a.flush();
     const sent = parseInt(w.store['matatuRush.lastSend'], 10);
     check(G, 'sim: the send time is stored in shared storage (matatuRush.lastSend) from the injected clock, stamped at the request and again at the answer', sent === w.clock.t, { sent, now: w.clock.t });
+  }
+  const YEAR = 365 * 86400000;
+  const devNow = (w) => w.clock.t + w.skew;
+  /* 10. N1: the device clock was a year ahead for one send, then got corrected. The stored send time is in the future; it must be
+     clamped and repaired: the next flush waits exactly ONE window, sends, and nothing is stuck afterwards. */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.skew = YEAR;
+    a.o.queue(rec('Ahead', 100)); a.flush();
+    const first = a.commits.length;
+    w.advance(12000);
+    w.skew = 0; /* clock corrected */
+    const storedAhead = parseInt(w.store['matatuRush.lastSend'], 10) > devNow(w) + YEAR / 2; /* the stored time is now far in the future, as in the reviewer's repro */
+    a.o.queue(rec('Ahead', 200)); const r2 = a.flush();
+    const rep = parseInt(w.store['matatuRush.lastSend'], 10) <= devNow(w); /* repaired the moment it was read */
+    w.advance(10900); const early = a.commits.length;
+    w.advance(200); const sent = a.commits.length;
+    const ok2 = w.server.score === 200 && a.pend() === null && w.timers.length === 0;
+    a.o.queue(rec('Ahead', 300)); const r3 = a.flush(); /* a flush after that must not be stuck behind 'busy' */
+    w.advance(11100);
+    check(G, 'sim: clock a year ahead for a send, then corrected: the stored time is repaired, the next flush sends after exactly one window (nothing at 10.9 s, sent by 11.1 s), is not stuck busy, and the flush after it works too',
+      first === 1 && storedAhead && r2.length === 1 && early === 1 && sent === 2 && rep && ok2 && r3.length === 1 && a.commits.length === 3 && w.server.score === 300 && parseInt(w.store['matatuRush.lastSend'], 10) <= devNow(w),
+      { first, storedAhead, r2, rep, early, sent, ok2, r3, n: a.commits.length, server: w.server, timers: w.timers.length });
+  }
+  /* 11. the clock jumps backwards while a flush is waiting: the wait is not repeated; the request is sent after the one window */
+  {
+    const w = simWorld(), b = simTab(w);
+    b.o.queue(rec('Jump', 100)); b.flush();
+    b.o.queue(rec('Jump', 200)); b.flush(); /* waits one window (the send time was just stamped) */
+    const j0 = b.commits.length;
+    w.advance(3000);
+    w.skew = -YEAR; /* clock set back a year in the middle of the wait */
+    w.advance(8100);
+    const j1 = b.commits.length;
+    w.advance(500);
+    check(G, 'sim: clock set back a year in the middle of a wait: the wait is NOT repeated, the request goes out when the one window is over (11.1 s after the flush started), the pending record is cleared and no timer is left running',
+      j0 === 1 && j1 === 2 && w.server.score === 200 && b.pend() === null && w.timers.length === 0 && b.commits.length === 2,
+      { j0, j1, server: w.server, pend: b.pend(), timers: w.timers.length });
+  }
+  /* 12. clock set in the past: stored send time is an old (past) time, so nothing to wait for; the next send is not delayed */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.skew = -YEAR;
+    a.o.queue(rec('Past', 100)); a.flush();
+    w.advance(12000);
+    w.skew = 0;
+    a.o.queue(rec('Past', 200)); const r = a.flush();
+    check(G, 'sim: clock a year in the past for a send, then corrected: the stored time is a year old, so the next flush sends at once (no wait, no timer) and the server holds the new score',
+      a.commits.length === 2 && w.server.score === 200 && a.pend() === null && w.timers.length === 0 && r.length === 1, { n: a.commits.length, server: w.server, pend: a.pend(), timers: w.timers.length });
+  }
+  /* 13. flush calls made during a wait neither extend it nor start a second send; the watchdog frees a flush that hangs */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('Wait', 100)); a.flush();
+    a.o.queue(rec('Wait', 200));
+    const first = a.flush(); /* waits a full window */
+    const busy = [];
+    for (let i = 0; i < 5; i++) { w.advance(2000); busy.push(a.flush()); }
+    const midN = a.commits.length; /* 10 s into the wait */
+    w.advance(1100); /* 11.1 s after the wait began */
+    check(G, 'sim: five more flush calls during a wait all answer "busy", do not push the send later (it still goes out 11.05 s after the first call), and do not send twice',
+      busy.every((r) => r.length === 1 && r[0][0] === 'busy') && midN === 1 && a.commits.length === 2 && w.server.score === 200 && a.pend() === null && w.timers.length === 0 && first.length === 1,
+      { busy, midN, n: a.commits.length, server: w.server, timers: w.timers.length });
+    /* watchdog: a request that is never answered (no timeout fires) blocks flush as 'busy' for 45 s, then a new flush may start */
+    const w2 = simWorld(), b = simTab(w2);
+    w2.hold = true;
+    b.o.queue(rec('Hung', 100)); const h1 = b.flush();
+    w2.advance(30000);
+    const h2 = b.flush();
+    const n30 = b.commits.length;
+    w2.advance(16000); /* 46 s since the hung flush began */
+    w2.hold = false;
+    const h3 = b.flush();
+    w2.release(); /* the old answer finally arrives: it must neither crash nor free/steal the new flush */
+    b.o.queue(rec('Hung', 300));
+    w2.advance(12000);
+    const h4 = b.flush();
+    w2.advance(100);
+    check(G, 'sim: watchdog: a flush whose request never answers is "busy" at 30 s (no second send), a new flush may start after 45 s and sends, the late answer of the dead one does no harm, and flushing is never stuck',
+      h2.length === 1 && h2[0][0] === 'busy' && n30 === 1 && b.commits.length === 3 && w2.server.score === 300 && b.pend() === null && h3.length === 1 && h3[0][0] === null && h1.length === 1 && h4.length === 1,
+      { h1, h2, h3, h4, n30, n: b.commits.length, server: w2.server, pend: b.pend() });
+  }
+  /* 14. N2: a refresh call answered 400 or 403 falls back to ONE fresh anonymous sign-up (new uid) and still sends; 5xx does not */
+  {
+    const out = [];
+    [400, 403].forEach((code) => {
+      const w = simWorld(), a = simTab(w);
+      w.signups = 1; /* so the new id is sim2, not the old sim1 */
+      w.server.tokenStatus = code;
+      a.o.queue(rec('Resign', 100)); const r = a.flush();
+      const au = JSON.parse(a.store['matatuRush.auth'] || 'null');
+      const tokenCalls = a.reqs.filter((q) => /\/v1\/token/.test(q.u)).length;
+      out.push({ code, r, signups: w.signups, tokenCalls, uid: au && au.uid, commits: a.commits.length, doc: a.commits[0] && a.commits[0].doc, server: w.server.score });
+    });
+    const w5 = simWorld(), c = simTab(w5);
+    w5.server.tokenStatus = 500;
+    c.o.queue(rec('Resign', 100)); const r5 = c.flush();
+    const ok = out.every((o) => o.r.length === 1 && o.r[0][0] === null && o.signups === 2 && o.tokenCalls === 1 && o.uid === 'sim2' && o.commits === 1 && /\/scores\/sim2$/.test(o.doc) && o.server === 100);
+    check(G, 'sim: refresh answered 400 or 403: one fresh sign-up (exactly one /v1/token call and one signUp), the new id is stored and used in the commit, the record is sent; refresh answered 500: no sign-up, record kept',
+      ok && r5.length === 1 && r5[0][0] === 'server' && w5.signups === 0 && c.pend() !== null && c.commits.length === 0, { out, r5, signups5: w5.signups });
+    /* the new uid really is a new one when the old one is known */
+    const w6 = simWorld(); w6.signups = 6;
+    const d = simTab(w6); w6.server.tokenStatus = 403;
+    d.o.queue(rec('Resign', 100)); d.flush();
+    check(G, 'sim: after a refresh 403 the stored anonymous id is a NEW id (not the old one) and the commit is written under it', JSON.parse(d.store['matatuRush.auth']).uid === 'sim7' && /\/scores\/sim7$/.test(d.commits[0].doc) && d.o.uid() === 'sim7', { auth: d.store['matatuRush.auth'], doc: d.commits[0] && d.commits[0].doc });
+  }
+  /* 15. L-a: reading this device's own entry keeps failing before a retry: it counts as an attempt and the send goes ahead anyway */
+  {
+    const pend = (attempts) => JSON.stringify({ name: 'ReadFail', alias: 'ReadFail', score: 800, attempts });
+    const res = [];
+    [500, 403].forEach((st) => {
+      const w = simWorld(), a = simTab(w);
+      w.server.getStatus = st;
+      w.store['matatuRush.pending'] = pend(1);
+      const r = a.flush();
+      res.push({ st, r, gets: a.gets, commits: a.commits.length, server: w.server.score, pend: a.pend() });
+    });
+    const w2 = simWorld(), b = simTab(w2); /* read fails AND the send is refused (403): attempts 1 -> 2 (read) -> 3 (send) = dropped, one send only */
+    w2.server.getStatus = 500; w2.server.always403 = true;
+    w2.store['matatuRush.pending'] = pend(1);
+    const r2 = b.flush(); w2.advance(60000);
+    const w3 = simWorld(), c = simTab(w3); /* attempts already 2: one more failed read reaches 3 and drops the record unsent */
+    w3.server.getStatus = 500;
+    w3.store['matatuRush.pending'] = pend(2);
+    const r3 = c.flush(); w3.advance(60000);
+    const w4 = simWorld(), d = simTab(w4); /* no answer at all: not counted, the send goes ahead and also gets no answer... here the server is fine */
+    w4.server.getStatus = 'net';
+    w4.store['matatuRush.pending'] = pend(1);
+    const r4 = d.flush();
+    check(G, 'sim: own-entry read fails (HTTP 500 or 403) with a record at attempts 1: the send still goes out in the same flush and is cleared when accepted (never stuck unsent)',
+      res.every((x) => x.gets === 1 && x.commits === 1 && x.server === 800 && x.pend === null && x.r.length === 1 && x.r[0][0] === null), res);
+    check(G, 'sim: a failed read counts as an attempt: read fail + refused send from attempts 1 reaches 3 and drops the record after ONE send; attempts 2 + failed read drops it unsent; a read with no answer is not counted and the send goes ahead',
+      b.commits.length === 1 && b.pend() === null && r2.length === 1 && r2[0][0] === 'rejected' && c.commits.length === 0 && c.pend() === null && r3.length === 1 && r3[0][0] === 'rejected' &&
+      d.commits.length === 1 && d.pend() === null && r4.length === 1 && r4[0][0] === null,
+      { b: [b.commits.length, b.pend(), r2], c: [c.commits.length, c.pend(), r3], d: [d.commits.length, d.pend(), r4] });
   }
 }
 
@@ -1445,8 +1585,9 @@ async function onlineBrowserChecks(browser, desktop) {
     }
     {
       /* rate limit: a second flush inside the window is delayed, not sent. The page gets a hand-driven clock (window.__clk) and a
-         300 ms window, so nothing depends on real 11 s waits or on how long the machine stalls: the write may leave only once the
-         injected clock says the window is over, however late the timer fires. */
+         300 ms window, so nothing depends on real 11 s waits. The wait is ONE window at most (one timer of about 350 ms): the clock
+         here is frozen on purpose, and the write still leaves after that one wait, because a wait is never repeated (a stuck or
+         moved clock must not lock the device out). */
       const { ctx, page, st } = await mk({ label: 'online-rate', delayMs: 300, clock: 5000000 });
       await page.goto(base + '/index.html?seed=7');
       await page.waitForFunction(() => !!window.MatatuRush);
@@ -1455,17 +1596,13 @@ async function onlineBrowserChecks(browser, desktop) {
       await until(async () => (await page.evaluate(() => window.__fl.length)) === 1, 3000);
       const stamp1 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
       await page.evaluate(() => { MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 200 }); MR.online.flush((e, v) => window.__fl.push(['f2', e, v && v.sent])); MR.online.flush((e) => window.__fl.push(['f3', e])); });
-      await sleep(1000); /* several timer rounds (each about 350 ms), the clock has not moved */
+      await sleep(120); /* well inside the one 350 ms wait; the clock has not moved */
       const early = st.commits.length;
       const busy = await page.evaluate(() => window.__fl.filter((x) => x[0] === 'f3').map((x) => x[1]));
-      await page.evaluate(() => { window.__clk += 299; }); /* one ms short of the window */
-      await sleep(1000);
-      const early2 = st.commits.length;
-      await page.evaluate(() => { window.__clk += 1; }); /* window over */
-      await until(async () => st.commits.length === 2, 5000);
+      await until(async () => st.commits.length === 2, 5000); /* the one wait ends, the frozen clock notwithstanding */
       const stamp2 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
-      check(G, 'a second flush inside the rate window is delayed, not sent (nothing while the injected clock is inside the window, even after several timer rounds), a third call meanwhile is refused as busy, and the delayed one goes out as soon as the clock says the window is over',
-        stamp1 === 5000000 && early === 1 && early2 === 1 && busy.length === 1 && busy[0] === 'busy' && st.commits.length === 2 && stamp2 >= 5000300 && commitFields(st.commits[1]).score === '200', { stamp1, early, early2, busy, stamp2, n: st.commits.length });
+      check(G, 'a second flush inside the rate window is delayed, not sent (nothing while the one window wait is running), a third call meanwhile is refused as busy, and the delayed one goes out after that ONE wait even when the injected clock never moves (no repeated waiting)',
+        stamp1 === 5000000 && early === 1 && busy.length === 1 && busy[0] === 'busy' && st.commits.length === 2 && stamp2 === 5000000 && commitFields(st.commits[1]).score === '200', { stamp1, early, busy, stamp2, n: st.commits.length });
       await ctx.close();
     }
     {
@@ -1679,6 +1816,13 @@ async function onlineBrowserChecks(browser, desktop) {
       await until(async () => st.commits.length === 3, 6000);
       const au = await lsJson(page, 'matatuRush.auth');
       check(G, 'an invalid refresh token (HTTP 400) makes the client sign up again once and still send', st.signups === 2 && st.refreshes === 2 && st.commits.length === 3 && au && au.uid === 'mockuid2' && /\/scores\/mockuid2$/.test(commitFields(st.commits[2]).doc), { signups: st.signups, refreshes: st.refreshes, au });
+      /* a refresh answered 403 (API key that does not allow the Token Service API): also one fresh sign-up, then the send */
+      await page.evaluate(() => { localStorage.setItem('matatuRush.pending', JSON.stringify({ name: 'Wambui K', alias: 'Dere 123', score: 7000 })); localStorage.setItem('matatuRush.lastSend', '0'); });
+      st.tokenStatus = 403;
+      await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
+      await until(async () => st.commits.length === 4, 6000);
+      const au3 = await lsJson(page, 'matatuRush.auth');
+      check(G, 'a refresh answered HTTP 403 makes the client sign up again once (new id) and still send under the new id', st.signups === 3 && st.refreshes === 3 && st.commits.length === 4 && au3 && au3.uid === 'mockuid3' && /\/scores\/mockuid3$/.test(commitFields(st.commits[3]).doc), { signups: st.signups, refreshes: st.refreshes, au3 });
       await ctx.close();
     }
     {
@@ -1766,7 +1910,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
     await ctx.close();
   }
   {
-    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/online.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
+    const files = ['index.html', 'css/style.css', 'js/core.js', 'js/game.js', 'js/config.js', 'js/online.js', 'js/audio.js', 'js/art.js', 'js/render.js', 'js/main.js'];
     const bad = [], net = [], fontUrls = [], impact = [];
     /* js/online.js is the ONLY file allowed to touch the network: XMLHttpRequest, and exactly these three https origins */
     const ONLINE_HOSTS = ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://firestore.googleapis.com'];

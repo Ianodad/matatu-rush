@@ -8,8 +8,11 @@
   'use strict';
   var MR = window.MR;
 
-  /* Fill these in after creating the Firebase project (README, "Shared Top 5 board"). Empty means offline. */
-  var CFG = { projectId: '', apiKey: '' };
+  /* Settings come from js/config.js (README, "Shared Top 5 board"). Missing or empty means offline. */
+  var CFG = (function (c) {
+    var ok = c && typeof c.projectId === 'string' && typeof c.apiKey === 'string';
+    return { projectId: ok ? c.projectId : '', apiKey: ok ? c.apiKey : '' };
+  })(MR.ONLINE_CFG);
 
   var DEFAULTS = {
     authBase: 'https://identitytoolkit.googleapis.com',
@@ -154,10 +157,15 @@
     MR.store.set(PENDING_KEY, JSON.stringify(o));
   }
   function clearPending() { MR.store.set(PENDING_KEY, ''); }
-  /* read fresh every time: another tab may have written since */
+  /* read fresh every time: another tab may have written since. A stored time later than now() means this device's clock
+     moved (it was ahead when the value was written and has been corrected, or it jumped back): never trust it. Clamp to
+     now (treat it as "just sent", at most one window of waiting) and rewrite the stored value so it is repaired for good. */
   function readSend() {
     var v = parseInt(MR.store.get(SEND_KEY, '0'), 10);
-    return (isFinite(v) && v > 0) ? v : 0;
+    if (!(isFinite(v) && v > 0)) return 0;
+    var t = Math.floor(now());
+    if (v > t) { v = t; MR.store.set(SEND_KEY, String(v)); }
+    return v > 0 ? v : 0;
   }
   /* the later of what is stored and t: stamped when a write leaves AND when its answer arrives */
   function stampSend(t) {
@@ -226,7 +234,10 @@
       });
   }
 
-  /* an invalid or expired refresh token (HTTP 400, or 401) means: sign up again, once */
+  /* an invalid or expired refresh token (HTTP 400, 401 or 403) means: sign up again, at most once per flush or submit.
+     A refresh answered 403 usually means the API key does not allow the Token Service API (README). Consequence of a
+     fresh sign-up: the device gets a NEW anonymous id, so the row the old id left on the board stays there for good. */
+  var resignups = 0;
   function refresh(cb) {
     var c = conf();
     request('POST', c.tokenBase + '/v1/token?key=' + enc(c.apiKey),
@@ -243,7 +254,9 @@
           cb(null);
           return;
         }
-        if (status === 400 || status === 401) {
+        if (status === 400 || status === 401 || status === 403) {
+          if (resignups >= 1) { cb('auth'); return; }
+          resignups++;
           auth = null; idToken = ''; idExp = 0;
           signUp(cb);
           return;
@@ -358,6 +371,7 @@
     if (!(s > 0 && s <= SCORE_MAX)) { cb('badscore'); return; }
     var n = resolveName(name, alias);
     if (!n) { cb('badname'); return; }
+    resignups = 0;
     ensureAuth(function (err) {
       if (err) { cb(err); return; }
       commit(n, s, function (err2) {
@@ -389,64 +403,91 @@
   }
 
   var flushing = false, flushTimer = null, retryTimer = null, again = false;
-  /* how long until the next write may leave: the stored send time is read fresh, never cached in this tab */
+  var flushGen = 0, flushStart = 0;   /* flushGen: the flush that owns `flushing`; a flush that was given up on is stale */
+  var FLUSH_DEAD_MS = 45000;          /* a flush busy for longer than this is considered dead (watchdog) */
+  /* how long until the next write may leave: the stored send time is read fresh, never cached in this tab.
+     readSend() never returns a time later than now(), so this is never more than one window. */
   function waitMs() {
     var last = readSend();
     if (!last) return 0;
     var left = rateMs() - (now() - last);
-    if (left > rateMs()) left = rateMs(); /* the clock went backwards: never wait longer than one window */
+    if (left > rateMs()) left = rateMs();
     return left > 0 ? left : 0;
   }
-  function afterWait(fn) {
-    var w = waitMs();
-    if (w > 0) flushTimer = setTimeout(function () { flushTimer = null; fn(); }, w + 50);
-    else fn();
+  /* f.waited: a flush waits at most ONCE (one window at most). After that it sends, whatever the stored time says. */
+  function afterWait(f, fn) {
+    var w = f.waited ? 0 : waitMs();
+    if (w > 0) {
+      f.waited = true;
+      flushTimer = setTimeout(function () { flushTimer = null; fn(); }, w + 50);
+    } else fn();
   }
   /* one retry at a time, never sooner than one window after the last answer; flush() re-checks the stored time anyway */
   function scheduleRetry() {
     if (retryTimer) return;
     retryTimer = setTimeout(function () { retryTimer = null; flush(noop); }, rateMs() + 100);
   }
-  function finishFlush(cb, err, res) {
-    flushing = false;
-    var rerun = again && !err && !!readPending();
-    again = false;
-    cb(err || null, res || null);
+  /* every path of a flush ends here exactly once. Only the current flush releases `flushing`; a stale one just answers. */
+  function finishFlush(f, err, res) {
+    if (f.done) return;
+    f.done = true;
+    var cur = (f.gen === flushGen);
+    var rerun = false;
+    if (cur) {
+      flushing = false;
+      rerun = again && !err && !!readPending();
+      again = false;
+    }
+    f.cb(err || null, res || null);
     if (res && res.sent && typeof api.onSent === 'function') { try { api.onSent(res); } catch (e) { /* the hook must never break a flush */ } }
     if (rerun) flush(noop); /* a rename or better score arrived while sending: once more, still rate limited */
   }
   /* synced: this attempt already re-read the server's copy of this device's entry */
-  function flushNow(cb, synced) {
-    if (blocked()) { finishFlush(cb, 'running'); return; }
+  function flushNow(f, synced) {
+    if (f.gen !== flushGen) { finishFlush(f, 'busy'); return; } /* given up on by the watchdog: a newer flush owns the record */
+    if (blocked()) { finishFlush(f, 'running'); return; }
     var p = readPending(); /* fresh: another tab may have sent or replaced it while this one waited */
-    if (!p) { finishFlush(cb, null, { sent: false }); return; }
+    if (!p) { finishFlush(f, null, { sent: false }); return; }
     /* everything the rules check, checked here first, so a 403 later most likely means timing and not a bad record */
     var n = resolveName(p.name, p.alias);
-    if (!n) { clearPending(); finishFlush(cb, 'badname'); return; }
-    if (!wholeScore(p.score) || p.score < getBest()) { clearPending(); finishFlush(cb, 'stale'); return; }
+    if (!n) { clearPending(); finishFlush(f, 'badname'); return; }
+    if (!wholeScore(p.score) || p.score < getBest()) { clearPending(); finishFlush(f, 'stale'); return; }
     ensureAuth(function (err) {
-      if (err) { finishFlush(cb, err); return; }
+      if (err) { finishFlush(f, err); return; }
       var go = function () {
-        var w = waitMs(); /* another tab may have written while this one was signing in or re-reading */
-        if (w > 0) { afterWait(function () { flushNow(cb, true); }); return; }
-        send(p, n, cb);
+        /* another tab may have written while this one was signing in or re-reading: one wait at most per flush */
+        afterWait(f, function () { if (f.gen !== flushGen) { finishFlush(f, 'busy'); return; } send(p, n, f); });
       };
       if (p.attempts > 0 && !synced) {
         /* an earlier attempt got 403/429: look at what the server really holds before sending again */
         fetchOwn(function (err2, own) {
-          if (err2) { finishFlush(cb, err2); return; }
+          if (err2) {
+            /* the read failed (403, 500, parse...): it counts as an attempt, then send anyway and let the rules decide.
+               No answer at all ('net') is not counted: the send below fails the same way and keeps the record. */
+            if (err2 !== 'net') {
+              var cur1 = readPending();
+              if (cur1 && cur1.score <= p.score && cur1.name === p.name) {
+                cur1.attempts = (cur1.attempts || 0) + 1;
+                if (cur1.attempts >= MAX_ATTEMPTS) { clearPending(); finishFlush(f, 'rejected'); return; }
+                writePending(cur1);
+              }
+            }
+            synced = true;
+            go();
+            return;
+          }
           if (own) {
             if (own.score > 0) setBest(own.score);
             if (own.ts > 0) stampSend(Math.min(own.ts, now())); /* never trust a server time ahead of this clock */
             if (own.score > p.score || (own.score === p.score && own.name === n)) {
               var cur0 = readPending();
               if (cur0 && cur0.score <= p.score && cur0.name === p.name) clearPending();
-              finishFlush(cb, null, { sent: false });
+              finishFlush(f, null, { sent: false });
               return;
             }
           }
           var again2 = readPending();
-          if (!again2 || again2.score !== p.score || again2.name !== p.name) { flushNow(cb, true); return; } /* replaced meanwhile */
+          if (!again2 || again2.score !== p.score || again2.name !== p.name) { flushNow(f, true); return; } /* replaced meanwhile */
           synced = true;
           go();
         });
@@ -455,46 +496,56 @@
       go();
     });
   }
-  function send(p, n, cb) {
+  function send(p, n, f) {
     commit(n, p.score, function (err2, status) {
       var cur = readPending();
       if (!err2) {
         accepted(p.score);
         /* cleared only if nothing newer arrived while the request was in the air */
         if (cur && cur.score <= p.score && cur.name === p.name) clearPending();
-        finishFlush(cb, null, { sent: true, name: n, score: p.score });
+        finishFlush(f, null, { sent: true, name: n, score: p.score });
         return;
       }
       var same = !!cur && cur.score <= p.score && cur.name === p.name;
       if (status === 400) { /* malformed: never retry */
         if (same) clearPending();
-        finishFlush(cb, 'rejected');
+        finishFlush(f, 'rejected');
         return;
       }
       if (status === 403 || status === 429) {
         /* 403 also means "written less than 10 s ago". Keep the record, count the attempt, retry once later. */
         if (same) {
           cur.attempts = (cur.attempts || 0) + 1;
-          if (cur.attempts >= MAX_ATTEMPTS) { clearPending(); finishFlush(cb, 'rejected'); return; }
+          if (cur.attempts >= MAX_ATTEMPTS) { clearPending(); finishFlush(f, 'rejected'); return; }
           writePending(cur);
           scheduleRetry();
         }
-        finishFlush(cb, 'retry');
+        finishFlush(f, 'retry');
         return;
       }
-      finishFlush(cb, err2);
+      finishFlush(f, err2);
     });
   }
   /* sends the pending record, if any. cb(err, res): res.sent is true when a record went out.
      Network trouble keeps the record. A 403 or 429 keeps it and retries once, 11 s after the answer, up to 3 attempts
-     in all; a 400 drops it. Never two at once. */
+     in all; a 400 drops it. Never two at once. A flush waits at most one window before it sends, and a flush that has
+     been busy for more than 45 s is taken for dead: a new one may start (the old one can only answer, never send). */
   function flush(cb) {
     cb = cb || noop;
     if (!enabled()) { cb(null, { sent: false }); return; }
-    if (flushing) { again = true; cb('busy'); return; }
+    if (flushing) {
+      var age = now() - flushStart;
+      if (age > FLUSH_DEAD_MS || age < -FLUSH_DEAD_MS) {
+        flushing = false; /* the old flush is stale from here on (its gen no longer matches): it can only answer, never send */
+      } else { again = true; cb('busy'); return; }
+    }
     if (!readPending()) { cb(null, { sent: false }); return; }
     flushing = true;
-    afterWait(function () { flushNow(cb, false); });
+    flushStart = now();
+    again = false;
+    resignups = 0;
+    var f = { gen: ++flushGen, cb: cb, waited: false, done: false };
+    afterWait(f, function () { flushNow(f, false); });
   }
 
   api.enabled = enabled;
