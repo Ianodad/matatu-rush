@@ -261,7 +261,7 @@ function mixed(s) { return s.split('').map((c, i) => (i % 2 ? c.toLowerCase() : 
   }
   {
     const store = new Map(); const MR = boot(store); const o = MR.online;
-    const s = await call((cb) => o.submit('fuckme', 777, cb, 'Konda 222'));
+    const s = await call((cb) => o.submit('fuck me', 777, cb, 'Konda 222'));
     chk(!s.err && s.val.name === 'Konda 222', 'blocklisted name: the alias is sent instead (accepted by the server)', s);
     const s3 = await call((cb) => o.submit('Wanjirú', 888, cb, ''));
     chk(s3.err === 'badname', 'non-ASCII name with no usable alias: nothing is sent (badname)', s3);

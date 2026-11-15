@@ -5,8 +5,8 @@
   function $(id) { return document.getElementById(id); }
 
   var g = MR.createGame();
-  /* no network request of any kind while a run is active (online.js checks this before every request) */
-  MR.online.guard = function () { return g.mode === 'running'; };
+  /* no network request of any kind unless the game is at the title or the game over screen: not while running, not while paused */
+  MR.online.guard = function () { return g.mode !== 'title' && g.mode !== 'gameover'; };
   var params = MR.params;
   var fixedSeed = (params.seed !== undefined && isFinite(parseInt(params.seed, 10))) ? (parseInt(params.seed, 10) >>> 0) : null;
   var screen = 'title';       /* 'title' | 'game' | 'pause' | 'over' */
@@ -185,14 +185,21 @@
     $('nameForm').hidden = true;
     /* the form is closing under a finger that may still be down: Play again, Menu and the over keys ignore input for 600 ms */
     overAt = performance.now();
-    /* shared board: the typed name (if any) goes to the pending record, then it is sent */
-    if (sharedOn()) { MR.online.rename(text); MR.online.flush(); }
+    /* shared board: the typed name (if any) goes to the pending record, then it is sent. When the shared board would refuse
+       the name (blocklist, characters), it gets the alias instead and the player is told. */
+    var sharedAs = '';
+    if (sharedOn()) {
+      var pend = MR.online.pending();
+      if (stored && pend && !MR.online.nameOk(stored)) sharedAs = MR.online.sharedName(stored, pend.alias);
+      MR.online.rename(text); MR.online.flush();
+    }
     if (!stored) { focusAgain(); return; }
-    $('nameSaved').textContent = 'Saved as ' + stored;
+    var savedMsg = 'Saved as ' + stored + (sharedAs ? ' on this device. Shared board shows ' + sharedAs + '.' : '');
+    $('nameSaved').textContent = savedMsg;
     $('nameSaved').hidden = false;
     /* the list on screen is this device's own only when it is not the shared one */
     if (boardMode.over === 'local') { var ov = boardView('over'); paintLocal(ov, g.boardId, ov.note.hidden ? '' : ov.note.textContent); }
-    announce('Saved as ' + stored + '. Rank ' + g.boardRank + ' on the Top 5.');
+    announce(savedMsg + (sharedAs ? ' ' : '. ') + 'Rank ' + g.boardRank + ' on the Top 5.');
     focusAgain();
   }
   /* on short screens the over panel scrolls: let the focus call bring Play again into view */

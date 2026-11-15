@@ -891,10 +891,13 @@ function onlineHarness(opt) {
 function onlineNodeChecks() {
   const G = 'online';
   const rules = fs.readFileSync(ONLINE_RULES, 'utf8');
-  const alt = (/\.\*\(([a-z|]+)\)\.\*/.exec(rules) || [null, ''])[1].split('|');
+  const alt = (/\(\^\|\.\*\[\^a-z\]\)\(([a-z|]+)\)\(s\|es\|er\|ing\)\?\(\[\^a-z\]\.\*\|\$\)/.exec(rules) || [null, ''])[1].split('|');
+  const altSfx = (/\)\(([a-z|]+)\)\?\(\[\^a-z\]\.\*\|\$\)/.exec(rules) || [null, ''])[1].split('|');
   const h = onlineHarness();
   const list = Array.from(h.MR.online.BLOCKLIST);
   check(G, 'node: the blocklist in js/online.js is identical (same words, same order) to the one in firestore.rules', alt.length >= 25 && alt.length <= 40 && JSON.stringify(list) === JSON.stringify(alt), { client: list.length, rules: alt.length, onlyClient: list.filter((x) => alt.indexOf(x) < 0), onlyRules: alt.filter((x) => list.indexOf(x) < 0) });
+  check(G, 'node: the suffix list (s, es, er, ing) in js/online.js is identical to the one in firestore.rules, and the rules match whole tokens: (^|.*[^a-z])(words)(suffixes)?([^a-z].*|$)',
+    JSON.stringify(Array.from(h.MR.online.SUFFIXES)) === JSON.stringify(altSfx) && altSfx.join(',') === 's,es,er,ing', { client: h.MR.online.SUFFIXES, rules: altSfx });
   const cap = parseInt((/s <= (\d+)/.exec(rules) || [0, '0'])[1], 10);
   check(G, 'node: SCORE_MAX in js/online.js equals the cap in firestore.rules (5,000,000)', cap === 5000000 && h.MR.online.SCORE_MAX === cap, { rules: cap, client: h.MR.online.SCORE_MAX });
   const nre = (/matches\('(\^\[A-Za-z0-9\]\[A-Za-z0-9 \._-\]\{0,11\}\$)'\)/.exec(rules) || [])[1];
@@ -902,7 +905,16 @@ function onlineNodeChecks() {
   const ok = h.MR.online.nameOk;
   check(G, 'node: client name test: aliases and plain names pass; empty, 13 chars, leading space or hyphen, accents, HTML, quotes and blocklisted words (any case, embedded) fail',
     ['Dere 482', 'Konda 100', 'Makanga 999', 'Rubani 123', 'Bob', 'a_b-c.d e', '123456789012', 'Class Act'].every(ok) &&
-    ['', '1234567890123', ' Bob', '-Bob', 'Wanjirú', '<b>x</b>', "O'Brien", 'Bob\n', 'FUCK', 'xShItx', 'MaLaYa', 'aaKUMAzz', 'Hitler'].every((x) => !ok(x)));
+    ['', '1234567890123', ' Bob', '-Bob', 'Wanjirú', '<b>x</b>', "O'Brien", 'Bob\n', 'FUCK', 'big fuck', 'MaLaYa', 'aa.KUMA.zz', 'Hitler'].every((x) => !ok(x)));
+  const realNames = ['Kumar', 'Kumari', 'Shitote', 'Shitanda', 'Himalaya', 'Mbooni', 'Kunyanga', 'Malayan', 'Scunthorpe', 'Pissarides'];
+  check(G, 'node: whole-token blocklist: Kumar, Kumari, Shitote, Shitanda, Himalaya, Mbooni, Kunyanga, Malayan, Scunthorpe and Pissarides are ALLOWED', realNames.every(ok), realNames.filter((x) => !ok(x)));
+  const wl = Array.from(h.MR.online.BLOCKLIST);
+  const missed = [];
+  wl.forEach((w) => {
+    const forms = [w, w.toUpperCase(), '6' + w + '9', 'a ' + w, w + '.x', 'x_' + w, w + 's', w + 'es', w + 'er', w + 'ing', '1-' + w];
+    forms.forEach((f) => { if (f.length <= 12 && ok(f)) missed.push(f); });
+  });
+  check(G, 'node: every blocklist word is DENIED alone, in upper case, with digits around it (6word9), as a separate token (a word, word.x, x_word, 1-word) and with s, es, er, ing', wl.length >= 25 && missed.length === 0, missed);
   /* the gate: enabled() needs both config values AND an http(s) page */
   const gate = (proto, cfg) => onlineHarness({ protocol: proto, cfg }).MR.online.enabled();
   check(G, 'node: enabled() is false under file:// even with a full config, false with an empty config, true only for http: or https: with projectId and apiKey',
@@ -933,6 +945,206 @@ function onlineNodeChecks() {
   check(G, 'node: corrupt stored pending, auth and onlineBest read as empty and do not throw', bad.pending() === null && bad.uid() === '' && bad.best() === 0);
 }
 
+
+/* A fake world for the pending-record logic: one shared clock, one fake Firestore (10 s rule modelled), shared storage,
+   and fake timers that only move when the test says so. Nothing here touches a real clock or the network. */
+function simWorld() {
+  const w = { clock: { t: 1700000000000 }, store: {}, server: { score: 0, name: '', ts: 0, always403: false, status: 0 }, timers: [], nextId: 0, hold: false, held: [] };
+  w.advance = (ms) => {
+    const target = w.clock.t + ms;
+    for (;;) {
+      const due = w.timers.filter((x) => x.at <= target).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      if (!due) break;
+      w.timers.splice(w.timers.indexOf(due), 1);
+      if (due.at > w.clock.t) w.clock.t = due.at;
+      due.fn();
+    }
+    w.clock.t = target;
+  };
+  w.release = () => { const h = w.held.splice(0); h.forEach((f) => f()); };
+  return w;
+}
+function simTab(w, opt) {
+  opt = opt || {};
+  const tab = { commits: [], gets: 0, reqs: [] };
+  function XHR() { this.status = 0; this.responseText = ''; this.h = {}; }
+  XHR.prototype.open = function (m, u) { this.m = m; this.u = u; };
+  XHR.prototype.setRequestHeader = function (k, v) { this.h[k] = v; };
+  const reply = (x, status, obj) => { x.status = status; x.responseText = JSON.stringify(obj || {}); x.onload(); };
+  XHR.prototype.send = function (body) {
+    const x = this; tab.reqs.push({ m: x.m, u: x.u });
+    if (/accounts:signUp/.test(x.u)) { reply(x, 200, { idToken: 'i', refreshToken: 'r', localId: 'sim1', expiresIn: '3600' }); return; }
+    if (/\/v1\/token/.test(x.u)) { reply(x, 200, { id_token: 'i2', expires_in: '3600', refresh_token: 'r' }); return; }
+    if (x.m === 'GET' && /\/documents\/scores\/sim1/.test(x.u)) {
+      tab.gets++;
+      const sv = w.server;
+      if (!sv.score) reply(x, 404, {});
+      else reply(x, 200, { fields: { name: { stringValue: sv.name }, score: { integerValue: String(sv.score) }, ts: { timestampValue: new Date(sv.ts).toISOString() } } });
+      return;
+    }
+    if (/:commit/.test(x.u)) {
+      const wr = JSON.parse(body).writes[0];
+      const rec = { name: wr.update.fields.name.stringValue, score: parseInt(wr.update.fields.score.integerValue, 10), sentAt: w.clock.t };
+      tab.commits.push(rec);
+      const decide = () => { /* the server decides when the request ARRIVES */
+        const sv = w.server;
+        if (sv.status) { reply(x, sv.status, {}); return; }
+        if (sv.always403 || rec.score < sv.score || w.clock.t - sv.ts <= 10000) { reply(x, 403, {}); return; }
+        sv.score = rec.score; sv.name = rec.name; sv.ts = w.clock.t;
+        reply(x, 200, {});
+      };
+      if (w.hold) w.held.push(decide); else decide();
+      return;
+    }
+    reply(x, 404, {});
+  };
+  const store = opt.store || w.store; /* a tab that does not share storage gets its own */
+  tab.store = store;
+  const win = {
+    location: { protocol: 'http:', search: '' },
+    localStorage: { getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; } },
+    XMLHttpRequest: XHR,
+    setTimeout: (fn, ms) => { const id = ++w.nextId; w.timers.push({ id, at: w.clock.t + ms, fn }); return id; },
+    clearTimeout: (id) => { w.timers = w.timers.filter((x) => x.id !== id); },
+    MR_ONLINE_TEST: { projectId: 'p', apiKey: 'k', now: () => w.clock.t }
+  };
+  win.window = win;
+  if (!store['matatuRush.auth'] && !opt.noAuth) store['matatuRush.auth'] = JSON.stringify({ uid: 'sim1', refreshToken: 'r' });
+  const ctx = vm.createContext(win);
+  for (const f of ['js/core.js', 'js/online.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+  tab.o = win.MR.online;
+  tab.pend = () => { try { return JSON.parse(store['matatuRush.pending'] || 'null'); } catch (e) { return null; } };
+  tab.flush = () => { const r = []; tab.o.flush((e, v) => r.push([e, v])); return r; };
+  return tab;
+}
+function onlineSimChecks() {
+  const G = 'online';
+  const rec = (name, score) => ({ name, alias: name, score });
+  /* 1. the reviewer's repro on shared storage: tab A sent 500; tab B queues 900 and flushes at once. B waits (shared send time), then wins. */
+  {
+    const w = simWorld(), a = simTab(w), b = simTab(w);
+    a.o.queue(rec('Tab A', 500)); a.flush();
+    const q = b.o.queue(rec('Tab B', 900));
+    b.flush();
+    const early = b.commits.length;
+    w.advance(5000); const mid = b.commits.length;
+    w.advance(6200);
+    check(G, 'sim: two tabs on shared storage: B (900) flushed right after A (500) sent waits for the window (nothing at 0 s or 5 s), then sends exactly once; the server holds 900, B\'s pending record is gone, nothing is lost',
+      q === true && early === 0 && mid === 0 && b.commits.length === 1 && w.server.score === 900 && b.pend() === null && b.o.best() === 900, { q, early, mid, n: b.commits.length, server: w.server, pend: b.pend() });
+  }
+  /* 2. a tab that does not know about the other send (no stored send time) gets 403: keeps the record, retries later after re-reading the server copy */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('Tab A', 500)); a.flush();
+    w.advance(3000);
+    const b = simTab(w, { store: { 'matatuRush.auth': JSON.stringify({ uid: 'sim1', refreshToken: 'r' }) } });
+    b.o.queue(rec('Tab B', 900));
+    const r1 = b.flush();
+    const kept = b.pend();
+    check(G, 'sim: a "too soon" 403 KEEPS the pending record (900), counts attempts = 1 and does not touch onlineBest',
+      r1.length === 1 && r1[0][0] === 'retry' && !!kept && kept.score === 900 && kept.attempts === 1 && b.commits.length === 1 && w.server.score === 500, { r1, kept, server: w.server });
+    w.advance(6000);
+    const quiet = b.commits.length;
+    w.advance(5300); /* now more than 11 s after the 403 answer */
+    check(G, 'sim: the retry waits 11 s after the answer (nothing at +6 s), then first re-reads the server copy (one GET) and sends once; the 900 lands and the record is cleared',
+      quiet === 1 && b.gets === 1 && b.commits.length === 2 && w.server.score === 900 && b.pend() === null && b.o.best() === 900, { quiet, gets: b.gets, n: b.commits.length, server: w.server, pend: b.pend() });
+  }
+  /* 3. slow connection: the answer arrives 3 s after the request left; the next write must be 11 s after the ANSWER */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.hold = true;
+    a.o.queue(rec('Slow', 500)); a.flush();
+    w.advance(3000); w.release(); /* arrives and is answered now: server time = T+3 s */
+    w.hold = false;
+    a.o.queue(rec('Slow', 900));
+    a.flush();
+    const t0 = a.commits.length;
+    w.advance(8100); /* 11.1 s after the first request LEFT, but only 8.1 s after the answer */
+    const t1 = a.commits.length;
+    w.advance(3000);
+    check(G, 'sim: slow answer: a follow-up 11.1 s after the request left (8.1 s after the answer) is NOT sent; it goes out 11 s after the answer and the server accepts it (no 403)',
+      t0 === 1 && t1 === 1 && a.commits.length === 2 && w.server.score === 900 && a.pend() === null, { t0, t1, n: a.commits.length, server: w.server });
+  }
+  /* 4. 403 forever: three attempts, 11 s apart, then dropped; never a tight loop */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.always403 = true;
+    a.o.queue(rec('Nope', 700)); a.flush();
+    const n1 = a.commits.length, p1 = a.pend();
+    w.advance(10000); const n2 = a.commits.length;
+    w.advance(1300); const n3 = a.commits.length, p3 = a.pend();
+    w.advance(10000); const n4 = a.commits.length;
+    w.advance(1400); const n5 = a.commits.length, p5 = a.pend();
+    w.advance(60000);
+    check(G, 'sim: a 403 that never goes away: attempts 1, 2, 3 are 11 s or more apart (nothing at +10 s), the record is dropped after the third, and nothing more is sent ever after',
+      n1 === 1 && p1 && p1.attempts === 1 && n2 === 1 && n3 === 2 && p3 && p3.attempts === 2 && n4 === 2 && n5 === 3 && p5 === null && a.commits.length === 3 &&
+      a.commits[1].sentAt - a.commits[0].sentAt >= 11000 && a.commits[2].sentAt - a.commits[1].sentAt >= 11000, { n: [n1, n2, n3, n4, n5], p1, p3, p5, at: a.commits.map((c) => c.sentAt - a.commits[0].sentAt) });
+  }
+  /* 5. 429 behaves like 403; 400 drops at once; 500 keeps without a retry loop */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.status = 429;
+    a.o.queue(rec('Busy', 700)); a.flush();
+    const k429 = a.pend();
+    const w4 = simWorld(), b = simTab(w4);
+    w4.server.status = 400;
+    b.o.queue(rec('Bad', 700)); const r = b.flush();
+    const w5 = simWorld(), c = simTab(w5);
+    w5.server.status = 500;
+    c.o.queue(rec('Down', 700)); c.flush(); w5.advance(120000);
+    check(G, 'sim: 429 keeps the record with attempts 1; 400 drops it at once with no retry; a 500 keeps it with no retry loop',
+      !!k429 && k429.attempts === 1 && r[0][0] === 'rejected' && b.pend() === null && w4.timers.length === 0 && c.pend() !== null && c.commits.length === 1, { k429, r, c: c.commits.length });
+  }
+  /* 6. the retry resync: the server already holds this score under this name, or a higher one: clear without sending */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.server.score = 900; w.server.name = 'Same'; w.server.ts = w.clock.t - 60000;
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Same', alias: 'Same', score: 900, attempts: 1 });
+    a.flush();
+    const w2 = simWorld(), b = simTab(w2);
+    w2.server.score = 900; w2.server.name = 'Other'; w2.server.ts = w2.clock.t - 60000;
+    w2.store['matatuRush.pending'] = JSON.stringify({ name: 'Same', alias: 'Same', score: 900, attempts: 1 });
+    b.flush();
+    check(G, 'sim: after a 403 the retry re-reads the server copy: same score and same name clears the record without sending (onlineBest resynced); same score but another name is a rename and is sent',
+      a.gets === 1 && a.commits.length === 0 && a.pend() === null && a.o.best() === 900 && b.gets === 1 && b.commits.length === 1 && w2.server.name === 'Same' && b.pend() === null, { a: [a.gets, a.commits.length, a.pend()], b: [b.gets, b.commits.length, w2.server] });
+  }
+  /* 7. another tab changed the pending record while this one waited */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('First', 100)); a.flush();
+    a.o.queue(rec('Second', 200)); a.flush(); /* waits for the window */
+    w.store['matatuRush.pending'] = ''; /* another tab sent it and cleared it */
+    w.advance(11200);
+    const sent = a.commits.length;
+    a.o.queue(rec('Third', 300)); const higher = a.o.queue(rec('Lower', 250));
+    check(G, 'sim: a record cleared by another tab while this tab waited is not sent (the pending record is re-read after the wait); queue keeps the higher score',
+      sent === 1 && higher === false && a.pend() && a.pend().score === 300, { sent, pend: a.pend() });
+  }
+  /* 8. pre-validation: nothing the rules would refuse is ever sent */
+  {
+    const w = simWorld(), a = simTab(w);
+    w.store['matatuRush.onlineBest'] = '900';
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Old', alias: 'Old', score: 500 });
+    const r1 = a.flush();
+    const lowOk = a.commits.length === 0 && a.pend() === null;
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Fuck', alias: 'Dere 111', score: 1000 });
+    a.flush();
+    const aliasSent = a.commits.length === 1 && a.commits[0].name === 'Dere 111';
+    w.advance(12000);
+    w.store['matatuRush.pending'] = JSON.stringify({ name: 'Wanjirú', alias: 'Shit', score: 2000 });
+    const r3 = a.flush();
+    check(G, 'sim: before sending the client checks what the rules check: a score below onlineBest is dropped unsent, a blocklisted name falls back to the alias, a bad name with a bad alias is dropped unsent',
+      lowOk && aliasSent && a.commits.length === 1 && a.pend() === null && r3[0][0] === 'badname', { lowOk, aliasSent, n: a.commits.length, r1, r3 });
+  }
+  /* 9. the test override is typed: a string now() or a negative delayMs is ignored */
+  {
+    const w = simWorld(), a = simTab(w);
+    a.o.queue(rec('T', 100)); a.flush();
+    const sent = parseInt(w.store['matatuRush.lastSend'], 10);
+    check(G, 'sim: the send time is stored in shared storage (matatuRush.lastSend) from the injected clock, stamped at the request and again at the answer', sent === w.clock.t, { sent, now: w.clock.t });
+  }
+}
+
 /* a tiny static server for the repo root */
 function startStaticServer() {
   const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.ttf': 'font/ttf', '.png': 'image/png', '.json': 'application/json' };
@@ -951,7 +1163,7 @@ const ON_CORS = { 'access-control-allow-origin': '*', 'access-control-allow-head
 const ON_HOSTS = ['identitytoolkit.googleapis.com', 'securetoken.googleapis.com', 'firestore.googleapis.com'];
 const ON_PROJECT = 'test-proj', ON_KEY = 'test-key';
 function makeMock() {
-  return { signups: 0, refreshes: 0, commits: [], queries: [], log: [], stray: [], db: {}, rawQuery: null, queryStatus: 200, queryDelay: 0, commitStatus: 200, tokenDelay: 0, tokenStatus: 200, net: false, netHits: 0 };
+  return { signups: 0, refreshes: 0, commits: [], queries: [], log: [], stray: [], db: {}, rawQuery: null, queryStatus: 200, queryDelay: 0, commitStatus: 200, failCommits: 0, gets: [], tokenDelay: 0, tokenStatus: 200, net: false, netHits: 0 };
 }
 function mockRows(db) {
   const rows = Object.keys(db).map((uid) => ({ uid, name: db[uid].name, score: db[uid].score })).sort((a, b) => b.score - a.score).slice(0, 5);
@@ -985,12 +1197,19 @@ async function installMock(ctx, st) {
     } else if (u.pathname.endsWith(':commit')) {
       let b = null; try { b = JSON.parse(post); } catch (e) { /* kept as null */ }
       st.commits.push({ t: rec.t, body: b, auth: rec.auth, search: u.search, path: u.pathname, host: u.hostname });
+      if (st.failCommits > 0) { st.failCommits--; await json(route, st.commitStatus === 200 ? 403 : st.commitStatus, { error: { code: 403, status: 'PERMISSION_DENIED', message: 'Missing or insufficient permissions.' } }); return; }
       if (st.commitStatus !== 200) { await json(route, st.commitStatus, { error: { code: st.commitStatus, status: 'PERMISSION_DENIED', message: 'Missing or insufficient permissions.' } }); return; }
       try {
         const w = b.writes[0], uid = w.update.name.split('/').pop();
         st.db[uid] = { name: w.update.fields.name.stringValue, score: parseInt(w.update.fields.score.integerValue, 10) };
       } catch (e) { /* malformed: leave db alone */ }
       await json(route, 200, { writeResults: [{ updateTime: '2026-01-01T00:00:00Z', transformResults: [{ timestampValue: '2026-01-01T00:00:00Z' }] }], commitTime: '2026-01-01T00:00:00Z' });
+    } else if (req.method() === 'GET' && /\/documents\/scores\/[^/]+$/.test(u.pathname)) {
+      const uid = u.pathname.split('/').pop();
+      st.gets.push({ t: rec.t, uid });
+      const d = st.db[uid];
+      if (!d) { await json(route, 404, { error: { code: 404, status: 'NOT_FOUND' } }); return; }
+      await json(route, 200, { name: 'projects/' + ON_PROJECT + '/databases/(default)/documents/scores/' + uid, fields: { name: { stringValue: d.name }, score: { integerValue: String(d.score) }, ts: { timestampValue: '2026-01-01T00:00:00Z' } } });
     } else await json(route, 404, {});
   };
   for (const h of ON_HOSTS) await ctx.route('https://' + h + '/**', handler);
@@ -1022,6 +1241,9 @@ async function onlinePage(browser, base, opt) {
   await installMock(ctx, st);
   const cfg = opt.cfg === undefined ? { projectId: ON_PROJECT, apiKey: ON_KEY } : opt.cfg;
   await ctx.addInitScript((c) => { if (c) window.MR_ONLINE_TEST = c; }, cfg);
+  /* optional test overrides: a shorter rate window, and a clock the test moves by hand (window.__clk) */
+  if (opt.delayMs !== undefined) await ctx.addInitScript((d) => { if (window.MR_ONLINE_TEST) window.MR_ONLINE_TEST.delayMs = d; }, opt.delayMs);
+  if (opt.clock) await ctx.addInitScript((t0) => { window.__clk = t0; if (window.MR_ONLINE_TEST) window.MR_ONLINE_TEST.now = function () { return window.__clk; }; }, opt.clock);
   await ctx.addInitScript(XHR_LOGGER);
   const page = await ctx.newPage();
   watchOnline(page, opt.label || 'online');
@@ -1205,13 +1427,14 @@ async function onlineBrowserChecks(browser, desktop) {
       const nameChecks = [
         ['non-ASCII name', "MR.online.submit('Wanjir\\u00fa', 3000, cb, 'Konda 222')", 'Konda 222'],
         ['blocklisted name (upper case)', "MR.online.submit('SHIT HEAD', 3001, cb, 'Rubani 333')", 'Rubani 333'],
-        ['blocklisted word embedded in a longer name', "MR.online.submit('xxfuckxx', 3002, cb, 'Makanga 444')", 'Makanga 444'],
+        ['blocklisted word as its own token', "MR.online.submit('xx fuck xx', 3002, cb, 'Makanga 444')", 'Makanga 444'],
+        ['real name that only CONTAINS a listed string (Kumar) is kept', "MR.online.submit('Kumar', 3005, cb, 'Makanga 445')", 'Kumar'],
         ['HTML in the name', "MR.online.submit('<b>hi</b>', 3003, cb, 'Dere 555')", 'Dere 555'],
         ['padded name: trimmed, spaces collapsed, kept', "MR.online.submit('   Wambui   K  ', 3004, cb, 'Dere 666')", 'Wambui K']
       ];
       const sent = [];
       for (const [, expr] of nameChecks) { const before = st.commits.length; await call(expr); sent.push(st.commits.length === before + 1 ? commitFields(st.commits[st.commits.length - 1]).name : null); }
-      check(G, 'submit() sends the alias instead of a non-ASCII, blocklisted (any case, embedded) or HTML name; a clean name is trimmed and kept',
+      check(G, 'submit() sends the alias instead of a non-ASCII, blocklisted (any case, whole word) or HTML name; a clean name (even one that merely contains a listed string) is trimmed and kept',
         JSON.stringify(sent) === JSON.stringify(nameChecks.map((x) => x[2])), sent);
       const bad = await Promise.all([call("MR.online.submit('Bob', 0, cb, 'Dere 111')"), call("MR.online.submit('Bob', 5000001, cb, 'Dere 111')"), call("MR.online.submit('fuck', 10, cb, 'shit')")]);
       check(G, 'submit() refuses (and sends nothing) for a zero score, a score above the cap, and a bad name with a bad alias', bad[0].err === 'badscore' && bad[1].err === 'badscore' && bad[2].err === 'badname' && st.commits.length === 2 + nameChecks.length, bad);
@@ -1221,22 +1444,48 @@ async function onlineBrowserChecks(browser, desktop) {
       await ctx.close();
     }
     {
-      /* rate limit: a second flush less than 11 s after the first is delayed, not sent */
-      const { ctx, page, st } = await mk({ label: 'online-rate' });
+      /* rate limit: a second flush inside the window is delayed, not sent. The page gets a hand-driven clock (window.__clk) and a
+         300 ms window, so nothing depends on real 11 s waits or on how long the machine stalls: the write may leave only once the
+         injected clock says the window is over, however late the timer fires. */
+      const { ctx, page, st } = await mk({ label: 'online-rate', delayMs: 300, clock: 5000000 });
       await page.goto(base + '/index.html?seed=7');
       await page.waitForFunction(() => !!window.MatatuRush);
       await page.evaluate(() => { window.__fl = []; MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 100 }); MR.online.flush((e, v) => window.__fl.push(['f1', e, v && v.sent])); });
       await until(async () => st.commits.length === 1, 5000);
       await until(async () => (await page.evaluate(() => window.__fl.length)) === 1, 3000);
-      const t1 = st.commits[0] && st.commits[0].t;
+      const stamp1 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
       await page.evaluate(() => { MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 200 }); MR.online.flush((e, v) => window.__fl.push(['f2', e, v && v.sent])); MR.online.flush((e) => window.__fl.push(['f3', e])); });
-      await sleep(2500);
+      await sleep(1000); /* several timer rounds (each about 350 ms), the clock has not moved */
       const early = st.commits.length;
       const busy = await page.evaluate(() => window.__fl.filter((x) => x[0] === 'f3').map((x) => x[1]));
-      await until(async () => st.commits.length === 2, 14000);
-      const gap = st.commits[1] ? st.commits[1].t - t1 : -1;
-      check(G, 'a second flush inside 11 s is delayed, not sent (nothing after 2.5 s), a third call meanwhile is refused as busy, and the delayed one goes out 11 s or more after the first',
-        early === 1 && busy.length === 1 && busy[0] === 'busy' && st.commits.length === 2 && gap >= 10900 && commitFields(st.commits[1]).score === '200', { early, busy, gap, n: st.commits.length });
+      await page.evaluate(() => { window.__clk += 299; }); /* one ms short of the window */
+      await sleep(1000);
+      const early2 = st.commits.length;
+      await page.evaluate(() => { window.__clk += 1; }); /* window over */
+      await until(async () => st.commits.length === 2, 5000);
+      const stamp2 = parseInt(await lsGet(page, 'matatuRush.lastSend'), 10);
+      check(G, 'a second flush inside the rate window is delayed, not sent (nothing while the injected clock is inside the window, even after several timer rounds), a third call meanwhile is refused as busy, and the delayed one goes out as soon as the clock says the window is over',
+        stamp1 === 5000000 && early === 1 && early2 === 1 && busy.length === 1 && busy[0] === 'busy' && st.commits.length === 2 && stamp2 >= 5000300 && commitFields(st.commits[1]).score === '200', { stamp1, early, early2, busy, stamp2, n: st.commits.length });
+      await ctx.close();
+    }
+    {
+      /* nothing is requested while the game is PAUSED (only the title and game over screens may talk to the network) */
+      const { ctx, page, st } = await mk({ label: 'online-pause' });
+      await page.goto(base + '/index.html?seed=20');
+      await page.waitForFunction(() => !!window.MatatuRush);
+      await page.keyboard.press('Enter');
+      await waitFor(page, (x) => x.mode === 'running', 4000, 'pause run');
+      await page.keyboard.press('p');
+      await waitFor(page, (x) => x.mode === 'paused', 4000, 'paused');
+      const before = st.log.length, xb = (await xhrLog(page)).length;
+      const r = await page.evaluate(() => new Promise((res) => {
+        const out = {};
+        MR.online.queue({ name: 'Dere 111', alias: 'Dere 111', score: 123456 });
+        MR.online.top((e) => { out.top = e; MR.online.flush((e2) => { out.flush = e2; MR.online.submit('Bob', 99, (e3) => { out.submit = e3; res(out); }, 'Dere 111'); }); });
+      }));
+      await sleep(300);
+      check(G, 'while PAUSED top(), flush() and submit() all refuse with "running" and no request leaves (guard allows only the title and game over screens)',
+        r.top === 'running' && r.flush === 'running' && r.submit === 'running' && st.log.length === before && (await xhrLog(page)).length === xb, { r, before, now: st.log.length });
       await ctx.close();
     }
 
@@ -1264,7 +1513,7 @@ async function onlineBrowserChecks(browser, desktop) {
         st.commits.length === 1 && !!f && f.name === 'Mama Pima' && f.score === String(s.score) && /^\d+$/.test(f.score) && JSON.stringify(f.tr) === JSON.stringify([{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }]) && st.signups === 1 && st.commits[0].auth === 'Bearer id-1' && /\/scores\/mockuid1$/.test(f.doc), { f, signups: st.signups });
       check(G, 'after the send the pending record is gone, onlineBest equals the score, and the over list is re-fetched and highlights this player (aria-current, class me) under the typed name',
         (await lsGet(page, 'matatuRush.pending')) === '' && (await lsGet(page, 'matatuRush.onlineBest')) === String(s.score) && after.cur.length === 1 && after.cur[0].t === 'Mama Pima' && after.cur[0].c === 'me' && after.rows.length === 3 && st.queries.length >= 2, { after, q: st.queries.length });
-      check(G, 'nothing was requested while the mode was "running" (every request was made at the title or game over)', xs.length >= 3 && xs.every((x) => x.mode !== 'running'), xs.map((x) => x.mode + ' ' + x.u.replace(/\?.*/, '').split('/').pop()));
+      check(G, 'nothing was requested while the mode was "running" (every request was made at the title or game over)', xs.length >= 3 && xs.every((x) => x.mode !== 'running' && x.mode !== 'paused'), xs.map((x) => x.mode + ' ' + x.u.replace(/\?.*/, '').split('/').pop()));
       check(G, 'no dialog and no stray (non-mocked) request on the save flow', dialogs.length === 0 && st.stray.length === 0, { dialogs, stray: st.stray });
       await ctx.close();
     })());
@@ -1295,6 +1544,9 @@ async function onlineBrowserChecks(browser, desktop) {
       const f = commitFields(st.commits[0] || {});
       const local = await lsJson(page, 'matatuRush.top5');
       check(G, 'a typed blocklisted name ("Fuck Off") is sent as the alias, not as typed (the local board keeps what the player typed)', !!f && f.name === alias && !/fuck/i.test(JSON.stringify(st.commits[0].body)) && local && local[0].name === 'Fuck Off' && f.score === String(s.score), { f, alias, local });
+      const saved = await page.evaluate(() => ({ t: document.getElementById('nameSaved').textContent, live: document.getElementById('live').textContent }));
+      check(G, 'the player is told when the shared board cannot use the typed name: "Saved as Fuck Off on this device. Shared board shows <alias>." (also in the live region), not a silent swap',
+        saved.t === 'Saved as Fuck Off on this device. Shared board shows ' + alias + '.' && saved.live.indexOf('Shared board shows ' + alias) !== -1, { saved, alias });
       await ctx.close();
     })());
     /* G4: Play again with the form untouched; the next run is never interrupted; sent at its end */
@@ -1346,22 +1598,51 @@ async function onlineBrowserChecks(browser, desktop) {
       check(G, 'Menu (back to the title) flushes the pending record: the typed name goes out once the network is back', !!f && f.name === 'Baraka' && f.score === String(s.score) && xs.every((x) => x.mode !== 'running') && (await lsGet(page, 'matatuRush.pending')) === '', { f });
       await ctx.close();
     })());
-    /* G6: the rules reject (403): drop the record, never retry */
+    /* G6: 403 (rules said no, or "too soon"): keep the record, retry once per window, drop after 3 attempts. 100 ms-scale window via delayMs. */
     runScenarios.push((async () => {
-      const { ctx, page, st } = await mk({ label: 'online-403' });
+      const { ctx, page, st } = await mk({ label: 'online-403', delayMs: 1200 });
       st.commitStatus = 403;
       const s = await idleToOver(page, base);
       await page.fill('#nameInput', 'Rejected');
       await page.keyboard.press('Enter');
       await until(async () => st.commits.length === 1, 6000);
-      await sleep(600);
+      await sleep(500);
+      const p1 = await lsJson(page, 'matatuRush.pending');
+      check(G, 'a first 403 keeps the pending record (attempts 1), does not raise onlineBest and sends nothing more at once (no tight loop)',
+        st.commits.length === 1 && !!p1 && p1.attempts === 1 && p1.name === 'Rejected' && (await lsGet(page, 'matatuRush.onlineBest')) === '0', { n: st.commits.length, p1 });
+      await until(async () => st.commits.length === 3, 12000);
+      await sleep(2500); /* longer than a window: a fourth attempt would show now */
       const pend = await lsGet(page, 'matatuRush.pending');
-      await sleep(1800);
-      check(G, 'a 403 from the rules drops the pending record (it cannot loop), onlineBest is not raised, and there is no second request',
-        st.commits.length === 1 && pend === '' && (await lsGet(page, 'matatuRush.onlineBest')) === '0' && st.signups === 1, { commits: st.commits.length, pend, best: await lsGet(page, 'matatuRush.onlineBest') });
+      const gaps = st.commits.map((c) => c.t).slice(1).map((t, i) => t - st.commits[i].t);
+      check(G, 'a 403 that never goes away: exactly 3 attempts, each at least one window (1.2 s here) after the previous answer, the record is then dropped, onlineBest is not raised, and a re-read of the own entry (GET) comes before each retry',
+        st.commits.length === 3 && pend === '' && gaps.every((g) => g >= 1150) && st.gets.length === 2 && (await lsGet(page, 'matatuRush.onlineBest')) === '0' && st.signups === 1, { n: st.commits.length, pend, gaps, gets: st.gets.length });
       await page.reload(); await page.waitForFunction(() => !!window.MatatuRush);
-      await sleep(1200);
-      check(G, 'after a reload the dropped record is not resent', st.commits.length === 1, st.commits.length);
+      await sleep(1500);
+      check(G, 'after a reload the dropped record is not resent', st.commits.length === 3, st.commits.length);
+      await ctx.close();
+    })());
+    /* G6b: one "too soon" 403, then the retry goes through and the score is not lost */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-403b', delayMs: 1200 });
+      st.failCommits = 1;
+      const s = await idleToOver(page, base);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 2, 12000);
+      await until(async () => (await lsGet(page, 'matatuRush.pending')) === '', 4000);
+      const gap = st.commits.length === 2 ? st.commits[1].t - st.commits[0].t : -1;
+      check(G, 'one 403 and then success: the same record is retried after the window (one GET in between), is accepted, the pending record is cleared and onlineBest is raised',
+        st.commits.length === 2 && st.gets.length === 1 && gap >= 1150 && (await lsGet(page, 'matatuRush.onlineBest')) === String(s.score) && commitFields(st.commits[1]).score === String(s.score), { n: st.commits.length, gets: st.gets.length, gap });
+      await ctx.close();
+    })());
+    /* G6c: HTTP 400 (malformed) is dropped at once and never retried */
+    runScenarios.push((async () => {
+      const { ctx, page, st } = await mk({ label: 'online-400', delayMs: 1200 });
+      st.commitStatus = 400;
+      await idleToOver(page, base);
+      await page.click('#btnSkipName');
+      await until(async () => st.commits.length === 1, 6000);
+      await sleep(2800);
+      check(G, 'an HTTP 400 drops the pending record at once and nothing is retried', st.commits.length === 1 && (await lsGet(page, 'matatuRush.pending')) === '', { n: st.commits.length });
       await ctx.close();
     })());
     await Promise.all(runScenarios);
@@ -1433,7 +1714,7 @@ async function onlineBrowserChecks(browser, desktop) {
   }
 }
 
-if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, layoutChecks, onlineNodeChecks, onlineBrowserChecks, results, problems }; return; }
+if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChecks, nearMissAndRepair, layoutChecks, onlineNodeChecks, onlineSimChecks, onlineBrowserChecks, results, problems }; return; }
 
 (async () => {
   const { pw, from } = loadPlaywright();
@@ -1447,6 +1728,21 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   const desktop = { viewport: { width: 1280, height: 720 } };
   const notes = {};
   const NM_SEED = 21;
+
+  /* ONLY=online runs just the online group (Node checks, fake-world checks, mocked browser pages) and writes no report files */
+  if (process.env.ONLY) {
+    if (process.env.ONLY !== 'online') { console.error('ONLY must be "online" (the only group that can run alone)'); await browser.close(); process.exit(2); }
+    console.log('ONLY=online: running the online group only');
+    onlineNodeChecks();
+    onlineSimChecks();
+    await onlineBrowserChecks(browser, desktop);
+    await browser.close();
+    const bad = results.filter((r) => !r.ok);
+    const clean1 = problems.consoleErrors.length === 0 && problems.pageErrors.length === 0;
+    console.log('\nONLY=online: ' + (results.length - bad.length) + '/' + results.length + ' checks passed' + (clean1 ? '' : ', console errors: ' + JSON.stringify(problems.consoleErrors.concat(problems.pageErrors))));
+    if (bad.length) console.log('FAILED:\n' + bad.map((f) => ' - [' + f.group + '] ' + f.name + ' ' + f.detail).join('\n'));
+    process.exit(bad.length || !clean1 ? 1 : 0);
+  }
 
   /* ===== 1. Title, offline, no audio before gesture ===== */
   console.log('1. Title screen / offline / no audio before gesture');
@@ -2162,6 +2458,7 @@ if (require.main !== module) { module.exports = { loadPlaywright, smallScreenChe
   /* ===== 7c. Online: the shared Top 5 board (mocked network, local http server) ===== */
   console.log('\n7c. Online shared board: Node checks, then real pages on a local http server with all three Firebase hosts mocked');
   onlineNodeChecks();
+  onlineSimChecks();
   await onlineBrowserChecks(browser, desktop);
 
   /* ===== 8. Contact sheet ===== */
