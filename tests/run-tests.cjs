@@ -671,7 +671,7 @@ async function overlapBrowserChecks(browser) {
     [320, 568, true, 'key ArrowDown', 'keyboard'],
     [390, 844, true, 'a tap on #btnOverlap', 'touch']
   ];
-  /* ---- A. real human run on desktop: pick up passengers with the test bot, press the O key ---- */
+  /* ---- A. real human run on desktop: pick up passengers with the test bot, press the Shift key ---- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage(); watch(page, 'overlap-desktop');
@@ -679,7 +679,7 @@ async function overlapBrowserChecks(browser) {
     await page.waitForFunction(() => !!window.MatatuRush);
     await fontsReady(page); await sleep(300);
     const text = await page.evaluate(() => ({ title: document.getElementById('title').innerText, keys: document.querySelector('#title .keys').innerText }));
-    check(G, 'title controls text explains overlap (O or S) next to horn nitro', /overlap/i.test(text.keys) && /\bO\b/.test(text.keys) && /\bS\b/.test(text.keys) && /horn nitro/i.test(text.title), text.keys);
+    check(G, 'title controls text explains overlap (Shift) next to horn nitro', /overlap/i.test(text.keys) && /\bShift\b/.test(text.keys) && /horn nitro/i.test(text.title), text.keys);
     await page.click('#btnHow');
     const how = await page.evaluate(() => ({ rules: document.querySelector('#howto .rules').innerText, keys: document.querySelector('#howto .keys').innerText }));
     check(G, 'How to play: one line "fill it with passengers, then ride the shoulder past everything" and the key in the keys block', /Overlap/.test(how.rules) && /fill it with passengers, then ride the shoulder past everything/i.test(how.rules) && /overlap/i.test(how.keys), how);
@@ -690,16 +690,16 @@ async function overlapBrowserChecks(browser) {
     await sleep(150); /* let the HUD paint its first frame */
     const ui0 = await ovlUi(page);
     check(G, '1280x720: before any pickup the meter is empty and the button reads OVERLAP with the aria-label "Overlap charging"', s.overlap.meter === 0 && ui0.label === 'OVERLAP' && ui0.aria === 'Overlap charging' && !ui0.ready && !ui0.active && ui0.fill === 0, { overlap: s.overlap, ui0 });
-    /* not ready: O, S and ArrowDown all reach the game and answer overlapEmpty (nothing else happens) */
+    /* not ready: Shift, O, S and ArrowDown all reach the game and answer overlapEmpty (nothing else happens) */
     const e0 = (await read(page, 0)).e.length;
-    for (const k of ['o', 'S', 'ArrowDown']) { await page.keyboard.press(k); await sleep(60); }
+    for (const k of ['Shift', 'o', 'S', 'ArrowDown']) { await page.keyboard.press(k); await sleep(60); }
     let r = await read(page, e0);
     const emp = r.e.filter((x) => x.type === 'overlapEmpty');
-    check(G, '1280x720: O, S and ArrowDown while charging each give overlapEmpty (source keyboard) and start nothing', emp.length === 3 && emp.every((x) => x.source === 'keyboard' && x.reason === 'charging') && !r.s.overlap.active && r.e.filter((x) => x.type === 'overlap').length === 0, emp.map((x) => x.reason));
+    check(G, '1280x720: Shift, O, S and ArrowDown while charging each give overlapEmpty (source keyboard) and start nothing', emp.length === 4 && emp.every((x) => x.source === 'keyboard' && x.reason === 'charging') && !r.s.overlap.active && r.e.filter((x) => x.type === 'overlap').length === 0, emp.map((x) => x.reason));
     /* typing in a text box never fires it */
     await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmpType'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
     const e1 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb1 = (await snap(page)).inputs.keyboard;
-    for (const k of ['o', 'O', 's', 'ArrowDown']) { await page.keyboard.press(k); await sleep(40); }
+    for (const k of ['Shift', 'o', 'O', 's', 'ArrowDown']) { await page.keyboard.press(k); await sleep(40); }
     const e2 = (await read(page, 0)).e.filter((x) => x.type === 'overlapEmpty').length, kb2 = (await snap(page)).inputs.keyboard;
     await page.evaluate(() => { document.getElementById('tmpType').remove(); });
     check(G, '1280x720: typing O, S or ArrowDown inside a text box fires nothing (no overlapEmpty, keyboard input count unchanged)', e1 === e2 && kb1 === kb2, { e1, e2, kb1, kb2 });
@@ -714,7 +714,7 @@ async function overlapBrowserChecks(browser) {
     check(G, '1280x720: a real run fills the meter ONLY through pickups: ready after at least 8 pickups, announced once (live region says "Overlap ready")', !!readyRun && readyRun.s.stats.pickups >= 8 && readyRun.evs.filter((x) => x.type === 'overlapReady').length === 1, { pickups: readyRun && readyRun.s.stats.pickups, attempts });
     if (readyRun) {
       const liveNow = (await ovlUi(page)).live;
-      const out = await watchOverlap(page, () => page.keyboard.press('o'), {
+      const out = await watchOverlap(page, () => page.keyboard.press('Shift'), {
         since, prior: readyRun.evs,
         shot: path.join(SHOTS, '60-overlap-1280x720.png'),
         probe: async (q) => {
@@ -725,7 +725,7 @@ async function overlapBrowserChecks(browser) {
           return { hornEmpty: mine.filter((x) => x.type === 'hornEmpty' && x.reason === 'overlap').length, horn: mine.filter((x) => x.type === 'horn').length, lane: mine.filter((x) => x.type === 'lane' || x.type === 'bump').length, nitro: q2.horn.nitro, meterBefore: hb, meterAfter: q2.horn.meter, laneBefore: ln, laneAfter: q2.player.lane };
         }
       });
-      overlapAssertions('1280x720', 'the O key', out, 'keyboard');
+      overlapAssertions('1280x720', 'the Shift key', out, 'keyboard');
       const pr = out.probe || {};
       check(G, '1280x720: pressing Space (horn) and the lane keys while overlapping is refused: hornEmpty (reason overlap), no horn event, no nitro, horn meter not spent, no lane change', !!out.probe && pr.hornEmpty >= 1 && pr.horn === 0 && pr.lane === 0 && !pr.nitro && pr.meterAfter >= pr.meterBefore - 0.001 && pr.laneAfter === pr.laneBefore, pr);
       const fin = out.final || (await snap(page));

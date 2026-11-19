@@ -476,7 +476,7 @@
       if (k === ' ' || e.code === 'Space' || k === 'h' || k === 'H' || k === 'ArrowUp' || k === 'w' || k === 'W') {
         if (!e.repeat) g.input('horn', 'keyboard'); e.preventDefault(); return;
       }
-      if (k === 'o' || k === 'O' || k === 's' || k === 'S' || k === 'ArrowDown') {
+      if (k === 'Shift' || k === 'o' || k === 'O' || k === 's' || k === 'S' || k === 'ArrowDown') {
         if (!e.repeat) g.input('overlap', 'keyboard'); e.preventDefault(); return;
       }
       if (k === 'Escape' && g.autopilot) { toTitle(); e.preventDefault(); return; }
